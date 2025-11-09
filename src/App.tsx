@@ -22,6 +22,7 @@ import AdminDashboard from './pages/admin/Dashboard';
 import Approvals from './pages/admin/Approvals';
 import AdminEarnings from './pages/admin/Earnings';
 import TeachersManagement from './pages/admin/Teachers';
+import TeacherEdit from './pages/admin/TeacherEdit';
 import CategoriesManagement from './pages/admin/Categories';
 import PagesManagement from './pages/admin/Pages';
 import CuriositiesManagement from './pages/admin/Curiosities';
@@ -88,6 +89,7 @@ function AppRoutes() {
           <Route path="/admin/approvals" element={<ProtectedRoute requiredRole={['admin']}><Approvals /></ProtectedRoute>} />
           <Route path="/admin/earnings" element={<ProtectedRoute requiredRole={['admin']}><AdminEarnings /></ProtectedRoute>} />
           <Route path="/admin/teachers" element={<ProtectedRoute requiredRole={['admin']}><TeachersManagement /></ProtectedRoute>} />
+          <Route path="/admin/teachers/:id" element={<ProtectedRoute requiredRole={['admin']}><TeacherEdit /></ProtectedRoute>} />
           <Route path="/admin/categories" element={<ProtectedRoute requiredRole={['admin']}><CategoriesManagement /></ProtectedRoute>} />
           <Route path="/admin/pages" element={<ProtectedRoute requiredRole={['admin']}><PagesManagement /></ProtectedRoute>} />
           <Route path="/admin/curiosities" element={<ProtectedRoute requiredRole={['admin']}><CuriositiesManagement /></ProtectedRoute>} />
