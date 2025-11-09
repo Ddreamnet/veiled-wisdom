@@ -12,6 +12,10 @@ import Explore from './pages/Explore';
 import Messages from './pages/Messages';
 import Profile from './pages/Profile';
 import Appointments from './pages/Appointments';
+import CategoryDetail from './pages/CategoryDetail';
+import SubCategoryDetail from './pages/SubCategoryDetail';
+import CuriosityDetail from './pages/CuriosityDetail';
+import ListingDetail from './pages/ListingDetail';
 import MyListings from './pages/teacher/MyListings';
 import TeacherEarnings from './pages/teacher/Earnings';
 import AdminDashboard from './pages/admin/Dashboard';
@@ -67,6 +71,11 @@ function AppRoutes() {
           <Route path="/auth/sign-in" element={user ? <Navigate to="/" replace /> : <SignIn />} />
           <Route path="/auth/sign-up" element={user ? <Navigate to="/" replace /> : <SignUp />} />
           <Route path="/explore" element={<Explore />} />
+          
+          <Route path="/categories/:slug" element={<CategoryDetail />} />
+          <Route path="/categories/:slug/:subslug" element={<SubCategoryDetail />} />
+          <Route path="/curiosities/:slug" element={<CuriosityDetail />} />
+          <Route path="/listings/:id" element={<ListingDetail />} />
           
           <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
