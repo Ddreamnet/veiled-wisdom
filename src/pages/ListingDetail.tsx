@@ -22,13 +22,18 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
+type TeacherDetails = {
+  username: string;
+  avatar_url: string | null;
+  bio: string | null;
+  specialization?: string;
+  education?: string;
+  years_of_experience?: number;
+};
+
 type ListingWithDetails = Listing & {
   prices: ListingPrice[];
-  teacher: {
-    username: string;
-    avatar_url: string | null;
-    bio: string | null;
-  };
+  teacher: TeacherDetails;
 };
 
 export default function ListingDetail() {
@@ -65,10 +70,25 @@ export default function ListingDetail() {
         .eq('listing_id', id)
         .order('duration_minutes');
 
+      // Fetch teacher additional details from approved applications
+      const { data: teacherApproval } = await supabase
+        .from('teacher_approvals')
+        .select('specialization, education, years_of_experience')
+        .eq('user_id', listingData.teacher_id)
+        .eq('status', 'approved')
+        .maybeSingle();
+
+      const teacherDetails: TeacherDetails = {
+        ...(listingData as any).teacher,
+        specialization: teacherApproval?.specialization,
+        education: teacherApproval?.education,
+        years_of_experience: teacherApproval?.years_of_experience,
+      };
+
       setListing({
         ...listingData,
         prices: prices || [],
-        teacher: (listingData as any).teacher,
+        teacher: teacherDetails,
       } as any);
     }
 
@@ -366,29 +386,69 @@ export default function ListingDetail() {
           </Card>
 
           <Card>
-            <CardContent className="p-6">
-              <div className="flex items-start gap-4">
+            <CardHeader>
+              <CardTitle className="text-lg">Hoca Hakkında</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-start gap-4 pb-4 border-b">
                 {listing.teacher.avatar_url ? (
                   <img
                     src={listing.teacher.avatar_url}
                     alt={listing.teacher.username}
-                    className="w-16 h-16 rounded-full"
+                    className="w-16 h-16 rounded-full object-cover"
                   />
                 ) : (
-                  <div className="w-16 h-16 rounded-full bg-primary/20" />
+                  <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center">
+                    <span className="text-2xl text-primary">
+                      {listing.teacher.username.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
                 )}
                 <div className="flex-1">
                   <h3 className="font-semibold text-lg mb-1">
                     {listing.teacher.username}
                   </h3>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    {listing.teacher.bio || 'Biyografi eklenmemiş'}
-                  </p>
                   <div className="text-sm text-muted-foreground">
                     ⭐ Henüz yorum yok
                   </div>
                 </div>
               </div>
+
+              {listing.teacher.specialization && (
+                <div>
+                  <p className="text-sm font-medium text-foreground mb-1">Uzmanlık Alanı</p>
+                  <p className="text-sm text-muted-foreground">
+                    {listing.teacher.specialization}
+                  </p>
+                </div>
+              )}
+
+              {listing.teacher.years_of_experience !== undefined && listing.teacher.years_of_experience !== null && (
+                <div>
+                  <p className="text-sm font-medium text-foreground mb-1">Deneyim</p>
+                  <p className="text-sm text-muted-foreground">
+                    {listing.teacher.years_of_experience} yıl
+                  </p>
+                </div>
+              )}
+
+              {listing.teacher.education && (
+                <div>
+                  <p className="text-sm font-medium text-foreground mb-1">Eğitim</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {listing.teacher.education}
+                  </p>
+                </div>
+              )}
+
+              {listing.teacher.bio && (
+                <div>
+                  <p className="text-sm font-medium text-foreground mb-1">Hakkında</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {listing.teacher.bio}
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

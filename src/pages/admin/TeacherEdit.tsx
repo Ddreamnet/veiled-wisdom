@@ -5,11 +5,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, GraduationCap, Award, Calendar, Phone } from 'lucide-react';
 import { AvatarUpload } from '@/components/AvatarUpload';
+import { Skeleton } from '@/components/ui/skeleton';
 import { z } from 'zod';
+
+type TeacherApprovalData = {
+  date_of_birth: string | null;
+  specialization: string | null;
+  education: string | null;
+  years_of_experience: number | null;
+  phone: string | null;
+};
 
 const teacherProfileSchema = z.object({
   username: z
@@ -32,6 +41,7 @@ export default function TeacherEdit() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [approvalData, setApprovalData] = useState<TeacherApprovalData | null>(null);
   const [formData, setFormData] = useState<TeacherProfileForm>({
     username: '',
     bio: '',
@@ -64,6 +74,15 @@ export default function TeacherEdit() {
       return;
     }
 
+    // Fetch teacher approval data
+    const { data: approval } = await supabase
+      .from('teacher_approvals')
+      .select('date_of_birth, specialization, education, years_of_experience, phone')
+      .eq('user_id', id)
+      .eq('status', 'approved')
+      .maybeSingle();
+
+    setApprovalData(approval);
     setProfile(data);
     setFormData({
       username: data.username || '',
@@ -147,7 +166,17 @@ export default function TeacherEdit() {
   if (loading) {
     return (
       <div className="container py-12 max-w-2xl">
-        <p className="text-center">Yükleniyor...</p>
+        <Skeleton className="h-10 w-32 mb-6" />
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-48" />
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-32 w-full" />
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -240,33 +269,88 @@ export default function TeacherEdit() {
         </CardContent>
       </Card>
 
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle className="text-sm">Profil Bilgileri</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Kullanıcı ID:</span>
-            <span className="font-mono text-xs">{profile.id}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Kayıt Tarihi:</span>
-            <span>
-              {new Date(profile.created_at).toLocaleDateString('tr-TR')}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Onay Durumu:</span>
-            <span>
-              {profile.is_teacher_approved ? (
-                <span className="text-green-500">✓ Onaylı</span>
-              ) : (
-                <span className="text-muted-foreground">Onay Bekliyor</span>
+      <div className="grid gap-6 mt-6 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Profil Bilgileri</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Kullanıcı ID:</span>
+              <span className="font-mono text-xs">{profile.id}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Kayıt Tarihi:</span>
+              <span>
+                {new Date(profile.created_at).toLocaleDateString('tr-TR')}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Onay Durumu:</span>
+              <span>
+                {profile.is_teacher_approved ? (
+                  <span className="text-green-500">✓ Onaylı</span>
+                ) : (
+                  <span className="text-muted-foreground">Onay Bekliyor</span>
+                )}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {approvalData && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Hoca Detayları</CardTitle>
+              <CardDescription className="text-xs">Başvuru sırasında verilen bilgiler</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              {approvalData.date_of_birth && (
+                <div className="flex items-start gap-3">
+                  <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="font-medium text-xs text-muted-foreground">Doğum Tarihi</p>
+                    <p>{new Date(approvalData.date_of_birth).toLocaleDateString('tr-TR')}</p>
+                  </div>
+                </div>
               )}
-            </span>
-          </div>
-        </CardContent>
-      </Card>
+              {approvalData.phone && (
+                <div className="flex items-start gap-3">
+                  <Phone className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="font-medium text-xs text-muted-foreground">Telefon</p>
+                    <p>{approvalData.phone}</p>
+                  </div>
+                </div>
+              )}
+              {approvalData.specialization && (
+                <div className="flex items-start gap-3">
+                  <Award className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="font-medium text-xs text-muted-foreground">Uzmanlık Alanı</p>
+                    <p>{approvalData.specialization}</p>
+                  </div>
+                </div>
+              )}
+              {approvalData.years_of_experience !== null && (
+                <div className="flex items-start gap-3">
+                  <GraduationCap className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="font-medium text-xs text-muted-foreground">Deneyim</p>
+                    <p>{approvalData.years_of_experience} yıl</p>
+                  </div>
+                </div>
+              )}
+              {approvalData.education && (
+                <div className="pt-2 border-t">
+                  <p className="font-medium text-xs text-muted-foreground mb-1">Eğitim</p>
+                  <p className="text-muted-foreground leading-relaxed">{approvalData.education}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }
