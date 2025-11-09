@@ -115,6 +115,9 @@ export function Header() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem asChild>
+                    <Link to="/admin">Dashboard</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
                     <Link to="/profile">Hesabım</Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />

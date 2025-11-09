@@ -12,6 +12,20 @@ import Explore from './pages/Explore';
 import Messages from './pages/Messages';
 import Profile from './pages/Profile';
 import Appointments from './pages/Appointments';
+import AdminDashboard from './pages/admin/Dashboard';
+import Approvals from './pages/admin/Approvals';
+import AdminEarnings from './pages/admin/Earnings';
+import TeachersManagement from './pages/admin/Teachers';
+import CategoriesManagement from './pages/admin/Categories';
+import PagesManagement from './pages/admin/Pages';
+import CuriositiesManagement from './pages/admin/Curiosities';
+import About from './pages/static/About';
+import HowItWorks from './pages/static/HowItWorks';
+import Production from './pages/static/Production';
+import Contact from './pages/static/Contact';
+import Terms from './pages/static/Terms';
+import Privacy from './pages/static/Privacy';
+import FAQ from './pages/static/FAQ';
 import NotFound from './pages/NotFound';
 import './App.css';
 
@@ -55,6 +69,22 @@ function AppRoutes() {
           <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/appointments" element={<ProtectedRoute><Appointments /></ProtectedRoute>} />
+          
+          <Route path="/admin" element={<ProtectedRoute requiredRole={['admin']}><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/admin/approvals" element={<ProtectedRoute requiredRole={['admin']}><Approvals /></ProtectedRoute>} />
+          <Route path="/admin/earnings" element={<ProtectedRoute requiredRole={['admin']}><AdminEarnings /></ProtectedRoute>} />
+          <Route path="/admin/teachers" element={<ProtectedRoute requiredRole={['admin']}><TeachersManagement /></ProtectedRoute>} />
+          <Route path="/admin/categories" element={<ProtectedRoute requiredRole={['admin']}><CategoriesManagement /></ProtectedRoute>} />
+          <Route path="/admin/pages" element={<ProtectedRoute requiredRole={['admin']}><PagesManagement /></ProtectedRoute>} />
+          <Route path="/admin/curiosities" element={<ProtectedRoute requiredRole={['admin']}><CuriositiesManagement /></ProtectedRoute>} />
+          
+          <Route path="/about" element={<About />} />
+          <Route path="/how-it-works" element={<HowItWorks />} />
+          <Route path="/production" element={<Production />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/faq" element={<FAQ />} />
           
           <Route path="*" element={<NotFound />} />
         </Routes>
