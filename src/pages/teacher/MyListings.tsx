@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Edit, Trash2 } from 'lucide-react';
+import { ImageUpload } from '@/components/ImageUpload';
 import {
   Dialog,
   DialogContent,
@@ -43,6 +44,7 @@ export default function MyListings() {
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [isActive, setIsActive] = useState(true);
+  const [coverUrl, setCoverUrl] = useState('');
   const [price30, setPrice30] = useState('');
   const [price45, setPrice45] = useState('');
   const [price60, setPrice60] = useState('');
@@ -97,6 +99,7 @@ export default function MyListings() {
     setDescription(listing.description || '');
     setCategoryId(listing.category_id);
     setIsActive(listing.is_active);
+    setCoverUrl(listing.cover_url || '');
 
     const p30 = listing.prices.find((p) => p.duration_minutes === 30);
     const p45 = listing.prices.find((p) => p.duration_minutes === 45);
@@ -117,6 +120,7 @@ export default function MyListings() {
       description,
       category_id: categoryId,
       is_active: isActive,
+      cover_url: coverUrl || null,
       teacher_id: user.id,
     };
 
@@ -205,6 +209,7 @@ export default function MyListings() {
     setDescription('');
     setCategoryId('');
     setIsActive(true);
+    setCoverUrl('');
     setPrice30('');
     setPrice45('');
     setPrice60('');
@@ -269,6 +274,18 @@ export default function MyListings() {
                 />
                 <Label htmlFor="active">İlan aktif</Label>
               </div>
+
+              {editingId && (
+                <div>
+                  <Label>İlan Görseli</Label>
+                  <ImageUpload
+                    currentImageUrl={coverUrl}
+                    listingId={editingId}
+                    onUploadComplete={setCoverUrl}
+                    onRemove={() => setCoverUrl('')}
+                  />
+                </div>
+              )}
 
               <div className="border-t pt-4">
                 <h3 className="font-semibold mb-4">Seans Fiyatları</h3>

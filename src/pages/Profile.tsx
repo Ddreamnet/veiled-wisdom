@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { AvatarUpload } from '@/components/AvatarUpload';
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -15,6 +16,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [username, setUsername] = useState('');
   const [bio, setBio] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string>('');
 
   useEffect(() => {
     if (user) {
@@ -35,6 +37,27 @@ export default function ProfilePage() {
       setProfile(data);
       setUsername(data.username || '');
       setBio(data.bio || '');
+      setAvatarUrl(data.avatar_url || '');
+    }
+  };
+
+  const handleAvatarUpload = async (url: string) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ avatar_url: url })
+      .eq('id', user.id);
+
+    if (error) {
+      toast({
+        title: 'Hata',
+        description: 'Avatar güncellenemedi.',
+        variant: 'destructive',
+      });
+    } else {
+      setAvatarUrl(url);
+      fetchProfile();
     }
   };
 
@@ -69,7 +92,17 @@ export default function ProfilePage() {
         <CardHeader>
           <CardTitle>Hesabım</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
+          {user && (
+            <div className="flex justify-center">
+              <AvatarUpload
+                currentAvatarUrl={avatarUrl}
+                userId={user.id}
+                onUploadComplete={handleAvatarUpload}
+              />
+            </div>
+          )}
+          
           <div className="space-y-2">
             <Label htmlFor="email">E-posta</Label>
             <Input id="email" value={user?.email || ''} disabled />

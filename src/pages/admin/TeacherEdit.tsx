@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Save } from 'lucide-react';
+import { AvatarUpload } from '@/components/AvatarUpload';
 import { z } from 'zod';
 
 const teacherProfileSchema = z.object({
@@ -20,11 +21,6 @@ const teacherProfileSchema = z.object({
     .string()
     .max(500, { message: 'Biyografi en fazla 500 karakter olabilir' })
     .optional(),
-  avatar_url: z
-    .string()
-    .url({ message: 'Geçerli bir URL giriniz' })
-    .optional()
-    .or(z.literal('')),
 });
 
 type TeacherProfileForm = z.infer<typeof teacherProfileSchema>;
@@ -39,8 +35,8 @@ export default function TeacherEdit() {
   const [formData, setFormData] = useState<TeacherProfileForm>({
     username: '',
     bio: '',
-    avatar_url: '',
   });
+  const [avatarUrl, setAvatarUrl] = useState('');
   const [errors, setErrors] = useState<Partial<Record<keyof TeacherProfileForm, string>>>({});
 
   useEffect(() => {
@@ -72,8 +68,8 @@ export default function TeacherEdit() {
     setFormData({
       username: data.username || '',
       bio: data.bio || '',
-      avatar_url: data.avatar_url || '',
     });
+    setAvatarUrl(data.avatar_url || '');
     setLoading(false);
   };
 
@@ -113,7 +109,7 @@ export default function TeacherEdit() {
     const updateData = {
       username: formData.username.trim(),
       bio: formData.bio?.trim() || null,
-      avatar_url: formData.avatar_url?.trim() || null,
+      avatar_url: avatarUrl || null,
     };
 
     const { error } = await supabase
@@ -197,35 +193,14 @@ export default function TeacherEdit() {
             </div>
 
             <div>
-              <Label htmlFor="avatar_url">Avatar URL</Label>
-              <Input
-                id="avatar_url"
-                type="url"
-                value={formData.avatar_url}
-                onChange={(e) => handleInputChange('avatar_url', e.target.value)}
-                placeholder="https://example.com/avatar.jpg"
-                className={errors.avatar_url ? 'border-destructive' : ''}
-              />
-              {errors.avatar_url && (
-                <p className="text-sm text-destructive mt-1">{errors.avatar_url}</p>
-              )}
-              {formData.avatar_url && !errors.avatar_url && (
-                <div className="mt-4">
-                  <p className="text-sm text-muted-foreground mb-2">Önizleme:</p>
-                  <img
-                    src={formData.avatar_url}
-                    alt="Avatar önizleme"
-                    className="w-24 h-24 rounded-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                      setErrors((prev) => ({
-                        ...prev,
-                        avatar_url: 'Resim yüklenemedi',
-                      }));
-                    }}
-                  />
-                </div>
-              )}
+              <Label className="mb-4 block">Avatar</Label>
+              <div className="flex justify-center">
+                <AvatarUpload
+                  currentAvatarUrl={avatarUrl}
+                  userId={id!}
+                  onUploadComplete={setAvatarUrl}
+                />
+              </div>
             </div>
 
             <div>
