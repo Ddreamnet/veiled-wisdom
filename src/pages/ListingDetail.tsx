@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase, Listing, ListingPrice } from '@/lib/supabase';
+import { supabase, Listing, ListingPrice, Review } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { MessageSquare, Calendar, Clock, DollarSign } from 'lucide-react';
+import { MessageSquare, Calendar, Clock, DollarSign, Star } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Input } from '@/components/ui/input';
 import {
@@ -31,9 +32,18 @@ type TeacherDetails = {
   years_of_experience?: number;
 };
 
+type ReviewWithProfile = Review & {
+  customer: {
+    username: string;
+    avatar_url: string | null;
+  };
+};
+
 type ListingWithDetails = Listing & {
   prices: ListingPrice[];
   teacher: TeacherDetails;
+  reviews: ReviewWithProfile[];
+  averageRating: number;
 };
 
 export default function ListingDetail() {
@@ -47,6 +57,8 @@ export default function ListingDetail() {
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [bookingLoading, setBookingLoading] = useState(false);
+  const [reviews, setReviews] = useState<ReviewWithProfile[]>([]);
+  const [averageRating, setAverageRating] = useState(0);
 
   useEffect(() => {
     if (id) {
@@ -85,10 +97,30 @@ export default function ListingDetail() {
         years_of_experience: teacherApproval?.years_of_experience,
       };
 
+      // Fetch reviews
+      const { data: reviewsData } = await supabase
+        .from('reviews')
+        .select('*, customer:profiles!reviews_customer_id_fkey(username, avatar_url)')
+        .eq('listing_id', id)
+        .order('created_at', { ascending: false });
+
+      const reviewsList = (reviewsData || []) as ReviewWithProfile[];
+      setReviews(reviewsList);
+      
+      // Calculate average rating
+      if (reviewsList.length > 0) {
+        const avg = reviewsList.reduce((sum, r) => sum + r.rating, 0) / reviewsList.length;
+        setAverageRating(Math.round(avg * 10) / 10);
+      }
+
       setListing({
         ...listingData,
         prices: prices || [],
         teacher: teacherDetails,
+        reviews: reviewsList,
+        averageRating: reviewsList.length > 0 
+          ? reviewsList.reduce((sum, r) => sum + r.rating, 0) / reviewsList.length 
+          : 0,
       } as any);
     }
 
@@ -248,12 +280,61 @@ export default function ListingDetail() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Yorumlar</CardTitle>
+              <CardTitle className="flex items-center justify-between">
+                <span>Yorumlar</span>
+                {reviews.length > 0 && (
+                  <div className="flex items-center gap-1 text-lg">
+                    <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+                    <span className="font-semibold">{averageRating.toFixed(1)}</span>
+                    <span className="text-sm text-muted-foreground">({reviews.length})</span>
+                  </div>
+                )}
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground text-center py-8">
-                Henüz yorum bulunmuyor.
-              </p>
+              {reviews.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">
+                  Henüz yorum bulunmuyor.
+                </p>
+              ) : (
+                <div className="space-y-6">
+                  {reviews.map((review) => (
+                    <div key={review.id} className="border-b last:border-0 pb-6 last:pb-0">
+                      <div className="flex items-start gap-4 mb-3">
+                        <Avatar>
+                          <AvatarImage src={review.customer.avatar_url || undefined} />
+                          <AvatarFallback>
+                            {review.customer.username.charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="font-semibold">{review.customer.username}</p>
+                            <div className="flex items-center gap-1">
+                              {Array.from({ length: 5 }).map((_, i) => (
+                                <Star
+                                  key={i}
+                                  className={`w-4 h-4 ${
+                                    i < review.rating
+                                      ? 'fill-yellow-400 text-yellow-400'
+                                      : 'text-muted-foreground'
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            {new Date(review.created_at).toLocaleDateString('tr-TR')}
+                          </p>
+                          <p className="text-sm text-foreground leading-relaxed">
+                            {review.comment}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -408,9 +489,17 @@ export default function ListingDetail() {
                   <h3 className="font-semibold text-lg mb-1">
                     {listing.teacher.username}
                   </h3>
-                  <div className="text-sm text-muted-foreground">
-                    ⭐ Henüz yorum yok
-                  </div>
+                  {reviews.length > 0 ? (
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                      <span className="font-semibold">{averageRating.toFixed(1)}</span>
+                      <span>({reviews.length} değerlendirme)</span>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground">
+                      Henüz değerlendirme yok
+                    </div>
+                  )}
                 </div>
               </div>
 

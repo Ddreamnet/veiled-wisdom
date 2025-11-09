@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Check, X } from 'lucide-react';
+import { ReviewDialog } from '@/components/ReviewDialog';
 
 export default function Appointments() {
   const { user, role } = useAuth();
@@ -14,6 +15,7 @@ export default function Appointments() {
   const [pending, setPending] = useState<Appointment[]>([]);
   const [completed, setCompleted] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState<string | null>(null);
+  const [reviewedAppointments, setReviewedAppointments] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (user) {
@@ -31,7 +33,7 @@ export default function Appointments() {
       .from('appointments')
       .select(`
         *,
-        listing:listings(title),
+        listing:listings(title, id),
         customer:profiles!appointments_customer_id_fkey(username),
         teacher:profiles!appointments_teacher_id_fkey(username)
       `)
@@ -43,7 +45,7 @@ export default function Appointments() {
       .from('appointments')
       .select(`
         *,
-        listing:listings(title),
+        listing:listings(title, id),
         customer:profiles!appointments_customer_id_fkey(username),
         teacher:profiles!appointments_teacher_id_fkey(username)
       `)
@@ -52,7 +54,32 @@ export default function Appointments() {
       .order('start_ts', { ascending: false });
 
     if (pendingData) setPending(pendingData as any);
-    if (completedData) setCompleted(completedData as any);
+    if (completedData) {
+      setCompleted(completedData as any);
+      
+      // Check which appointments have been reviewed
+      if (role === 'customer') {
+        const appointmentIds = completedData.map((a: any) => a.id);
+        const { data: reviews } = await supabase
+          .from('reviews')
+          .select('id')
+          .in('listing_id', completedData.map((a: any) => a.listing?.id).filter(Boolean))
+          .eq('customer_id', user.id);
+        
+        if (reviews) {
+          const reviewedListings = new Set(
+            completedData
+              .filter((a: any) => 
+                reviews.some((r: any) => 
+                  completedData.find((ap: any) => ap.listing?.id === a.listing?.id && ap.customer_id === user.id)
+                )
+              )
+              .map((a: any) => a.id)
+          );
+          setReviewedAppointments(reviewedListings);
+        }
+      }
+    }
   };
 
   const handleStatusUpdate = async (appointment: any, newStatus: 'confirmed' | 'cancelled') => {
@@ -99,10 +126,12 @@ export default function Appointments() {
     }
   };
 
-  const renderAppointment = (appointment: any) => {
+  const renderAppointment = (appointment: any, isCompletedTab = false) => {
     const isPending = appointment.status === 'pending';
     const isTeacher = role === 'teacher';
+    const isCustomer = role === 'customer';
     const isLoading = loading === appointment.id;
+    const hasReviewed = reviewedAppointments.has(appointment.id);
 
     return (
       <Card key={appointment.id} className="mb-4">
@@ -146,6 +175,23 @@ export default function Appointments() {
               </Button>
             </div>
           )}
+
+          {isCustomer && isCompletedTab && appointment.listing?.id && !hasReviewed && (
+            <div className="pt-2">
+              <ReviewDialog
+                appointmentId={appointment.id}
+                listingId={appointment.listing.id}
+                customerId={user!.id}
+                onReviewSubmitted={fetchAppointments}
+              />
+            </div>
+          )}
+
+          {isCustomer && isCompletedTab && hasReviewed && (
+            <p className="text-xs text-muted-foreground pt-2">
+              ✓ Değerlendirme yapıldı
+            </p>
+          )}
         </CardContent>
       </Card>
     );
@@ -165,7 +211,7 @@ export default function Appointments() {
               Bekleyen randevunuz bulunmuyor.
             </p>
           ) : (
-            pending.map(renderAppointment)
+            pending.map((apt) => renderAppointment(apt, false))
           )}
         </TabsContent>
         <TabsContent value="completed" className="mt-6">
@@ -174,7 +220,7 @@ export default function Appointments() {
               Tamamlanmış randevunuz bulunmuyor.
             </p>
           ) : (
-            completed.map(renderAppointment)
+            completed.map((apt) => renderAppointment(apt, true))
           )}
         </TabsContent>
       </Tabs>
