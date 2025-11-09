@@ -130,9 +130,41 @@ export default function ListingDetail() {
       return;
     }
 
+    // Get user profiles for email
+    const { data: customerProfile } = await supabase
+      .from('profiles')
+      .select('username')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    const { data: teacherProfile } = await supabase
+      .from('profiles')
+      .select('username')
+      .eq('user_id', listing.teacher_id)
+      .maybeSingle();
+
+    // Send email notifications
+    try {
+      await supabase.functions.invoke('send-appointment-email', {
+        body: {
+          customerUserId: user.id,
+          customerName: customerProfile?.username || 'Kullanıcı',
+          teacherUserId: listing.teacher_id,
+          teacherName: teacherProfile?.username || listing.teacher.username,
+          listingTitle: listing.title,
+          startTime: startTs.toISOString(),
+          duration: selectedDuration,
+          price: selectedPrice.price,
+        },
+      });
+    } catch (emailError) {
+      console.error('Email sending failed:', emailError);
+      // Don't block the booking if email fails
+    }
+
     toast({
       title: 'Randevu Oluşturuldu',
-      description: 'Randevunuz başarıyla oluşturuldu.',
+      description: 'Randevunuz başarıyla oluşturuldu. Email bildirimleri gönderildi.',
     });
 
     navigate('/appointments');

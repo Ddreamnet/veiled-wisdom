@@ -1,0 +1,4 @@
+project_id = ""
+
+[functions.send-appointment-email]
+verify_jwt = false
