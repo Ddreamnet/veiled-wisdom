@@ -6,8 +6,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Textarea } from '@/components/ui/textarea';
 import { UserRole } from '@/lib/supabase';
+import { useToast } from '@/hooks/use-toast';
+import { z } from 'zod';
 import logo from '@/assets/logo.png';
+
+const teacherApplicationSchema = z.object({
+  dateOfBirth: z.string().min(1, 'Doğum tarihi gereklidir'),
+  specialization: z.string().trim().min(3, 'Uzmanlık alanı en az 3 karakter olmalıdır').max(200, 'Uzmanlık alanı en fazla 200 karakter olabilir'),
+  education: z.string().trim().min(10, 'Eğitim bilgisi en az 10 karakter olmalıdır').max(500, 'Eğitim bilgisi en fazla 500 karakter olabilir'),
+  yearsOfExperience: z.number().min(0, 'Deneyim yılı 0 veya daha büyük olmalıdır').max(70, 'Lütfen geçerli bir deneyim yılı girin'),
+  phone: z.string().trim().min(10, 'Telefon numarası en az 10 karakter olmalıdır').max(20, 'Telefon numarası en fazla 20 karakter olabilir'),
+});
 
 export default function SignUp() {
   const [email, setEmail] = useState('');
@@ -16,13 +27,52 @@ export default function SignUp() {
   const [role, setRole] = useState<UserRole>('customer');
   const [loading, setLoading] = useState(false);
   const { signUp } = useAuth();
+  const { toast } = useToast();
   const navigate = useNavigate();
+  
+  // Teacher application fields
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [specialization, setSpecialization] = useState('');
+  const [education, setEducation] = useState('');
+  const [yearsOfExperience, setYearsOfExperience] = useState('');
+  const [phone, setPhone] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await signUp(email, password, username, role);
+    // Validate teacher application if role is teacher
+    if (role === 'teacher') {
+      try {
+        teacherApplicationSchema.parse({
+          dateOfBirth,
+          specialization,
+          education,
+          yearsOfExperience: Number(yearsOfExperience),
+          phone,
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          toast({
+            title: 'Doğrulama Hatası',
+            description: error.issues[0].message,
+            variant: 'destructive',
+          });
+          setLoading(false);
+          return;
+        }
+      }
+    }
+
+    const teacherData = role === 'teacher' ? {
+      dateOfBirth,
+      specialization,
+      education,
+      yearsOfExperience: Number(yearsOfExperience),
+      phone,
+    } : undefined;
+
+    const { error } = await signUp(email, password, username, role, teacherData);
     
     if (!error) {
       navigate('/');
@@ -91,6 +141,69 @@ export default function SignUp() {
                 </div>
               </RadioGroup>
             </div>
+
+            {role === 'teacher' && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="dateOfBirth">Doğum Tarihi *</Label>
+                  <Input
+                    id="dateOfBirth"
+                    type="date"
+                    value={dateOfBirth}
+                    onChange={(e) => setDateOfBirth(e.target.value)}
+                    required
+                    max={new Date().toISOString().split('T')[0]}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Telefon *</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="05XX XXX XX XX"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    required
+                    maxLength={20}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="specialization">Uzmanlık Alanı *</Label>
+                  <Input
+                    id="specialization"
+                    placeholder="Örn: Matematik, Fizik, İngilizce"
+                    value={specialization}
+                    onChange={(e) => setSpecialization(e.target.value)}
+                    required
+                    maxLength={200}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="education">Eğitim Bilgisi *</Label>
+                  <Textarea
+                    id="education"
+                    placeholder="Mezun olduğunuz okul ve bölüm bilgileri"
+                    value={education}
+                    onChange={(e) => setEducation(e.target.value)}
+                    required
+                    rows={3}
+                    maxLength={500}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="yearsOfExperience">Deneyim (Yıl) *</Label>
+                  <Input
+                    id="yearsOfExperience"
+                    type="number"
+                    min="0"
+                    max="70"
+                    value={yearsOfExperience}
+                    onChange={(e) => setYearsOfExperience(e.target.value)}
+                    required
+                  />
+                </div>
+              </>
+            )}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Kayıt yapılıyor...' : 'Kayıt Ol'}
             </Button>

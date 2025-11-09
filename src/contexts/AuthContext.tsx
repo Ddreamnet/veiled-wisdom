@@ -3,13 +3,21 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase, UserRole } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 
+type TeacherApplicationData = {
+  dateOfBirth: string;
+  specialization: string;
+  education: string;
+  yearsOfExperience: number;
+  phone: string;
+};
+
 type AuthContextType = {
   user: User | null;
   session: Session | null;
   role: UserRole | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string, username: string, role: UserRole) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, username: string, role: UserRole, teacherData?: TeacherApplicationData) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 };
 
@@ -90,7 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signUp = async (email: string, password: string, username: string, selectedRole: UserRole) => {
+  const signUp = async (email: string, password: string, username: string, selectedRole: UserRole, teacherData?: TeacherApplicationData) => {
     try {
       const redirectUrl = `${window.location.origin}/`;
       
@@ -142,13 +150,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.error('Role creation error:', roleError);
         }
 
-        if (selectedRole === 'teacher') {
+        if (selectedRole === 'teacher' && teacherData) {
           const { error: approvalError } = await supabase
             .from('teacher_approvals')
             .insert([
               {
                 user_id: data.user.id,
                 status: 'pending',
+                date_of_birth: teacherData.dateOfBirth,
+                specialization: teacherData.specialization,
+                education: teacherData.education,
+                years_of_experience: teacherData.yearsOfExperience,
+                phone: teacherData.phone,
               },
             ]);
 

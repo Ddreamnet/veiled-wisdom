@@ -22,6 +22,11 @@ type TeacherApproval = {
   user_id: string;
   status: string;
   created_at: string;
+  date_of_birth: string | null;
+  specialization: string | null;
+  education: string | null;
+  years_of_experience: number | null;
+  phone: string | null;
   profiles: {
     username: string;
     avatar_url: string | null;
@@ -140,8 +145,43 @@ export default function Approvals() {
                   <Badge>{approval.status}</Badge>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="flex gap-2">
+              <CardContent className="space-y-4">
+                <div className="grid gap-3 text-sm">
+                  {approval.date_of_birth && (
+                    <div>
+                      <span className="font-medium">Doğum Tarihi:</span>{' '}
+                      <span className="text-muted-foreground">
+                        {new Date(approval.date_of_birth).toLocaleDateString('tr-TR')}
+                      </span>
+                    </div>
+                  )}
+                  {approval.phone && (
+                    <div>
+                      <span className="font-medium">Telefon:</span>{' '}
+                      <span className="text-muted-foreground">{approval.phone}</span>
+                    </div>
+                  )}
+                  {approval.specialization && (
+                    <div>
+                      <span className="font-medium">Uzmanlık Alanı:</span>{' '}
+                      <span className="text-muted-foreground">{approval.specialization}</span>
+                    </div>
+                  )}
+                  {approval.education && (
+                    <div>
+                      <span className="font-medium">Eğitim:</span>{' '}
+                      <span className="text-muted-foreground">{approval.education}</span>
+                    </div>
+                  )}
+                  {approval.years_of_experience !== null && (
+                    <div>
+                      <span className="font-medium">Deneyim:</span>{' '}
+                      <span className="text-muted-foreground">{approval.years_of_experience} yıl</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-2 pt-2">
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button size="sm" disabled={loading}>
