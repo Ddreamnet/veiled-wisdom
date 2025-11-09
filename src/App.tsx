@@ -12,6 +12,8 @@ import Explore from './pages/Explore';
 import Messages from './pages/Messages';
 import Profile from './pages/Profile';
 import Appointments from './pages/Appointments';
+import MyListings from './pages/teacher/MyListings';
+import TeacherEarnings from './pages/teacher/Earnings';
 import AdminDashboard from './pages/admin/Dashboard';
 import Approvals from './pages/admin/Approvals';
 import AdminEarnings from './pages/admin/Earnings';
@@ -69,6 +71,9 @@ function AppRoutes() {
           <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/appointments" element={<ProtectedRoute><Appointments /></ProtectedRoute>} />
+          
+          <Route path="/my-listings" element={<ProtectedRoute requiredRole={['teacher']}><MyListings /></ProtectedRoute>} />
+          <Route path="/earnings" element={<ProtectedRoute requiredRole={['teacher']}><TeacherEarnings /></ProtectedRoute>} />
           
           <Route path="/admin" element={<ProtectedRoute requiredRole={['admin']}><AdminDashboard /></ProtectedRoute>} />
           <Route path="/admin/approvals" element={<ProtectedRoute requiredRole={['admin']}><Approvals /></ProtectedRoute>} />
