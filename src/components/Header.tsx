@@ -11,24 +11,35 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { UserCircle, LogOut, Settings, Calendar, MessageSquare, LayoutDashboard, BookOpen, DollarSign, Menu } from 'lucide-react';
+import { useScrollPosition } from '@/hooks/useScrollPosition';
 
 export function Header() {
   const { user, role, signOut } = useAuth();
+  const scrollPosition = useScrollPosition();
+  const isScrolled = scrollPosition > 50;
 
   return (
-    <header className="sticky top-0 z-50 w-full glass-effect border-b border-silver/10 shadow-elegant">
+    <header className={`sticky top-0 z-50 w-full glass-effect border-b border-silver/10 shadow-elegant transition-all duration-500 ${
+      isScrolled ? 'backdrop-blur-xl bg-background/80' : 'backdrop-blur-md bg-background/60'
+    }`}>
       <div className="w-full">
-        <div className="flex h-16 items-center justify-between">
+        <div className={`flex items-center justify-between transition-all duration-500 ${
+          isScrolled ? 'h-14' : 'h-16'
+        }`}>
           <Link to="/" className="flex items-center gap-3 group">
             <div className="relative">
               <img 
                 src={logo} 
                 alt="Leyl" 
-                className="h-10 w-10 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6" 
+                className={`transition-all duration-500 group-hover:scale-110 group-hover:rotate-6 ${
+                  isScrolled ? 'h-8 w-8' : 'h-10 w-10'
+                }`} 
               />
               <div className="absolute inset-0 bg-primary/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </div>
-            <span className="text-2xl font-serif font-bold text-gradient-silver">Leyl</span>
+            <span className={`font-serif font-bold text-gradient-silver transition-all duration-500 ${
+              isScrolled ? 'text-xl' : 'text-2xl'
+            }`}>Leyl</span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-1 ml-auto">
