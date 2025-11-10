@@ -23,7 +23,7 @@ const HeaderComponent = () => {
     <header className={`sticky top-0 z-50 w-full glass-effect border-b border-silver/10 shadow-elegant transition-all duration-500 ${
       isScrolled ? 'backdrop-blur-xl bg-background/80' : 'backdrop-blur-md bg-background/60'
     }`}>
-      <div className="w-full">
+      <div className="container mx-auto px-4">
         <div className={`flex items-center justify-between transition-all duration-500 ${
           isScrolled ? 'h-14' : 'h-16'
         }`}>

@@ -39,7 +39,7 @@ const FooterComponent = () => {
       </div>
 
       <div className="relative w-full py-8">
-        <div className="w-full">
+        <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-8 md:gap-4 mb-8">
             <div className="flex items-center justify-center">
               <Link to="/" className="flex items-center gap-3 group">
@@ -210,7 +210,7 @@ const FooterComponent = () => {
       </div>
 
       <div className="relative w-full">
-        <div className="w-full border-t border-silver/10 py-4">
+        <div className="container mx-auto px-4 border-t border-silver/10 py-4">
           <p className="text-xs text-silver-muted/80 text-center">
             © {new Date().getFullYear()} Leyl. Tüm hakları saklıdır.
           </p>
