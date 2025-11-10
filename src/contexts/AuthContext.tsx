@@ -79,7 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -90,6 +90,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           description: error.message,
           variant: "destructive",
         });
+        return { error };
+      }
+
+      // E-posta onayı kontrolü
+      if (data.user && !data.user.email_confirmed_at) {
+        await supabase.auth.signOut();
+        const confirmError = new Error("Lütfen e-posta adresinize gönderilen linke tıklayarak hesabınızı onaylayın.");
+        toast({
+          title: "E-posta Onayı Gerekli",
+          description: confirmError.message,
+          variant: "destructive",
+        });
+        return { error: confirmError };
+      }
+
+      // Teacher başvurusu pending ise giriş yapmasını engelle
+      if (data.user) {
+        const { data: approvalData } = await supabase
+          .from('teacher_approvals')
+          .select('status')
+          .eq('user_id', data.user.id)
+          .maybeSingle();
+
+        if (approvalData && approvalData.status === 'pending') {
+          await supabase.auth.signOut();
+          const pendingError = new Error("Hoca başvurunuz henüz onaylanmadı. Lütfen bekleyin.");
+          toast({
+            title: "Başvuru Beklemede",
+            description: pendingError.message,
+            variant: "destructive",
+          });
+          return { error: pendingError };
+        }
       }
       
       return { error };
@@ -123,6 +156,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (data.user) {
+        // Profile oluştur
         const { error: profileError } = await supabase
           .from('profiles')
           .insert([
@@ -135,21 +169,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (profileError) {
           console.error('Profile creation error:', profileError);
+          toast({
+            title: "Hata",
+            description: "Profil oluşturulamadı.",
+            variant: "destructive",
+          });
+          return { error: profileError };
         }
 
+        // Role ata - teacher başvurusu için customer, diğerleri için seçilen rol
+        const assignedRole = selectedRole === 'teacher' ? 'customer' : selectedRole;
         const { error: roleError } = await supabase
           .from('user_roles')
           .insert([
             {
               user_id: data.user.id,
-              role: selectedRole === 'teacher' ? 'customer' : selectedRole,
+              role: assignedRole,
             },
           ]);
 
         if (roleError) {
           console.error('Role creation error:', roleError);
+          toast({
+            title: "Hata",
+            description: "Rol ataması yapılamadı.",
+            variant: "destructive",
+          });
+          return { error: roleError };
         }
 
+        // Teacher başvurusu ise approval kaydı oluştur
         if (selectedRole === 'teacher' && teacherData) {
           const { error: approvalError } = await supabase
             .from('teacher_approvals')
@@ -167,16 +216,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           if (approvalError) {
             console.error('Teacher approval request error:', approvalError);
+            toast({
+              title: "Hata",
+              description: "Hoca başvurusu kaydedilemedi.",
+              variant: "destructive",
+            });
+            return { error: approvalError };
           }
 
+          // Kullanıcıyı çıkış yaptır - onaylanmadan giriş yapamamalı
+          await supabase.auth.signOut();
+          
           toast({
             title: "Başvuru Alındı",
-            description: "Hoca başvurunuz inceleniyor. Onaylandığında bilgilendirileceksiniz.",
+            description: "E-posta adresinize gönderilen linke tıklayarak hesabınızı onaylayın. Hoca başvurunuz incelendikten sonra giriş yapabileceksiniz.",
+            duration: 7000,
           });
         } else {
           toast({
             title: "Kayıt Başarılı",
-            description: "Hesabınız oluşturuldu.",
+            description: "E-posta adresinize gönderilen linke tıklayarak hesabınızı onaylayın.",
+            duration: 5000,
           });
         }
       }
