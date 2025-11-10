@@ -31,7 +31,7 @@ export function Header() {
             <span className="text-2xl font-serif font-bold text-gradient-silver">Leyl</span>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden md:flex items-center gap-1 ml-auto">
             {!user && (
               <>
                 <Link to="/" className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth">
