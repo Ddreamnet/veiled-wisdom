@@ -4,7 +4,7 @@ import logo from '@/assets/logo.png';
 export function Footer() {
   return (
     <footer className="w-full border-t border-silver/10 bg-card/50 backdrop-blur-sm mt-auto">
-      <div className="w-full px-6 lg:px-12 py-12">
+      <div className="w-full py-12">
         <div className="w-full">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           <div className="flex items-center justify-center">
@@ -95,7 +95,7 @@ export function Footer() {
         </div>
       </div>
 
-      <div className="w-full px-6 lg:px-12">
+      <div className="w-full">
         <div className="w-full border-t border-silver/10 pt-8 text-center">
           <p className="text-sm text-silver-muted">
             © {new Date().getFullYear()} Leyl. Tüm hakları saklıdır.
