@@ -7,7 +7,7 @@ export function Footer() {
       <div className="w-full px-6 lg:px-12 py-12">
         <div className="max-w-screen-2xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-          <div>
+          <div className="flex items-center justify-center">
             <Link to="/" className="flex items-center gap-3 group">
               <img src={logo} alt="Leyl" className="h-10 w-10" />
               <span className="text-2xl font-serif font-bold text-gradient-silver">Leyl</span>
