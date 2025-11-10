@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { Link } from 'react-router-dom';
 import logo from '@/assets/logo.png';
-import { Facebook, Twitter, Instagram, Linkedin } from 'lucide-react';
+import { Facebook, Twitter, Instagram } from 'lucide-react';
 
 const FooterComponent = () => {
   return (
@@ -158,15 +158,6 @@ const FooterComponent = () => {
               className="group relative p-3 rounded-full bg-secondary/50 backdrop-blur-sm border border-silver/10 transition-all duration-500 hover:bg-primary/20 hover:border-primary/40 hover:scale-110 hover:shadow-glow"
             >
               <Instagram className="h-5 w-5 text-silver-muted group-hover:text-primary transition-colors duration-300" />
-              <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            </a>
-            <a 
-              href="https://linkedin.com" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="group relative p-3 rounded-full bg-secondary/50 backdrop-blur-sm border border-silver/10 transition-all duration-500 hover:bg-primary/20 hover:border-primary/40 hover:scale-110 hover:shadow-glow"
-            >
-              <Linkedin className="h-5 w-5 text-silver-muted group-hover:text-primary transition-colors duration-300" />
               <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             </a>
           </div>
