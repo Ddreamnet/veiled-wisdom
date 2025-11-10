@@ -1,25 +1,30 @@
-import { memo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
-import { NavLink } from '@/components/NavLink';
-import logo from '@/assets/logo.png';
+import { memo, useState } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { NavLink } from "@/components/NavLink";
+import logo from "@/assets/logo.png";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from "@/components/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
-import { UserCircle, LogOut, Settings, Calendar, MessageSquare, LayoutDashboard, BookOpen, DollarSign, Menu, X } from 'lucide-react';
-import { useScrollPosition } from '@/hooks/useScrollPosition';
+  UserCircle,
+  LogOut,
+  Settings,
+  Calendar,
+  MessageSquare,
+  LayoutDashboard,
+  BookOpen,
+  DollarSign,
+  Menu,
+  X,
+} from "lucide-react";
+import { useScrollPosition } from "@/hooks/useScrollPosition";
 
 const HeaderComponent = () => {
   const { user, role, signOut } = useAuth();
@@ -28,58 +33,62 @@ const HeaderComponent = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <header className={`sticky top-0 z-50 w-full glass-effect border-b border-silver/10 shadow-elegant transition-all duration-500 ${
-      isScrolled ? 'backdrop-blur-xl bg-background/80' : 'backdrop-blur-md bg-background/60'
-    }`}>
+    <header
+      className={`sticky top-0 z-50 w-full glass-effect border-b border-silver/10 shadow-elegant transition-all duration-500 ${
+        isScrolled ? "backdrop-blur-xl bg-background/80" : "backdrop-blur-md bg-background/60"
+      }`}
+    >
       <div className="container mx-auto px-4">
-        <div className={`flex items-center justify-between transition-all duration-500 ${
-          isScrolled ? 'h-14' : 'h-16'
-        }`}>
+        <div
+          className={`flex items-center justify-between transition-all duration-500 ${isScrolled ? "h-14" : "h-16"}`}
+        >
           <Link to="/" className="flex items-center gap-3 group">
             <div className="relative">
-              <img 
-                src={logo} 
-                alt="Leyl" 
+              <img
+                src={logo}
+                alt="Leyl"
                 className={`transition-all duration-500 group-hover:scale-110 group-hover:rotate-6 ${
-                  isScrolled ? 'h-8 w-8' : 'h-10 w-10'
-                }`} 
+                  isScrolled ? "h-8 w-8" : "h-10 w-10"
+                }`}
               />
               <div className="absolute inset-0 bg-primary/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </div>
             <div className="flex flex-col">
-              <span className={`font-serif font-bold text-gradient-silver transition-all duration-500 ${
-                isScrolled ? 'text-2xl' : 'text-3xl'
-              }`}>Leyl</span>
-              <span className={`text-xs text-silver-muted transition-all duration-500 ${
-                isScrolled ? 'opacity-0 h-0' : 'opacity-100'
-              }`}>Gizli İlimler Platformu</span>
+              <span
+                className={`font-serif font-bold text-gradient-silver transition-all duration-500 ${
+                  isScrolled ? "text-2xl" : "text-3xl"
+                }`}
+              >
+                Leyl
+              </span>
+              <span
+                className={`text-xs text-silver-muted transition-all duration-500 ${
+                  isScrolled ? "opacity-0 h-0" : "opacity-100"
+                }`}
+              >
+                Gizli İlimler Platformu
+              </span>
             </div>
           </Link>
 
           <nav className="hidden lg:flex items-center gap-1 ml-auto">
             {!user && (
               <>
-                <Link to="/" className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth">
-                  Ana Sayfa
-                </Link>
-                <Link to="/explore" className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth">
+                <Link
+                  to="/explore"
+                  className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth"
+                >
                   Keşfet
-                </Link>
-                <Link to="/about" className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth">
-                  Hakkımızda
-                </Link>
-                <Link to="/how-it-works" className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth">
-                  Nasıl Çalışır
-                </Link>
-                <Link to="/contact" className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth">
-                  İletişim
                 </Link>
               </>
             )}
 
-            {user && role === 'customer' && (
+            {user && role === "customer" && (
               <>
-                <Link to="/explore" className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth">
+                <Link
+                  to="/explore"
+                  className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth"
+                >
                   Keşfet
                 </Link>
                 <Link to="/messages">
@@ -90,9 +99,12 @@ const HeaderComponent = () => {
               </>
             )}
 
-            {user && role === 'teacher' && (
+            {user && role === "teacher" && (
               <>
-                <Link to="/explore" className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth">
+                <Link
+                  to="/explore"
+                  className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth"
+                >
                   Keşfet
                 </Link>
                 <Link to="/messages">
@@ -108,7 +120,7 @@ const HeaderComponent = () => {
               </>
             )}
 
-            {user && role === 'admin' && (
+            {user && role === "admin" && (
               <>
                 <Link to="/admin/approvals">
                   <Button variant="ghost">Onaylamalar</Button>
@@ -136,8 +148,8 @@ const HeaderComponent = () => {
                       Profil
                     </Link>
                   </DropdownMenuItem>
-                  
-                  {role === 'customer' && (
+
+                  {role === "customer" && (
                     <>
                       <DropdownMenuItem asChild>
                         <Link to="/appointments" className="flex items-center gap-2 cursor-pointer">
@@ -148,7 +160,7 @@ const HeaderComponent = () => {
                     </>
                   )}
 
-                  {role === 'teacher' && (
+                  {role === "teacher" && (
                     <>
                       <DropdownMenuItem asChild>
                         <Link to="/teacher/my-listings" className="flex items-center gap-2 cursor-pointer">
@@ -165,7 +177,7 @@ const HeaderComponent = () => {
                     </>
                   )}
 
-                  {role === 'admin' && (
+                  {role === "admin" && (
                     <DropdownMenuItem asChild>
                       <Link to="/admin/dashboard" className="flex items-center gap-2 cursor-pointer">
                         <LayoutDashboard className="h-4 w-4" />
@@ -175,7 +187,10 @@ const HeaderComponent = () => {
                   )}
 
                   <DropdownMenuSeparator className="bg-silver/10" />
-                  <DropdownMenuItem onClick={signOut} className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive">
+                  <DropdownMenuItem
+                    onClick={signOut}
+                    className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive"
+                  >
                     <LogOut className="h-4 w-4" />
                     Çıkış Yap
                   </DropdownMenuItem>
@@ -184,14 +199,16 @@ const HeaderComponent = () => {
             ) : (
               <>
                 <Link to="/auth/sign-in">
-                  <Button variant="ghost" size="sm">Giriş Yap</Button>
+                  <Button variant="ghost" size="sm">
+                    Giriş Yap
+                  </Button>
                 </Link>
                 <Link to="/auth/sign-up">
                   <Button size="sm">Kayıt Ol</Button>
                 </Link>
               </>
             )}
-            
+
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="lg:hidden">
@@ -205,50 +222,52 @@ const HeaderComponent = () => {
                     <span className="font-serif text-gradient-silver">Menü</span>
                   </SheetTitle>
                 </SheetHeader>
-                
+
                 <nav className="flex flex-col gap-4 mt-8">
                   {!user && (
                     <>
-                      <Link 
-                        to="/" 
+                      <Link
+                        to="/"
                         onClick={() => setMobileMenuOpen(false)}
                         className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth text-left"
                       >
                         Ana Sayfa
                       </Link>
-                      <Link 
-                        to="/explore" 
+                      <Link
+                        to="/explore"
                         onClick={() => setMobileMenuOpen(false)}
                         className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth text-left"
                       >
                         Keşfet
                       </Link>
-                      <Link 
-                        to="/about" 
+                      <Link
+                        to="/about"
                         onClick={() => setMobileMenuOpen(false)}
                         className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth text-left"
                       >
                         Hakkımızda
                       </Link>
-                      <Link 
-                        to="/how-it-works" 
+                      <Link
+                        to="/how-it-works"
                         onClick={() => setMobileMenuOpen(false)}
                         className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth text-left"
                       >
                         Nasıl Çalışır
                       </Link>
-                      <Link 
-                        to="/contact" 
+                      <Link
+                        to="/contact"
                         onClick={() => setMobileMenuOpen(false)}
                         className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth text-left"
                       >
                         İletişim
                       </Link>
-                      
+
                       <div className="border-t border-silver/10 my-4" />
-                      
+
                       <Link to="/auth/sign-in" onClick={() => setMobileMenuOpen(false)}>
-                        <Button variant="ghost" className="w-full justify-start">Giriş Yap</Button>
+                        <Button variant="ghost" className="w-full justify-start">
+                          Giriş Yap
+                        </Button>
                       </Link>
                       <Link to="/auth/sign-up" onClick={() => setMobileMenuOpen(false)}>
                         <Button className="w-full">Kayıt Ol</Button>
@@ -256,48 +275,48 @@ const HeaderComponent = () => {
                     </>
                   )}
 
-                  {user && role === 'customer' && (
+                  {user && role === "customer" && (
                     <>
-                      <Link 
-                        to="/explore" 
+                      <Link
+                        to="/explore"
                         onClick={() => setMobileMenuOpen(false)}
                         className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth text-left"
                       >
                         Keşfet
                       </Link>
-                      <Link 
-                        to="/messages" 
+                      <Link
+                        to="/messages"
                         onClick={() => setMobileMenuOpen(false)}
                         className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth"
                       >
                         <MessageSquare className="h-5 w-5" />
                         Mesajlar
                       </Link>
-                      <Link 
-                        to="/appointments" 
+                      <Link
+                        to="/appointments"
                         onClick={() => setMobileMenuOpen(false)}
                         className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth"
                       >
                         <Calendar className="h-5 w-5" />
                         Randevularım
                       </Link>
-                      <Link 
-                        to="/profile" 
+                      <Link
+                        to="/profile"
                         onClick={() => setMobileMenuOpen(false)}
                         className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth"
                       >
                         <Settings className="h-5 w-5" />
                         Profil
                       </Link>
-                      
+
                       <div className="border-t border-silver/10 my-4" />
-                      
-                      <Button 
+
+                      <Button
                         onClick={() => {
                           signOut();
                           setMobileMenuOpen(false);
-                        }} 
-                        variant="ghost" 
+                        }}
+                        variant="ghost"
                         className="w-full justify-start text-destructive hover:text-destructive gap-3"
                       >
                         <LogOut className="h-5 w-5" />
@@ -306,64 +325,64 @@ const HeaderComponent = () => {
                     </>
                   )}
 
-                  {user && role === 'teacher' && (
+                  {user && role === "teacher" && (
                     <>
-                      <Link 
-                        to="/explore" 
+                      <Link
+                        to="/explore"
                         onClick={() => setMobileMenuOpen(false)}
                         className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth text-left"
                       >
                         Keşfet
                       </Link>
-                      <Link 
-                        to="/teacher/my-listings" 
+                      <Link
+                        to="/teacher/my-listings"
                         onClick={() => setMobileMenuOpen(false)}
                         className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth"
                       >
                         <BookOpen className="h-5 w-5" />
                         İlanlarım
                       </Link>
-                      <Link 
-                        to="/messages" 
+                      <Link
+                        to="/messages"
                         onClick={() => setMobileMenuOpen(false)}
                         className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth"
                       >
                         <MessageSquare className="h-5 w-5" />
                         Mesajlar
                       </Link>
-                      <Link 
-                        to="/teacher/earnings" 
+                      <Link
+                        to="/teacher/earnings"
                         onClick={() => setMobileMenuOpen(false)}
                         className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth"
                       >
                         <DollarSign className="h-5 w-5" />
                         Gelirler
                       </Link>
-                      <Link 
-                        to="/appointments" 
+                      <Link
+                        to="/appointments"
                         onClick={() => setMobileMenuOpen(false)}
                         className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth"
                       >
                         <Calendar className="h-5 w-5" />
                         Randevular
                       </Link>
-                      <Link 
-                        to="/profile" 
+                      <Link
+                        to="/profile"
                         onClick={() => setMobileMenuOpen(false)}
                         className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth"
                       >
                         <Settings className="h-5 w-5" />
                         Profil
                       </Link>
-                      
+
                       <div className="border-t border-silver/10 my-4" />
-                      
-                      <Button 
+
+                      <Button
                         onClick={() => {
                           signOut();
                           setMobileMenuOpen(false);
-                        }} 
-                        variant="ghost" 
+                        }}
+                        variant="ghost"
                         className="w-full justify-start text-destructive hover:text-destructive gap-3"
                       >
                         <LogOut className="h-5 w-5" />
@@ -372,47 +391,47 @@ const HeaderComponent = () => {
                     </>
                   )}
 
-                  {user && role === 'admin' && (
+                  {user && role === "admin" && (
                     <>
-                      <Link 
-                        to="/admin/dashboard" 
+                      <Link
+                        to="/admin/dashboard"
                         onClick={() => setMobileMenuOpen(false)}
                         className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth"
                       >
                         <LayoutDashboard className="h-5 w-5" />
                         Dashboard
                       </Link>
-                      <Link 
-                        to="/admin/approvals" 
+                      <Link
+                        to="/admin/approvals"
                         onClick={() => setMobileMenuOpen(false)}
                         className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth text-left"
                       >
                         Onaylamalar
                       </Link>
-                      <Link 
-                        to="/admin/earnings" 
+                      <Link
+                        to="/admin/earnings"
                         onClick={() => setMobileMenuOpen(false)}
                         className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth text-left"
                       >
                         Gelirler
                       </Link>
-                      <Link 
-                        to="/profile" 
+                      <Link
+                        to="/profile"
                         onClick={() => setMobileMenuOpen(false)}
                         className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth"
                       >
                         <Settings className="h-5 w-5" />
                         Profil
                       </Link>
-                      
+
                       <div className="border-t border-silver/10 my-4" />
-                      
-                      <Button 
+
+                      <Button
                         onClick={() => {
                           signOut();
                           setMobileMenuOpen(false);
-                        }} 
-                        variant="ghost" 
+                        }}
+                        variant="ghost"
                         className="w-full justify-start text-destructive hover:text-destructive gap-3"
                       >
                         <LogOut className="h-5 w-5" />
