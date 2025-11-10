@@ -159,7 +159,7 @@ const FooterComponent = () => {
               <div className="space-y-2">
                 <a
                   href="#"
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary/50 backdrop-blur-sm border border-silver/10 transition-all duration-300 hover:bg-primary/20 hover:border-primary/40 hover:scale-105 group text-sm"
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary/50 backdrop-blur-sm border border-silver/10 transition-all duration-300 hover:bg-primary/20 hover:border-primary/40 hover:scale-105 group text-sm w-fit"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
                     <path
@@ -189,7 +189,7 @@ const FooterComponent = () => {
 
                 <a
                   href="#"
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary/50 backdrop-blur-sm border border-silver/10 transition-all duration-300 hover:bg-primary/20 hover:border-primary/40 hover:scale-105 group text-sm"
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary/50 backdrop-blur-sm border border-silver/10 transition-all duration-300 hover:bg-primary/20 hover:border-primary/40 hover:scale-105 group text-sm w-fit"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
                     <path
