@@ -40,7 +40,7 @@ const FooterComponent = () => {
 
       <div className="relative w-full py-12">
         <div className="w-full">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-8 mb-8">
           <div className="flex items-center justify-center">
             <Link to="/" className="flex items-center gap-3 group">
               <img src={logo} alt="Leyl" className="h-10 w-10" />
@@ -125,43 +125,79 @@ const FooterComponent = () => {
               </li>
             </ul>
           </div>
+
+          <div>
+            <h3 className="font-semibold text-silver mb-4">Bizi Takip Edin</h3>
+            
+            {/* Social Media Icons */}
+            <div className="flex gap-3 mb-6">
+              <a 
+                href="https://facebook.com" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="group relative p-2 rounded-full bg-secondary/50 backdrop-blur-sm border border-silver/10 transition-all duration-300 hover:bg-primary/20 hover:border-primary/40 hover:scale-110"
+              >
+                <Facebook className="h-4 w-4 text-silver-muted group-hover:text-primary transition-colors duration-300" />
+              </a>
+              <a 
+                href="https://twitter.com" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="group relative p-2 rounded-full bg-secondary/50 backdrop-blur-sm border border-silver/10 transition-all duration-300 hover:bg-primary/20 hover:border-primary/40 hover:scale-110"
+              >
+                <Twitter className="h-4 w-4 text-silver-muted group-hover:text-primary transition-colors duration-300" />
+              </a>
+              <a 
+                href="https://instagram.com" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="group relative p-2 rounded-full bg-secondary/50 backdrop-blur-sm border border-silver/10 transition-all duration-300 hover:bg-primary/20 hover:border-primary/40 hover:scale-110"
+              >
+                <Instagram className="h-4 w-4 text-silver-muted group-hover:text-primary transition-colors duration-300" />
+              </a>
+            </div>
+
+            {/* App Download Buttons */}
+            <div className="space-y-3">
+              <a
+                href="#"
+                className="flex items-center gap-3 px-4 py-3 rounded-lg bg-secondary/50 backdrop-blur-sm border border-silver/10 transition-all duration-300 hover:bg-primary/20 hover:border-primary/40 hover:scale-105 group"
+              >
+                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
+                  <path d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 01-.61-.92V2.734a1 1 0 01.609-.92zm10.89 10.893l2.302 2.302-10.937 6.333 8.635-8.635zm3.199-3.198l2.807 1.626a1 1 0 010 1.73l-2.808 1.626L15.206 12l2.492-2.491zM5.864 2.658L16.802 8.99l-2.303 2.303-8.635-8.635z" fill="url(#google-play-gradient)"/>
+                  <defs>
+                    <linearGradient id="google-play-gradient" x1="3" y1="1.8" x2="21" y2="22.2" gradientUnits="userSpaceOnUse">
+                      <stop stopColor="hsl(270, 80%, 60%)" />
+                      <stop offset="1" stopColor="hsl(280, 90%, 70%)" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <div className="text-left">
+                  <div className="text-xs text-silver-muted group-hover:text-silver transition-colors">İNDİR</div>
+                  <div className="text-sm font-semibold text-silver">Google Play</div>
+                </div>
+              </a>
+
+              <a
+                href="#"
+                className="flex items-center gap-3 px-4 py-3 rounded-lg bg-secondary/50 backdrop-blur-sm border border-silver/10 transition-all duration-300 hover:bg-primary/20 hover:border-primary/40 hover:scale-105 group"
+              >
+                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
+                  <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" fill="hsl(var(--silver))"/>
+                </svg>
+                <div className="text-left">
+                  <div className="text-xs text-silver-muted group-hover:text-silver transition-colors">İNDİR</div>
+                  <div className="text-sm font-semibold text-silver">App Store</div>
+                </div>
+              </a>
+            </div>
+          </div>
         </div>
         </div>
       </div>
 
       <div className="relative w-full">
         <div className="w-full border-t border-silver/10 pt-8">
-          {/* Social Media Icons */}
-          <div className="flex justify-center gap-6 mb-6">
-            <a 
-              href="https://facebook.com" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="group relative p-3 rounded-full bg-secondary/50 backdrop-blur-sm border border-silver/10 transition-all duration-500 hover:bg-primary/20 hover:border-primary/40 hover:scale-110 hover:shadow-glow"
-            >
-              <Facebook className="h-5 w-5 text-silver-muted group-hover:text-primary transition-colors duration-300" />
-              <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            </a>
-            <a 
-              href="https://twitter.com" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="group relative p-3 rounded-full bg-secondary/50 backdrop-blur-sm border border-silver/10 transition-all duration-500 hover:bg-primary/20 hover:border-primary/40 hover:scale-110 hover:shadow-glow"
-            >
-              <Twitter className="h-5 w-5 text-silver-muted group-hover:text-primary transition-colors duration-300" />
-              <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            </a>
-            <a 
-              href="https://instagram.com" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="group relative p-3 rounded-full bg-secondary/50 backdrop-blur-sm border border-silver/10 transition-all duration-500 hover:bg-primary/20 hover:border-primary/40 hover:scale-110 hover:shadow-glow"
-            >
-              <Instagram className="h-5 w-5 text-silver-muted group-hover:text-primary transition-colors duration-300" />
-              <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            </a>
-          </div>
-
           <p className="text-sm text-silver-muted text-center">
             © {new Date().getFullYear()} Leyl. Tüm hakları saklıdır.
           </p>
