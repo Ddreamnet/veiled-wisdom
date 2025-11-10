@@ -33,6 +33,16 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -51,6 +61,7 @@ export default function CategoriesManagement() {
   const [parentId, setParentId] = useState<string>('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string>('');
+  const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -136,8 +147,10 @@ export default function CategoriesManagement() {
     fetchCategories();
   };
 
-  const handleDelete = async (id: string) => {
-    const { error } = await supabase.from('categories').delete().eq('id', id);
+  const confirmDelete = async () => {
+    if (!categoryToDelete) return;
+
+    const { error } = await supabase.from('categories').delete().eq('id', categoryToDelete);
 
     if (error) {
       toast({
@@ -145,6 +158,7 @@ export default function CategoriesManagement() {
         description: 'Kategori silinemedi.',
         variant: 'destructive',
       });
+      setCategoryToDelete(null);
       return;
     }
 
@@ -153,6 +167,7 @@ export default function CategoriesManagement() {
       description: 'Kategori silindi.',
     });
 
+    setCategoryToDelete(null);
     fetchCategories();
   };
 
@@ -299,7 +314,7 @@ export default function CategoriesManagement() {
               <Button
                 size="sm"
                 variant="destructive"
-                onClick={() => handleDelete(category.id)}
+                onClick={() => setCategoryToDelete(category.id)}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -379,7 +394,7 @@ export default function CategoriesManagement() {
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => handleDelete(category.id)}
+            onClick={() => setCategoryToDelete(category.id)}
           >
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -522,6 +537,21 @@ export default function CategoriesManagement() {
           </div>
         </SortableContext>
       </DndContext>
+
+      <AlertDialog open={categoryToDelete !== null} onOpenChange={(open) => !open && setCategoryToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Kategoriyi Sil</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bu kategoriyi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>İptal</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>Sil</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
