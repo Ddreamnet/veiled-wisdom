@@ -1,8 +1,9 @@
+import { memo } from 'react';
 import { Link } from 'react-router-dom';
 import logo from '@/assets/logo.png';
 import { Facebook, Twitter, Instagram, Linkedin } from 'lucide-react';
 
-export function Footer() {
+const FooterComponent = () => {
   return (
     <footer className="relative w-full border-t border-silver/10 bg-card/50 backdrop-blur-sm mt-auto overflow-hidden">
       {/* Gradient Overlay */}
@@ -177,4 +178,6 @@ export function Footer() {
       </div>
     </footer>
   );
-}
+};
+
+export const Footer = memo(FooterComponent);

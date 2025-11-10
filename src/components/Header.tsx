@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,7 @@ import {
 import { UserCircle, LogOut, Settings, Calendar, MessageSquare, LayoutDashboard, BookOpen, DollarSign, Menu } from 'lucide-react';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
 
-export function Header() {
+const HeaderComponent = () => {
   const { user, role, signOut } = useAuth();
   const scrollPosition = useScrollPosition();
   const isScrolled = scrollPosition > 50;
@@ -186,4 +187,6 @@ export function Header() {
       </div>
     </header>
   );
-}
+};
+
+export const Header = memo(HeaderComponent);

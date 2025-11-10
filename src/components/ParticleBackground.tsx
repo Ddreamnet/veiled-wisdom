@@ -30,8 +30,8 @@ export const ParticleBackground = () => {
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
-    // Initialize particles
-    const particleCount = 50;
+    // Initialize particles (reduced for performance)
+    const particleCount = Math.min(30, Math.floor(canvas.width / 40));
     particlesRef.current = Array.from({ length: particleCount }, () => ({
       x: Math.random() * canvas.width,
       y: Math.random() * canvas.height,
@@ -86,8 +86,9 @@ export const ParticleBackground = () => {
           const dy = particle.y - otherParticle.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
 
-          if (distance < 150) {
-            const connectionOpacity = (1 - distance / 150) * 0.2;
+          // Reduced connection distance for performance
+          if (distance < 120) {
+            const connectionOpacity = (1 - distance / 120) * 0.15;
             ctx.strokeStyle = `hsla(270, 80%, 60%, ${connectionOpacity})`;
             ctx.lineWidth = 0.5;
             ctx.beginPath();

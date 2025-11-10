@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -5,36 +6,51 @@ import { Toaster } from './components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
-import Index from './pages/Index';
-import SignIn from './pages/auth/SignIn';
-import SignUp from './pages/auth/SignUp';
-import Explore from './pages/Explore';
-import Messages from './pages/Messages';
-import Profile from './pages/Profile';
-import Appointments from './pages/Appointments';
-import CategoryDetail from './pages/CategoryDetail';
-import SubCategoryDetail from './pages/SubCategoryDetail';
-import CuriosityDetail from './pages/CuriosityDetail';
-import ListingDetail from './pages/ListingDetail';
-import MyListings from './pages/teacher/MyListings';
-import TeacherEarnings from './pages/teacher/Earnings';
-import AdminDashboard from './pages/admin/Dashboard';
-import Approvals from './pages/admin/Approvals';
-import AdminEarnings from './pages/admin/Earnings';
-import TeachersManagement from './pages/admin/Teachers';
-import TeacherEdit from './pages/admin/TeacherEdit';
-import CategoriesManagement from './pages/admin/Categories';
-import PagesManagement from './pages/admin/Pages';
-import CuriositiesManagement from './pages/admin/Curiosities';
-import About from './pages/static/About';
-import HowItWorks from './pages/static/HowItWorks';
-import Production from './pages/static/Production';
-import Contact from './pages/static/Contact';
-import Terms from './pages/static/Terms';
-import Privacy from './pages/static/Privacy';
-import FAQ from './pages/static/FAQ';
-import NotFound from './pages/NotFound';
+import { Skeleton } from './components/ui/skeleton';
 import './App.css';
+
+// Lazy load pages for better performance
+const Index = lazy(() => import('./pages/Index'));
+const SignIn = lazy(() => import('./pages/auth/SignIn'));
+const SignUp = lazy(() => import('./pages/auth/SignUp'));
+const Explore = lazy(() => import('./pages/Explore'));
+const Messages = lazy(() => import('./pages/Messages'));
+const Profile = lazy(() => import('./pages/Profile'));
+const Appointments = lazy(() => import('./pages/Appointments'));
+const CategoryDetail = lazy(() => import('./pages/CategoryDetail'));
+const SubCategoryDetail = lazy(() => import('./pages/SubCategoryDetail'));
+const CuriosityDetail = lazy(() => import('./pages/CuriosityDetail'));
+const ListingDetail = lazy(() => import('./pages/ListingDetail'));
+const MyListings = lazy(() => import('./pages/teacher/MyListings'));
+const TeacherEarnings = lazy(() => import('./pages/teacher/Earnings'));
+const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
+const Approvals = lazy(() => import('./pages/admin/Approvals'));
+const AdminEarnings = lazy(() => import('./pages/admin/Earnings'));
+const TeachersManagement = lazy(() => import('./pages/admin/Teachers'));
+const TeacherEdit = lazy(() => import('./pages/admin/TeacherEdit'));
+const CategoriesManagement = lazy(() => import('./pages/admin/Categories'));
+const PagesManagement = lazy(() => import('./pages/admin/Pages'));
+const CuriositiesManagement = lazy(() => import('./pages/admin/Curiosities'));
+const About = lazy(() => import('./pages/static/About'));
+const HowItWorks = lazy(() => import('./pages/static/HowItWorks'));
+const Production = lazy(() => import('./pages/static/Production'));
+const Contact = lazy(() => import('./pages/static/Contact'));
+const Terms = lazy(() => import('./pages/static/Terms'));
+const Privacy = lazy(() => import('./pages/static/Privacy'));
+const FAQ = lazy(() => import('./pages/static/FAQ'));
+const NotFound = lazy(() => import('./pages/NotFound'));
+
+// Loading component
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <div className="space-y-4 w-full max-w-md px-4">
+      <Skeleton className="h-12 w-full" />
+      <Skeleton className="h-64 w-full" />
+      <Skeleton className="h-8 w-3/4" />
+      <Skeleton className="h-8 w-1/2" />
+    </div>
+  </div>
+);
 
 const queryClient = new QueryClient();
 
@@ -67,7 +83,8 @@ function AppRoutes() {
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1">
-        <Routes>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/auth/sign-in" element={user ? <Navigate to="/" replace /> : <SignIn />} />
           <Route path="/auth/sign-up" element={user ? <Navigate to="/" replace /> : <SignUp />} />
@@ -104,7 +121,8 @@ function AppRoutes() {
           <Route path="/faq" element={<FAQ />} />
           
           <Route path="*" element={<NotFound />} />
-        </Routes>
+          </Routes>
+        </Suspense>
       </main>
       <Footer />
     </div>

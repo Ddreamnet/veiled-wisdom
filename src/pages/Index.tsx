@@ -133,6 +133,7 @@ export default function Index() {
                   <img
                     src={curiosity.cover_url}
                     alt={curiosity.title}
+                    loading="lazy"
                     className="w-full h-full object-cover card-image"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
@@ -175,6 +176,7 @@ export default function Index() {
                     <img
                       src={category.image_url}
                       alt={category.name}
+                      loading="lazy"
                       className="w-full h-full object-cover card-image"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent" />
