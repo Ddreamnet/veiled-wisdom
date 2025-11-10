@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -11,13 +11,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { UserCircle, LogOut, Settings, Calendar, MessageSquare, LayoutDashboard, BookOpen, DollarSign, Menu } from 'lucide-react';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
+import { UserCircle, LogOut, Settings, Calendar, MessageSquare, LayoutDashboard, BookOpen, DollarSign, Menu, X } from 'lucide-react';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
 
 const HeaderComponent = () => {
   const { user, role, signOut } = useAuth();
   const scrollPosition = useScrollPosition();
   const isScrolled = scrollPosition > 50;
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
     <header className={`sticky top-0 z-50 w-full glass-effect border-b border-silver/10 shadow-elegant transition-all duration-500 ${
@@ -48,7 +56,7 @@ const HeaderComponent = () => {
             </div>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-1 ml-auto">
+          <nav className="hidden lg:flex items-center gap-1 ml-auto">
             {!user && (
               <>
                 <Link to="/" className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth">
@@ -184,9 +192,237 @@ const HeaderComponent = () => {
               </>
             )}
             
-            <Button variant="ghost" size="icon" className="md:hidden">
-              <Menu className="h-5 w-5" />
-            </Button>
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="lg:hidden">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[300px] sm:w-[400px] glass-effect border-silver/20">
+                <SheetHeader>
+                  <SheetTitle className="flex items-center gap-2">
+                    <img src={logo} alt="Leyl" className="h-8 w-8" />
+                    <span className="font-serif text-gradient-silver">Menü</span>
+                  </SheetTitle>
+                </SheetHeader>
+                
+                <nav className="flex flex-col gap-4 mt-8">
+                  {!user && (
+                    <>
+                      <Link 
+                        to="/" 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth text-left"
+                      >
+                        Ana Sayfa
+                      </Link>
+                      <Link 
+                        to="/explore" 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth text-left"
+                      >
+                        Keşfet
+                      </Link>
+                      <Link 
+                        to="/about" 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth text-left"
+                      >
+                        Hakkımızda
+                      </Link>
+                      <Link 
+                        to="/how-it-works" 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth text-left"
+                      >
+                        Nasıl Çalışır
+                      </Link>
+                      <Link 
+                        to="/contact" 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth text-left"
+                      >
+                        İletişim
+                      </Link>
+                      
+                      <div className="border-t border-silver/10 my-4" />
+                      
+                      <Link to="/auth/sign-in" onClick={() => setMobileMenuOpen(false)}>
+                        <Button variant="ghost" className="w-full justify-start">Giriş Yap</Button>
+                      </Link>
+                      <Link to="/auth/sign-up" onClick={() => setMobileMenuOpen(false)}>
+                        <Button className="w-full">Kayıt Ol</Button>
+                      </Link>
+                    </>
+                  )}
+
+                  {user && role === 'customer' && (
+                    <>
+                      <Link 
+                        to="/explore" 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth text-left"
+                      >
+                        Keşfet
+                      </Link>
+                      <Link 
+                        to="/messages" 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth"
+                      >
+                        <MessageSquare className="h-5 w-5" />
+                        Mesajlar
+                      </Link>
+                      <Link 
+                        to="/appointments" 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth"
+                      >
+                        <Calendar className="h-5 w-5" />
+                        Randevularım
+                      </Link>
+                      <Link 
+                        to="/profile" 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth"
+                      >
+                        <Settings className="h-5 w-5" />
+                        Profil
+                      </Link>
+                      
+                      <div className="border-t border-silver/10 my-4" />
+                      
+                      <Button 
+                        onClick={() => {
+                          signOut();
+                          setMobileMenuOpen(false);
+                        }} 
+                        variant="ghost" 
+                        className="w-full justify-start text-destructive hover:text-destructive gap-3"
+                      >
+                        <LogOut className="h-5 w-5" />
+                        Çıkış Yap
+                      </Button>
+                    </>
+                  )}
+
+                  {user && role === 'teacher' && (
+                    <>
+                      <Link 
+                        to="/explore" 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth text-left"
+                      >
+                        Keşfet
+                      </Link>
+                      <Link 
+                        to="/teacher/my-listings" 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth"
+                      >
+                        <BookOpen className="h-5 w-5" />
+                        İlanlarım
+                      </Link>
+                      <Link 
+                        to="/messages" 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth"
+                      >
+                        <MessageSquare className="h-5 w-5" />
+                        Mesajlar
+                      </Link>
+                      <Link 
+                        to="/teacher/earnings" 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth"
+                      >
+                        <DollarSign className="h-5 w-5" />
+                        Gelirler
+                      </Link>
+                      <Link 
+                        to="/appointments" 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth"
+                      >
+                        <Calendar className="h-5 w-5" />
+                        Randevular
+                      </Link>
+                      <Link 
+                        to="/profile" 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth"
+                      >
+                        <Settings className="h-5 w-5" />
+                        Profil
+                      </Link>
+                      
+                      <div className="border-t border-silver/10 my-4" />
+                      
+                      <Button 
+                        onClick={() => {
+                          signOut();
+                          setMobileMenuOpen(false);
+                        }} 
+                        variant="ghost" 
+                        className="w-full justify-start text-destructive hover:text-destructive gap-3"
+                      >
+                        <LogOut className="h-5 w-5" />
+                        Çıkış Yap
+                      </Button>
+                    </>
+                  )}
+
+                  {user && role === 'admin' && (
+                    <>
+                      <Link 
+                        to="/admin/dashboard" 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth"
+                      >
+                        <LayoutDashboard className="h-5 w-5" />
+                        Dashboard
+                      </Link>
+                      <Link 
+                        to="/admin/approvals" 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth text-left"
+                      >
+                        Onaylamalar
+                      </Link>
+                      <Link 
+                        to="/admin/earnings" 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth text-left"
+                      >
+                        Gelirler
+                      </Link>
+                      <Link 
+                        to="/profile" 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth"
+                      >
+                        <Settings className="h-5 w-5" />
+                        Profil
+                      </Link>
+                      
+                      <div className="border-t border-silver/10 my-4" />
+                      
+                      <Button 
+                        onClick={() => {
+                          signOut();
+                          setMobileMenuOpen(false);
+                        }} 
+                        variant="ghost" 
+                        className="w-full justify-start text-destructive hover:text-destructive gap-3"
+                      >
+                        <LogOut className="h-5 w-5" />
+                        Çıkış Yap
+                      </Button>
+                    </>
+                  )}
+                </nav>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </div>
