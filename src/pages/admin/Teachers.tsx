@@ -40,13 +40,13 @@ export default function TeachersManagement() {
   };
 
   return (
-    <div className="container py-12 space-y-8">
+    <div className="container py-8 md:py-12 px-4 md:px-6 lg:px-8 space-y-8">
       <div className="space-y-4">
         <AdminBreadcrumb />
-        <h1 className="text-3xl font-bold">Hocaları Düzenle</h1>
+        <h1 className="text-2xl md:text-3xl font-bold">Hocaları Düzenle</h1>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
         {teachers.map((teacher) => (
           <Card key={teacher.id} className="hover:shadow-glow transition-smooth">
             <CardContent className="p-6">

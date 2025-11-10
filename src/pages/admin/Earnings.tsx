@@ -273,7 +273,7 @@ export default function AdminEarnings() {
 
   if (loading) {
     return (
-      <div className="container py-12">
+      <div className="container py-8 md:py-12 px-4 md:px-6 lg:px-8">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-muted rounded w-1/4"></div>
           <div className="h-32 bg-muted rounded"></div>
@@ -284,11 +284,11 @@ export default function AdminEarnings() {
   }
 
   return (
-    <div className="container py-12 space-y-8">
+    <div className="container py-8 md:py-12 px-4 md:px-6 lg:px-8 space-y-8">
       <div className="space-y-4">
         <AdminBreadcrumb />
         <div>
-          <h1 className="text-3xl font-bold">Platform Gelirleri</h1>
+          <h1 className="text-2xl md:text-3xl font-bold">Platform Gelirleri</h1>
           <p className="text-muted-foreground mt-2">Hoca kazançları ve ödeme yönetimi</p>
         </div>
       </div>
@@ -336,7 +336,7 @@ export default function AdminEarnings() {
       </Card>
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Toplam Komisyon</CardTitle>

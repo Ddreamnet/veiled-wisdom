@@ -117,11 +117,11 @@ export default function CuriositiesManagement() {
   };
 
   return (
-    <div className="container py-12 space-y-8">
+    <div className="container py-8 md:py-12 px-4 md:px-6 lg:px-8 space-y-8">
       <div className="space-y-4">
         <AdminBreadcrumb />
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Merak Konuları</h1>
+          <h1 className="text-2xl md:text-3xl font-bold">Merak Konuları</h1>
           <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button

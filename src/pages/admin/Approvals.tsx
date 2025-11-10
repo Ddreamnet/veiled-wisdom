@@ -111,10 +111,10 @@ export default function Approvals() {
   };
 
   return (
-    <div className="container py-12 space-y-8">
+    <div className="container py-8 md:py-12 px-4 md:px-6 lg:px-8 space-y-8">
       <div className="space-y-4">
         <AdminBreadcrumb />
-        <h1 className="text-3xl font-bold">Hoca Başvuruları</h1>
+        <h1 className="text-2xl md:text-3xl font-bold">Hoca Başvuruları</h1>
       </div>
 
       {approvals.length === 0 ? (
