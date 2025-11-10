@@ -26,7 +26,7 @@ export default function HowItWorks() {
   ];
 
   return (
-    <div className="container py-12 max-w-6xl">
+    <div className="container py-12">
       <h1 className="text-4xl font-bold mb-8 text-center">Nasıl Çalışır</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {steps.map((step, index) => {

@@ -86,7 +86,7 @@ export default function TeacherEarnings() {
   };
 
   return (
-    <div className="container py-12 max-w-6xl">
+    <div className="container py-12">
       <h1 className="text-3xl font-bold mb-8">Gelirlerim</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">

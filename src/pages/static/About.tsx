@@ -2,7 +2,7 @@ import { Card, CardContent } from '@/components/ui/card';
 
 export default function About() {
   return (
-    <div className="container py-12 max-w-4xl">
+    <div className="container py-12">
       <h1 className="text-4xl font-bold mb-8">Biz Kimiz</h1>
       <Card>
         <CardContent className="p-8 space-y-6">

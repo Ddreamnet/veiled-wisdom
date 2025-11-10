@@ -140,7 +140,7 @@ export default function CategoriesManagement() {
   };
 
   return (
-    <div className="container py-12 max-w-4xl">
+    <div className="container py-12">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold">Kategorileri Düzenle</h1>
         <Dialog open={open} onOpenChange={setOpen}>

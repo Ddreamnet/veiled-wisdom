@@ -165,7 +165,7 @@ export default function TeacherEdit() {
 
   if (loading) {
     return (
-      <div className="container py-12 max-w-2xl">
+      <div className="container py-12">
         <Skeleton className="h-10 w-32 mb-6" />
         <Card>
           <CardHeader>
@@ -186,7 +186,7 @@ export default function TeacherEdit() {
   }
 
   return (
-    <div className="container py-12 max-w-2xl">
+    <div className="container py-12">
       <Button
         variant="ghost"
         className="mb-6"

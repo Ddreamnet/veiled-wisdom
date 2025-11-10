@@ -110,7 +110,7 @@ export default function Approvals() {
   };
 
   return (
-    <div className="container py-12 max-w-4xl">
+    <div className="container py-12">
       <h1 className="text-3xl font-bold mb-8">Hoca Başvuruları</h1>
 
       {approvals.length === 0 ? (

@@ -35,7 +35,7 @@ export default function Index() {
       {/* Hero Section with Liquid Gradient */}
       <section className="relative liquid-gradient py-32 overflow-hidden">
         <div className="container relative z-10">
-          <div className="max-w-4xl mx-auto text-center space-y-8 animate-fade-in-up">
+          <div className="text-center space-y-8 animate-fade-in-up">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-effect border border-silver/20 mb-4">
               <Sparkles className="w-4 h-4 text-primary" />
               <span className="text-sm text-silver-muted">Gizli İlimler ve Antik Bilgelik</span>
@@ -48,7 +48,7 @@ export default function Index() {
               Gizli İlimler Platformu
             </p>
             
-            <p className="text-xl text-silver-muted max-w-2xl mx-auto leading-relaxed">
+            <p className="text-xl text-silver-muted leading-relaxed">
               Antik bilgelik ve modern yaklaşımın buluştuğu platform. 
               Uzman hocalarımızla tanışın ve bilgelik yolculuğunuza başlayın.
             </p>

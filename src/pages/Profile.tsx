@@ -87,7 +87,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="container py-12 max-w-2xl">
+    <div className="container py-12">
       <Card className="glass-effect border-silver/20">
         <CardHeader>
           <CardTitle className="text-2xl font-serif text-gradient-silver">Hesabım</CardTitle>

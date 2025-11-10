@@ -35,7 +35,7 @@ export default function FAQ() {
   ];
 
   return (
-    <div className="container py-12 max-w-4xl">
+    <div className="container py-12">
       <h1 className="text-4xl font-bold mb-8">Sıkça Sorulan Sorular</h1>
       <Accordion type="single" collapsible className="w-full">
         {faqs.map((faq, index) => (

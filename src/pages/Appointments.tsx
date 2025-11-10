@@ -198,7 +198,7 @@ export default function Appointments() {
   };
 
   return (
-    <div className="container py-12 max-w-4xl">
+    <div className="container py-12">
       <h1 className="text-3xl font-bold mb-8">Randevularım</h1>
       <Tabs defaultValue="pending">
         <TabsList className="grid w-full grid-cols-2">

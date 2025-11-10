@@ -35,7 +35,7 @@ export default function CuriosityDetail() {
 
   if (loading) {
     return (
-      <div className="container py-12 max-w-4xl">
+      <div className="container py-12">
         <Skeleton className="h-8 w-32 mb-8" />
         <Skeleton className="h-12 w-3/4 mb-4" />
         <Skeleton className="h-64 w-full mb-8" />
@@ -48,14 +48,14 @@ export default function CuriosityDetail() {
 
   if (!curiosity) {
     return (
-      <div className="container py-12 max-w-4xl">
+      <div className="container py-12">
         <p className="text-center text-muted-foreground">Yazı bulunamadı.</p>
       </div>
     );
   }
 
   return (
-    <div className="container py-12 max-w-4xl">
+    <div className="container py-12">
       <Link to="/">
         <Button variant="ghost" className="mb-8">
           <ArrowLeft className="h-4 w-4 mr-2" />

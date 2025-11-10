@@ -216,7 +216,7 @@ export default function MyListings() {
   };
 
   return (
-    <div className="container py-12 max-w-6xl">
+    <div className="container py-12">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold">İlanlarım</h1>
         <Dialog open={open} onOpenChange={setOpen}>
