@@ -34,6 +34,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
+import { AdminBreadcrumb } from '@/components/AdminBreadcrumb';
 
 type TeacherEarning = {
   teacher_id: string;
@@ -283,8 +284,9 @@ export default function AdminEarnings() {
   }
 
   return (
-    <div className="container py-12 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="container py-12 space-y-8">
+      <div className="space-y-4">
+        <AdminBreadcrumb />
         <div>
           <h1 className="text-3xl font-bold">Platform Gelirleri</h1>
           <p className="text-muted-foreground mt-2">Hoca kazançları ve ödeme yönetimi</p>

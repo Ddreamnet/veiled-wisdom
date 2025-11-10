@@ -16,6 +16,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { AdminBreadcrumb } from '@/components/AdminBreadcrumb';
 
 type TeacherApproval = {
   id: string;
@@ -110,8 +111,11 @@ export default function Approvals() {
   };
 
   return (
-    <div className="container py-12">
-      <h1 className="text-3xl font-bold mb-8">Hoca Başvuruları</h1>
+    <div className="container py-12 space-y-8">
+      <div className="space-y-4">
+        <AdminBreadcrumb />
+        <h1 className="text-3xl font-bold">Hoca Başvuruları</h1>
+      </div>
 
       {approvals.length === 0 ? (
         <Card>

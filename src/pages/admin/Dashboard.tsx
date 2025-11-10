@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
+import { AdminBreadcrumb } from '@/components/AdminBreadcrumb';
 
 type DashboardStats = {
   totalTeachers: number;
@@ -189,9 +190,12 @@ export default function AdminDashboard() {
 
   return (
     <div className="container py-12 space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold">Admin Paneli</h1>
-        <p className="text-muted-foreground mt-2">Sistem özeti ve yönetim araçları</p>
+      <div className="space-y-4">
+        <AdminBreadcrumb />
+        <div>
+          <h1 className="text-3xl font-bold">Admin Paneli</h1>
+          <p className="text-muted-foreground mt-2">Sistem özeti ve yönetim araçları</p>
+        </div>
       </div>
 
       {/* Stats Overview */}

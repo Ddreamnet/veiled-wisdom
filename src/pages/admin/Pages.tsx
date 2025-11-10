@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileText } from 'lucide-react';
+import { AdminBreadcrumb } from '@/components/AdminBreadcrumb';
 
 const staticPages = [
   { title: 'Biz kimiz', path: '/about' },
@@ -13,8 +14,11 @@ const staticPages = [
 
 export default function PagesManagement() {
   return (
-    <div className="container py-12">
-      <h1 className="text-3xl font-bold mb-8">Sayfaları Düzenle</h1>
+    <div className="container py-12 space-y-8">
+      <div className="space-y-4">
+        <AdminBreadcrumb />
+        <h1 className="text-3xl font-bold">Sayfaları Düzenle</h1>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {staticPages.map((page) => (

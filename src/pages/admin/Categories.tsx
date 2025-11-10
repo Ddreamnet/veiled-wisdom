@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { AdminBreadcrumb } from '@/components/AdminBreadcrumb';
 
 export default function CategoriesManagement() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -140,10 +141,12 @@ export default function CategoriesManagement() {
   };
 
   return (
-    <div className="container py-12">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold">Kategorileri Düzenle</h1>
-        <Dialog open={open} onOpenChange={setOpen}>
+    <div className="container py-12 space-y-8">
+      <div className="space-y-4">
+        <AdminBreadcrumb />
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold">Kategorileri Düzenle</h1>
+          <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
@@ -196,6 +199,7 @@ export default function CategoriesManagement() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div>{mainCategories.map(renderCategory)}</div>

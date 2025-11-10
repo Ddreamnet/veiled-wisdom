@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Edit } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { AdminBreadcrumb } from '@/components/AdminBreadcrumb';
 
 type Teacher = {
   id: string;
@@ -39,8 +40,11 @@ export default function TeachersManagement() {
   };
 
   return (
-    <div className="container py-12">
-      <h1 className="text-3xl font-bold mb-8">Hocaları Düzenle</h1>
+    <div className="container py-12 space-y-8">
+      <div className="space-y-4">
+        <AdminBreadcrumb />
+        <h1 className="text-3xl font-bold">Hocaları Düzenle</h1>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {teachers.map((teacher) => (

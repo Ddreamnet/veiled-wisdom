@@ -16,6 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { AdminBreadcrumb } from '@/components/AdminBreadcrumb';
 
 export default function CuriositiesManagement() {
   const [curiosities, setCuriosities] = useState<Curiosity[]>([]);
@@ -116,10 +117,12 @@ export default function CuriositiesManagement() {
   };
 
   return (
-    <div className="container py-12">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold">Merak Konuları</h1>
-        <Dialog open={open} onOpenChange={setOpen}>
+    <div className="container py-12 space-y-8">
+      <div className="space-y-4">
+        <AdminBreadcrumb />
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold">Merak Konuları</h1>
+          <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button
               onClick={() => {
@@ -176,6 +179,7 @@ export default function CuriositiesManagement() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="space-y-4">
