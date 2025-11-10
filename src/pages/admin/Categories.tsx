@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Trash2, Plus, FolderPlus } from 'lucide-react';
+import { Trash2, Plus, FolderPlus, Edit } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -31,6 +31,7 @@ export default function CategoriesManagement() {
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [parentId, setParentId] = useState<string>('');
+  const [editingId, setEditingId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -50,30 +51,58 @@ export default function CategoriesManagement() {
   };
 
   const handleCreate = async () => {
-    const { error } = await supabase.from('categories').insert({
-      name,
-      slug,
-      parent_id: parentId || null,
-    });
+    if (editingId) {
+      // Update existing category
+      const { error } = await supabase
+        .from('categories')
+        .update({
+          name,
+          slug,
+          parent_id: parentId || null,
+        })
+        .eq('id', editingId);
 
-    if (error) {
+      if (error) {
+        toast({
+          title: 'Hata',
+          description: 'Kategori güncellenemedi.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       toast({
-        title: 'Hata',
-        description: 'Kategori oluşturulamadı.',
-        variant: 'destructive',
+        title: 'Başarılı',
+        description: 'Kategori güncellendi.',
       });
-      return;
-    }
+    } else {
+      // Create new category
+      const { error } = await supabase.from('categories').insert({
+        name,
+        slug,
+        parent_id: parentId || null,
+      });
 
-    toast({
-      title: 'Başarılı',
-      description: 'Kategori oluşturuldu.',
-    });
+      if (error) {
+        toast({
+          title: 'Hata',
+          description: 'Kategori oluşturulamadı.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      toast({
+        title: 'Başarılı',
+        description: 'Kategori oluşturuldu.',
+      });
+    }
 
     setOpen(false);
     setName('');
     setSlug('');
     setParentId('');
+    setEditingId(null);
     fetchCategories();
   };
 
@@ -98,6 +127,7 @@ export default function CategoriesManagement() {
   };
 
   const handleAddSubCategory = (parentCategory: Category) => {
+    setEditingId(null);
     setParentId(parentCategory.id);
     setName('');
     setSlug('');
@@ -105,9 +135,18 @@ export default function CategoriesManagement() {
   };
 
   const handleOpenNewDialog = () => {
+    setEditingId(null);
     setParentId('');
     setName('');
     setSlug('');
+    setOpen(true);
+  };
+
+  const handleEdit = (category: Category) => {
+    setEditingId(category.id);
+    setName(category.name);
+    setSlug(category.slug);
+    setParentId(category.parent_id || '');
     setOpen(true);
   };
 
@@ -125,6 +164,15 @@ export default function CategoriesManagement() {
               </CardDescription>
             </div>
             <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleEdit(category)}
+                className="gap-2"
+              >
+                <Edit className="h-4 w-4" />
+                <span className="hidden sm:inline">Düzenle</span>
+              </Button>
               <Button
                 size="sm"
                 variant="outline"
@@ -159,13 +207,22 @@ export default function CategoriesManagement() {
                     <span className="font-medium text-sm md:text-base">{sub.name}</span>
                     <p className="text-xs text-muted-foreground mt-0.5">Slug: {sub.slug}</p>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleDelete(sub.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleEdit(sub)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleDelete(sub.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -196,12 +253,19 @@ export default function CategoriesManagement() {
           <DialogContent className="glass-effect border-silver/20">
             <DialogHeader>
               <DialogTitle>
-                {parentId ? 'Alt Kategori Ekle' : 'Yeni Ana Kategori Ekle'}
+                {editingId 
+                  ? 'Kategori Düzenle' 
+                  : parentId 
+                    ? 'Alt Kategori Ekle' 
+                    : 'Yeni Ana Kategori Ekle'
+                }
               </DialogTitle>
               <DialogDescription>
-                {parentId 
-                  ? `"${mainCategories.find(c => c.id === parentId)?.name}" kategorisi için alt kategori ekleyin.`
-                  : 'Yeni bir ana kategori oluşturun.'
+                {editingId
+                  ? 'Kategori bilgilerini güncelleyin.'
+                  : parentId 
+                    ? `"${mainCategories.find(c => c.id === parentId)?.name}" kategorisi için alt kategori ekleyin.`
+                    : 'Yeni bir ana kategori oluşturun.'
                 }
               </DialogDescription>
             </DialogHeader>
@@ -229,7 +293,7 @@ export default function CategoriesManagement() {
                   Küçük harf, tire ve rakam kullanın
                 </p>
               </div>
-              {!parentId && (
+              {!parentId && !editingId && (
                 <div className="space-y-2">
                   <Label>Ana Kategori (opsiyonel)</Label>
                   <Select value={parentId || ''} onValueChange={setParentId}>
@@ -250,12 +314,12 @@ export default function CategoriesManagement() {
                   </p>
                 </div>
               )}
-              {parentId && (
+              {(parentId || (editingId && categories.find(c => c.id === editingId)?.parent_id)) && (
                 <div className="p-3 bg-primary/10 border border-primary/20 rounded-md">
                   <p className="text-sm">
                     <span className="font-medium">Ana Kategori:</span>{' '}
                     <span className="text-primary">
-                      {mainCategories.find(c => c.id === parentId)?.name}
+                      {mainCategories.find(c => c.id === (parentId || categories.find(cat => cat.id === editingId)?.parent_id))?.name}
                     </span>
                   </p>
                 </div>
@@ -263,7 +327,12 @@ export default function CategoriesManagement() {
             </div>
             <DialogFooter>
               <Button onClick={handleCreate} disabled={!name || !slug}>
-                {parentId ? 'Alt Kategori Ekle' : 'Ana Kategori Oluştur'}
+                {editingId 
+                  ? 'Güncelle' 
+                  : parentId 
+                    ? 'Alt Kategori Ekle' 
+                    : 'Ana Kategori Oluştur'
+                }
               </Button>
             </DialogFooter>
           </DialogContent>
