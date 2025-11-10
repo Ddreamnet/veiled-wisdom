@@ -18,7 +18,7 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 w-full glass-effect border-b border-silver/10 shadow-elegant">
       <div className="w-full px-6 lg:px-12">
-        <div className="flex h-16 items-center justify-between max-w-screen-2xl mx-auto">
+        <div className="flex h-16 items-center justify-between">
           <Link to="/" className="flex items-center gap-3 group">
             <div className="relative">
               <img 

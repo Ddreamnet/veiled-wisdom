@@ -6,10 +6,14 @@ export default {
   prefix: "",
   theme: {
     container: {
-      center: true,
+      center: false,
       padding: "2rem",
       screens: {
-        "2xl": "1400px",
+        sm: "100%",
+        md: "100%",
+        lg: "100%",
+        xl: "100%",
+        "2xl": "100%",
       },
     },
     extend: {
