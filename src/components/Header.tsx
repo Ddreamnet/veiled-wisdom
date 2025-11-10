@@ -16,19 +16,19 @@ export function Header() {
   const { user, role, signOut } = useAuth();
 
   return (
-    <header className="sticky top-0 z-50 glass-effect border-b border-silver/10 shadow-elegant">
-      <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center justify-between">
-          <Link to="/" className="flex items-center gap-3 group">
+    <header className="sticky top-0 z-50 glass-effect border-b border-silver/10 shadow-glow backdrop-blur-xl">
+      <div className="px-6 lg:px-12">
+        <div className="flex h-20 items-center justify-between">
+          <Link to="/" className="flex items-center gap-4 group">
             <div className="relative">
               <img 
                 src={logo} 
                 alt="Leyl" 
-                className="h-10 w-10 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6" 
+                className="h-12 w-12 transition-all duration-500 group-hover:scale-110 group-hover:rotate-12 shadow-glow-sm" 
               />
-              <div className="absolute inset-0 bg-primary/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="absolute inset-0 bg-primary-glow/30 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             </div>
-            <span className="text-2xl font-serif font-bold text-gradient-silver">Leyl</span>
+            <span className="text-4xl font-serif font-bold text-gradient-silver tracking-wide">Leyl</span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">
