@@ -65,10 +65,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
-      if (error) throw error;
-      setRole(data?.role as UserRole || 'customer');
+      if (error) {
+        console.error('Error fetching user role:', error);
+      }
+
+      if (!data || !data.role) {
+        // Attempt to repair missing/nullable role by setting default 'customer'
+        try {
+          const { data: updated } = await supabase
+            .from('user_roles')
+            .update({ role: 'customer' })
+            .eq('user_id', userId)
+            .select();
+
+          if (!updated || updated.length === 0) {
+            await supabase
+              .from('user_roles')
+              .insert([{ user_id: userId, role: 'customer' }]);
+          }
+        } catch (e) {
+          console.error('Error repairing user role:', e);
+        }
+        setRole('customer');
+      } else {
+        setRole(data.role as UserRole);
+      }
     } catch (error) {
       console.error('Error fetching user role:', error);
       setRole('customer');
@@ -76,7 +99,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     }
   };
-
   const signIn = async (email: string, password: string) => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
