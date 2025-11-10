@@ -15,22 +15,18 @@ export function Header() {
   const { user, role, signOut } = useAuth();
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/50 glass-effect shadow-elegant">
+    <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
-        <Link to="/" className="flex items-center space-x-3 group">
-          <div className="relative">
-            <img src={logo} alt="Leyl" className="h-10 w-10 transition-transform group-hover:scale-110" />
-            <div className="absolute inset-0 bg-primary/20 rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity" />
-          </div>
-          <span className="font-serif font-bold text-xl text-gradient">Leyl</span>
+        <Link to="/" className="flex items-center space-x-2">
+          <img src={logo} alt="Leyl" className="h-10 w-10" />
+          <span className="font-bold text-lg">Leyl</span>
         </Link>
 
         <nav className="hidden md:flex items-center space-x-6">
           {!user && (
             <>
-               <Link to="/explore" className="text-foreground hover:text-primary-glow transition-smooth font-medium relative group">
+              <Link to="/explore" className="text-foreground hover:text-primary transition-smooth">
                 Keşfet
-                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-primary group-hover:w-full transition-all duration-300" />
               </Link>
               <Link to="/auth/sign-in">
                 <Button variant="ghost">Giriş</Button>
