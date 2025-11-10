@@ -4,9 +4,10 @@ import { Sparkles } from 'lucide-react';
 
 export function Footer() {
   return (
-    <footer className="border-t border-silver/10 bg-card/50 backdrop-blur-sm mt-auto">
-      <div className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+    <footer className="w-full border-t border-silver/10 bg-card/50 backdrop-blur-sm mt-auto">
+      <div className="w-full px-6 lg:px-12 py-12">
+        <div className="max-w-screen-2xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           <div className="space-y-4">
             <Link to="/" className="flex items-center gap-3 group">
               <img src={logo} alt="Leyl" className="h-10 w-10" />
@@ -79,8 +80,11 @@ export function Footer() {
             </ul>
           </div>
         </div>
+        </div>
+      </div>
 
-        <div className="border-t border-silver/10 pt-8 text-center">
+      <div className="w-full px-6 lg:px-12">
+        <div className="max-w-screen-2xl mx-auto border-t border-silver/10 pt-8 text-center">
           <p className="text-sm text-silver-muted">
             © {new Date().getFullYear()} Leyl. Tüm hakları saklıdır.
           </p>
