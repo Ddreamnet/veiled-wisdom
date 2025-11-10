@@ -199,6 +199,26 @@
     @apply shadow-glow;
     transform: scale(1.02);
   }
+  
+  /* Card Hover Effect */
+  .card-hover {
+    @apply transition-all duration-500 ease-out;
+    transform: translateY(0) scale(1);
+  }
+  
+  .card-hover:hover {
+    transform: translateY(-8px) scale(1.03);
+    @apply shadow-glow;
+    border-color: hsl(var(--primary) / 0.4);
+  }
+  
+  .card-hover:hover .card-image {
+    transform: scale(1.15);
+  }
+  
+  .card-image {
+    @apply transition-transform duration-700 ease-out;
+  }
 }
 
 /* === ANIMATIONS === */
