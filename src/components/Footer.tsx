@@ -38,7 +38,7 @@ const FooterComponent = () => {
         </svg>
       </div>
 
-      <div className="relative w-full py-12">
+      <div className="relative w-full py-8">
         <div className="w-full">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-8 mb-8">
             <div className="flex items-center justify-center">
@@ -210,7 +210,7 @@ const FooterComponent = () => {
       </div>
 
       <div className="relative w-full">
-        <div className="w-full border-t border-silver/10 pt-8">
+        <div className="w-full border-t border-silver/10 pt-6">
           <p className="text-sm text-silver-muted text-center">
             © {new Date().getFullYear()} Leyl. Tüm hakları saklıdır.
           </p>
