@@ -69,16 +69,16 @@ export default function SubCategoryDetail() {
 
   if (loading) {
     return (
-      <div className="container py-12">
-        <Skeleton className="h-6 w-96 mb-8" />
-        <Skeleton className="h-12 w-64 mb-8" />
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      <div className="container py-8 md:py-12 px-4">
+        <Skeleton className="h-5 md:h-6 w-72 md:w-96 mb-6 md:mb-8" />
+        <Skeleton className="h-10 md:h-12 w-48 md:w-64 mb-6 md:mb-8" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i}>
-              <Skeleton className="h-48 w-full rounded-t-lg" />
-              <CardContent className="p-6">
-                <Skeleton className="h-6 w-32 mb-2" />
-                <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-40 sm:h-44 md:h-48 w-full rounded-t-lg" />
+              <CardContent className="p-4 sm:p-5 md:p-6">
+                <Skeleton className="h-5 md:h-6 w-28 md:w-32 mb-2" />
+                <Skeleton className="h-4 w-20 md:w-24" />
               </CardContent>
             </Card>
           ))}
@@ -89,37 +89,37 @@ export default function SubCategoryDetail() {
 
   if (!mainCategory || !subCategory) {
     return (
-      <div className="container py-12">
-        <p className="text-center text-muted-foreground">Kategori bulunamadı.</p>
+      <div className="container py-8 md:py-12 px-4">
+        <p className="text-center text-sm md:text-base text-muted-foreground">Kategori bulunamadı.</p>
       </div>
     );
   }
 
   return (
-    <div className="container py-12">
-      <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-8">
+    <div className="container py-8 md:py-12 px-4">
+      <nav className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground mb-6 md:mb-8">
         <Link to={`/categories/${slug}`} className="hover:text-foreground transition-smooth">
           {mainCategory.name}
         </Link>
-        <ChevronRight className="h-4 w-4" />
+        <ChevronRight className="h-3 w-3 md:h-4 md:w-4" />
         <span className="text-foreground">{subCategory.name}</span>
       </nav>
 
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">{subCategory.name}</h1>
-        <p className="text-muted-foreground">
+      <div className="mb-6 md:mb-8">
+        <h1 className="text-3xl md:text-4xl font-bold mb-2">{subCategory.name}</h1>
+        <p className="text-sm md:text-base text-muted-foreground">
           {listings.length} aktif ilan
         </p>
       </div>
 
       {listings.length === 0 ? (
         <Card>
-          <CardContent className="p-12 text-center">
-            <p className="text-muted-foreground">Bu kategoride henüz ilan bulunmuyor.</p>
+          <CardContent className="p-8 md:p-12 text-center">
+            <p className="text-sm md:text-base text-muted-foreground">Bu kategoride henüz ilan bulunmuyor.</p>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
           {listings.map((listing) => (
             <Link key={listing.id} to={`/listings/${listing.id}`}>
               <Card className="hover:shadow-glow transition-smooth h-full">
@@ -127,27 +127,27 @@ export default function SubCategoryDetail() {
                   <img
                     src={listing.cover_url}
                     alt={listing.title}
-                    className="w-full h-48 object-cover rounded-t-lg"
+                    className="w-full h-40 sm:h-44 md:h-48 object-cover rounded-t-lg"
                   />
                 ) : (
-                  <div className="w-full h-48 bg-primary/20 rounded-t-lg" />
+                  <div className="w-full h-40 sm:h-44 md:h-48 bg-primary/20 rounded-t-lg" />
                 )}
-                <CardContent className="p-6">
+                <CardContent className="p-4 sm:p-5 md:p-6">
                   <div className="flex items-center gap-2 mb-3">
                     {listing.profiles.avatar_url ? (
                       <img
                         src={listing.profiles.avatar_url}
                         alt={listing.profiles.username}
-                        className="w-8 h-8 rounded-full"
+                        className="w-7 h-7 sm:w-8 sm:h-8 rounded-full"
                       />
                     ) : (
-                      <div className="w-8 h-8 rounded-full bg-primary/20" />
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary/20" />
                     )}
-                    <span className="text-sm text-muted-foreground">
+                    <span className="text-xs sm:text-sm text-muted-foreground">
                       {listing.profiles.username}
                     </span>
                   </div>
-                  <h3 className="font-semibold text-lg mb-2">{listing.title}</h3>
+                  <h3 className="font-semibold text-base sm:text-lg mb-2">{listing.title}</h3>
                   <p className="text-sm text-muted-foreground line-clamp-2">
                     {listing.description}
                   </p>
