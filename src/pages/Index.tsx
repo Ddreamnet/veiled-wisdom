@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase, Category, Curiosity } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -35,9 +35,11 @@ export default function Index() {
     if (curiositiesData) setCuriosities(curiositiesData);
   };
 
-  // Calculate parallax values
-  const parallaxY = scrollPosition * 0.5;
-  const parallaxScale = 1 + scrollPosition * 0.0002;
+  // Calculate parallax values (memoized for performance)
+  const parallaxY = useMemo(() => scrollPosition * 0.5, [scrollPosition]);
+  const parallaxScale = useMemo(() => 1 + scrollPosition * 0.0002, [scrollPosition]);
+  const decorativeParallax1 = useMemo(() => parallaxY * 0.3, [parallaxY]);
+  const decorativeParallax2 = useMemo(() => parallaxY * 0.5, [parallaxY]);
 
   return (
     <div className="min-h-screen">
@@ -48,21 +50,22 @@ export default function Index() {
         
         {/* Mouse-following Glow */}
         <div
-          className="absolute w-96 h-96 rounded-full pointer-events-none transition-all duration-300 ease-out"
+          className="absolute w-96 h-96 rounded-full pointer-events-none"
           style={{
             background: `radial-gradient(circle, hsl(280 90% 70% / 0.15) 0%, transparent 70%)`,
             left: `${mousePosition.x}px`,
             top: `${mousePosition.y}px`,
-            transform: `translate(-50%, -50%)`,
+            transform: `translate3d(-50%, -50%, 0)`,
             filter: 'blur(60px)',
+            willChange: 'transform',
           }}
         />
         
         <div 
           className="container relative z-10"
           style={{
-            transform: `translateY(-${parallaxY}px) scale(${parallaxScale})`,
-            transition: 'transform 0.1s ease-out',
+            transform: `translate3d(0, -${parallaxY}px, 0) scale(${parallaxScale})`,
+            willChange: 'transform',
           }}
         >
           <div className="text-center space-y-8 animate-fade-in-up">
@@ -105,14 +108,16 @@ export default function Index() {
           <div 
             className="absolute top-20 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl animate-glow-pulse"
             style={{
-              transform: `translateY(${parallaxY * 0.3}px)`,
+              transform: `translate3d(0, ${decorativeParallax1}px, 0)`,
+              willChange: 'transform',
             }}
           />
           <div 
             className="absolute bottom-20 right-10 w-96 h-96 bg-accent/10 rounded-full blur-3xl animate-glow-pulse" 
             style={{ 
               animationDelay: '4s',
-              transform: `translateY(${parallaxY * 0.5}px)`,
+              transform: `translate3d(0, ${decorativeParallax2}px, 0)`,
+              willChange: 'transform',
             }} 
           />
         </div>
