@@ -28,46 +28,51 @@ export default function SignIn() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center p-4 liquid-gradient">
+      <Card className="w-full max-w-md glass-effect border-silver/20">
         <CardHeader className="space-y-4">
           <div className="flex justify-center">
-            <img src={logo} alt="Leyl" className="h-16 w-16" />
+            <div className="relative">
+              <img src={logo} alt="Leyl" className="h-16 w-16" />
+              <div className="absolute inset-0 bg-primary/30 blur-xl" />
+            </div>
           </div>
-          <CardTitle className="text-2xl text-center">Giriş Yap</CardTitle>
-          <CardDescription className="text-center">
+          <CardTitle className="text-3xl font-serif text-center text-gradient-silver">Giriş Yap</CardTitle>
+          <CardDescription className="text-center text-silver-muted">
             Hesabınıza giriş yapın
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">E-posta</Label>
+              <Label htmlFor="email" className="text-silver-muted">E-posta</Label>
               <Input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                className="glass-effect border-silver/20"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Şifre</Label>
+              <Label htmlFor="password" className="text-silver-muted">Şifre</Label>
               <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                className="glass-effect border-silver/20"
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
             </Button>
           </form>
-          <div className="mt-4 text-center text-sm">
+          <div className="mt-4 text-center text-sm text-silver-muted">
             Hesabınız yok mu?{' '}
-            <Link to="/auth/sign-up" className="text-primary hover:underline">
+            <Link to="/auth/sign-up" className="text-primary hover:text-primary/80 transition-smooth font-medium">
               Kayıt Ol
             </Link>
           </div>

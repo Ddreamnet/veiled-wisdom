@@ -4,61 +4,63 @@
 
 @layer base {
   :root {
-    /* Brand colors - mystical purple-silver theme */
-    --background: 270 57% 12%; /* #210635 - Deep mystical purple */
-    --foreground: 210 13% 65%; /* #98a2af - Silver-grey text */
+    /* === LEYL DESIGN SYSTEM === */
+    /* Deep Purple Dominant Colors */
+    --background: 270 60% 8%;        /* #13021E - Ultra deep purple, almost black */
+    --background-elevated: 270 55% 12%; /* #210635 - Main purple background */
+    --background-glass: 270 50% 15%;    /* Slightly lighter for glass effect */
     
-    --card: 270 57% 15%; /* Slightly lighter purple for cards */
-    --card-foreground: 210 13% 70%;
+    /* Silver Accent & Text Colors */
+    --foreground: 220 15% 75%;       /* #B8C1CE - Primary silver text */
+    --foreground-muted: 220 10% 55%; /* #858E9C - Muted silver */
+    --foreground-subtle: 220 8% 40%; /* #5E656F - Subtle silver */
     
-    --popover: 270 57% 14%;
-    --popover-foreground: 210 13% 70%;
+    /* Purple Accent Spectrum */
+    --primary: 270 80% 60%;          /* #9D4EDD - Vibrant purple for CTAs */
+    --primary-glow: 280 90% 70%;     /* #C77DFF - Lighter purple for glows */
+    --primary-dark: 270 70% 45%;     /* #7B2CBF - Darker purple for hover */
+    --primary-subtle: 270 40% 25%;   /* #3C1053 - Very subtle purple */
     
-    /* Primary - Purple gradient tones */
-    --primary: 270 65% 55%; /* Vibrant purple */
-    --primary-glow: 270 70% 65%; /* Lighter glow effect */
-    --primary-foreground: 0 0% 100%;
+    /* Silver Accent Variations */
+    --silver: 220 20% 85%;           /* #D4DBE5 - Bright silver accent */
+    --silver-muted: 220 15% 65%;     /* #98A2AF - Standard silver */
+    --silver-dark: 220 25% 45%;      /* #5A6B7F - Dark silver */
     
-    /* Secondary - Glass-like semi-transparent */
-    --secondary: 270 57% 20%;
-    --secondary-foreground: 210 13% 75%;
+    /* UI Component Colors */
+    --card: 270 55% 12%;
+    --card-foreground: 220 15% 75%;
+    --card-border: 270 40% 20%;
     
-    --muted: 270 50% 18%;
-    --muted-foreground: 210 13% 60%;
+    --popover: 270 60% 10%;
+    --popover-foreground: 220 15% 75%;
     
-    /* Accent - Purple with more saturation */
-    --accent: 270 60% 30%;
-    --accent-foreground: 210 13% 85%;
+    --secondary: 270 45% 18%;
+    --secondary-foreground: 220 15% 75%;
     
-    --destructive: 0 84% 60%;
+    --muted: 270 35% 16%;
+    --muted-foreground: 220 10% 55%;
+    
+    --accent: 280 70% 55%;
+    --accent-foreground: 0 0% 100%;
+    
+    --destructive: 0 70% 55%;
     --destructive-foreground: 0 0% 100%;
     
-    /* Borders - Subtle silver */
-    --border: 270 30% 25%; /* Silver-tinted border */
-    --input: 270 30% 25%;
-    --ring: 270 65% 55%;
+    --border: 270 40% 22%;
+    --input: 270 40% 20%;
+    --ring: 270 80% 60%;
     
-    --radius: 1rem; /* rounded-2xl for modern look */
+    --radius: 1rem;
     
     /* Sidebar */
-    --sidebar-background: 270 57% 14%;
-    --sidebar-foreground: 210 13% 70%;
-    --sidebar-primary: 270 65% 55%;
+    --sidebar-background: 270 55% 10%;
+    --sidebar-foreground: 220 15% 75%;
+    --sidebar-primary: 270 80% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 270 57% 20%;
-    --sidebar-accent-foreground: 210 13% 80%;
-    --sidebar-border: 270 30% 25%;
-    --sidebar-ring: 270 65% 55%;
-    
-    /* Custom gradients */
-    --gradient-liquid: linear-gradient(135deg, hsl(270 57% 12%) 0%, hsl(270 65% 20%) 50%, hsl(270 70% 15%) 100%);
-    --gradient-primary: linear-gradient(135deg, hsl(270 65% 55%) 0%, hsl(280 70% 65%) 100%);
-    --gradient-accent: linear-gradient(135deg, hsl(270 60% 30%) 0%, hsl(270 65% 45%) 100%);
-    
-    /* Shadows with purple glow */
-    --shadow-elegant: 0 10px 40px -10px hsl(270 57% 12% / 0.8);
-    --shadow-glow: 0 0 50px hsl(270 70% 55% / 0.3);
-    --shadow-glow-sm: 0 0 20px hsl(270 70% 55% / 0.2);
+    --sidebar-accent: 270 45% 18%;
+    --sidebar-accent-foreground: 220 15% 75%;
+    --sidebar-border: 270 40% 20%;
+    --sidebar-ring: 270 80% 60%;
   }
 }
 
@@ -71,110 +73,158 @@
     @apply bg-background text-foreground;
     font-family: 'Inter', sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
   }
   
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Playfair Display', serif;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-  }
-  
-  /* Smooth scroll behavior */
-  html {
-    scroll-behavior: smooth;
-  }
-  
-  @media (prefers-reduced-motion: reduce) {
-    html {
-      scroll-behavior: auto;
-    }
-    * {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
-    }
+    font-family: 'Cinzel', serif;
+    font-weight: 600;
+    letter-spacing: 0.02em;
   }
 }
 
+/* === MYSTICAL EFFECTS === */
 @layer utilities {
-  /* Transitions */
-  .transition-smooth {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Liquid Gradient Background */
+  .liquid-gradient {
+    background: linear-gradient(135deg, 
+      hsl(270, 60%, 8%) 0%,
+      hsl(270, 55%, 12%) 25%,
+      hsl(280, 50%, 15%) 50%,
+      hsl(270, 55%, 12%) 75%,
+      hsl(270, 60%, 8%) 100%
+    );
+    background-size: 400% 400%;
+    animation: liquid-flow 20s ease infinite;
+    position: relative;
   }
   
-  .transition-smooth-slow {
-    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  .liquid-gradient::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 20% 50%, hsl(280 90% 70% / 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 50%, hsl(270 80% 60% / 0.1) 0%, transparent 50%);
+    animation: glow-pulse 8s ease-in-out infinite;
+    pointer-events: none;
   }
   
-  /* Shadows */
+  /* Glass Morphism Effect */
+  .glass-effect {
+    background: hsl(var(--background-glass) / 0.4);
+    backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid hsl(var(--silver-muted) / 0.1);
+    box-shadow: 
+      0 8px 32px hsl(270 60% 8% / 0.4),
+      inset 0 1px 1px hsl(var(--silver) / 0.1);
+  }
+  
+  /* Smoky Text Effect */
+  .text-smoky {
+    color: hsl(var(--silver));
+    text-shadow: 
+      0 0 20px hsl(var(--primary-glow) / 0.4),
+      0 0 40px hsl(var(--primary) / 0.2),
+      0 2px 4px hsl(270 60% 8% / 0.6);
+  }
+  
+  /* Premium Shadows */
   .shadow-elegant {
-    box-shadow: var(--shadow-elegant);
+    box-shadow: 
+      0 4px 24px hsl(270 60% 8% / 0.5),
+      0 2px 8px hsl(270 60% 8% / 0.3),
+      inset 0 1px 0 hsl(var(--silver) / 0.05);
   }
   
   .shadow-glow {
-    box-shadow: var(--shadow-glow);
+    box-shadow: 
+      0 0 32px hsl(var(--primary-glow) / 0.3),
+      0 8px 24px hsl(270 60% 8% / 0.4),
+      inset 0 1px 0 hsl(var(--silver) / 0.1);
   }
   
   .shadow-glow-sm {
-    box-shadow: var(--shadow-glow-sm);
+    box-shadow: 
+      0 0 16px hsl(var(--primary-glow) / 0.25),
+      0 4px 12px hsl(270 60% 8% / 0.3);
   }
   
-  /* Gradients */
-  .bg-gradient-liquid {
-    background: var(--gradient-liquid);
-  }
-  
-  .bg-gradient-primary {
-    background: var(--gradient-primary);
-  }
-  
-  .bg-gradient-accent {
-    background: var(--gradient-accent);
-  }
-  
-  /* Liquid gradient animation for hero */
-  .liquid-gradient {
-    background: radial-gradient(ellipse at 30% 50%, hsl(270 70% 20%) 0%, transparent 50%),
-                radial-gradient(ellipse at 70% 50%, hsl(270 60% 25%) 0%, transparent 50%),
-                radial-gradient(ellipse at 50% 80%, hsl(270 65% 18%) 0%, transparent 50%),
-                hsl(270 57% 12%);
-    background-size: 200% 200%;
-    animation: liquid-flow 20s ease-in-out infinite;
-  }
-  
-  @keyframes liquid-flow {
-    0%, 100% {
-      background-position: 0% 50%;
-    }
-    50% {
-      background-position: 100% 50%;
-    }
-  }
-  
-  /* Glass effect */
-  .glass-effect {
-    background: hsl(270 57% 15% / 0.6);
-    backdrop-filter: blur(12px);
-    border: 1px solid hsl(270 30% 25% / 0.5);
-  }
-  
-  /* Focus visible ring */
-  .focus-ring {
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
-  }
-  
-  /* Hover scale */
-  .hover-scale {
-    @apply transition-smooth hover:scale-105;
-  }
-  
-  /* Text gradient */
-  .text-gradient {
-    background: var(--gradient-primary);
+  /* Silver Gradient Text */
+  .text-gradient-silver {
+    background: linear-gradient(135deg, 
+      hsl(var(--silver)) 0%, 
+      hsl(var(--foreground)) 50%, 
+      hsl(var(--silver-dark)) 100%
+    );
     -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
     background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  
+  /* Purple Gradient Text */
+  .text-gradient-purple {
+    background: linear-gradient(135deg, 
+      hsl(var(--primary-glow)) 0%, 
+      hsl(var(--primary)) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  
+  /* Smooth Transitions */
+  .transition-smooth {
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .transition-glow {
+    transition: box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  /* Hover Effects */
+  .hover-lift {
+    @apply transition-smooth;
+  }
+  
+  .hover-lift:hover {
+    transform: translateY(-4px);
+    @apply shadow-glow;
+  }
+  
+  .hover-glow {
+    @apply transition-glow;
+  }
+  
+  .hover-glow:hover {
+    @apply shadow-glow;
+    transform: scale(1.02);
   }
 }
+
+/* === ANIMATIONS === */
+@keyframes liquid-flow {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+

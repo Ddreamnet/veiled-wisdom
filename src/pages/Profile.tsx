@@ -88,9 +88,9 @@ export default function ProfilePage() {
 
   return (
     <div className="container py-12 max-w-2xl">
-      <Card>
+      <Card className="glass-effect border-silver/20">
         <CardHeader>
-          <CardTitle>Hesabım</CardTitle>
+          <CardTitle className="text-2xl font-serif text-gradient-silver">Hesabım</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           {user && (
@@ -104,24 +104,26 @@ export default function ProfilePage() {
           )}
           
           <div className="space-y-2">
-            <Label htmlFor="email">E-posta</Label>
-            <Input id="email" value={user?.email || ''} disabled />
+            <Label htmlFor="email" className="text-silver-muted">E-posta</Label>
+            <Input id="email" value={user?.email || ''} disabled className="glass-effect border-silver/20" />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="username">Kullanıcı Adı</Label>
+            <Label htmlFor="username" className="text-silver-muted">Kullanıcı Adı</Label>
             <Input
               id="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
+              className="glass-effect border-silver/20"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="bio">Biyografi</Label>
+            <Label htmlFor="bio" className="text-silver-muted">Biyografi</Label>
             <Textarea
               id="bio"
               value={bio}
               onChange={(e) => setBio(e.target.value)}
               rows={4}
+              className="glass-effect border-silver/20"
             />
           </div>
           <Button onClick={handleSave} disabled={loading}>

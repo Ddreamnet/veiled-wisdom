@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
+import { NavLink } from '@/components/NavLink';
+import logo from '@/assets/logo.png';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,133 +10,168 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { User, MessageSquare, DollarSign, Menu } from 'lucide-react';
-import logo from '@/assets/logo.png';
+import { UserCircle, LogOut, Settings, Calendar, MessageSquare, LayoutDashboard, BookOpen, DollarSign, Menu } from 'lucide-react';
 
 export function Header() {
   const { user, role, signOut } = useAuth();
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/50 glass-effect shadow-elegant">
-      <div className="container flex h-16 items-center justify-between">
-        <Link to="/" className="flex items-center space-x-3 group">
-          <div className="relative">
-            <img src={logo} alt="Leyl" className="h-10 w-10 transition-transform group-hover:scale-110" />
-            <div className="absolute inset-0 bg-primary/20 rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity" />
+    <header className="sticky top-0 z-50 glass-effect border-b border-silver/10 shadow-elegant">
+      <div className="container mx-auto px-4">
+        <div className="flex h-16 items-center justify-between">
+          <Link to="/" className="flex items-center gap-3 group">
+            <div className="relative">
+              <img 
+                src={logo} 
+                alt="Leyl" 
+                className="h-10 w-10 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6" 
+              />
+              <div className="absolute inset-0 bg-primary/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            </div>
+            <span className="text-2xl font-serif font-bold text-gradient-silver">Leyl</span>
+          </Link>
+
+          <nav className="hidden md:flex items-center gap-1">
+            {!user && (
+              <>
+                <Link to="/" className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth">
+                  Ana Sayfa
+                </Link>
+                <Link to="/explore" className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth">
+                  Keşfet
+                </Link>
+                <Link to="/about" className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth">
+                  Hakkımızda
+                </Link>
+                <Link to="/how-it-works" className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth">
+                  Nasıl Çalışır
+                </Link>
+                <Link to="/contact" className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth">
+                  İletişim
+                </Link>
+              </>
+            )}
+
+            {user && role === 'customer' && (
+              <>
+                <Link to="/explore" className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth">
+                  Keşfet
+                </Link>
+                <Link to="/messages">
+                  <Button variant="ghost" size="icon">
+                    <MessageSquare className="h-5 w-5" />
+                  </Button>
+                </Link>
+              </>
+            )}
+
+            {user && role === 'teacher' && (
+              <>
+                <Link to="/explore" className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth">
+                  Keşfet
+                </Link>
+                <Link to="/messages">
+                  <Button variant="ghost" size="icon">
+                    <MessageSquare className="h-5 w-5" />
+                  </Button>
+                </Link>
+                <Link to="/teacher/earnings">
+                  <Button variant="ghost" size="icon">
+                    <DollarSign className="h-5 w-5" />
+                  </Button>
+                </Link>
+              </>
+            )}
+
+            {user && role === 'admin' && (
+              <>
+                <Link to="/admin/approvals">
+                  <Button variant="ghost">Onaylamalar</Button>
+                </Link>
+                <Link to="/admin/earnings">
+                  <Button variant="ghost">Gelirler</Button>
+                </Link>
+              </>
+            )}
+          </nav>
+
+          <div className="flex items-center gap-3">
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="secondary" size="sm" className="gap-2">
+                    <UserCircle className="h-4 w-4" />
+                    <span className="hidden sm:inline">Hesabım</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 glass-effect border-silver/20">
+                  <DropdownMenuItem asChild>
+                    <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
+                      <Settings className="h-4 w-4" />
+                      Profil
+                    </Link>
+                  </DropdownMenuItem>
+                  
+                  {role === 'customer' && (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link to="/appointments" className="flex items-center gap-2 cursor-pointer">
+                          <Calendar className="h-4 w-4" />
+                          Randevularım
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+
+                  {role === 'teacher' && (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link to="/teacher/my-listings" className="flex items-center gap-2 cursor-pointer">
+                          <BookOpen className="h-4 w-4" />
+                          İlanlarım
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/appointments" className="flex items-center gap-2 cursor-pointer">
+                          <Calendar className="h-4 w-4" />
+                          Randevular
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+
+                  {role === 'admin' && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin/dashboard" className="flex items-center gap-2 cursor-pointer">
+                        <LayoutDashboard className="h-4 w-4" />
+                        Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+
+                  <DropdownMenuSeparator className="bg-silver/10" />
+                  <DropdownMenuItem onClick={signOut} className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive">
+                    <LogOut className="h-4 w-4" />
+                    Çıkış Yap
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <>
+                <Link to="/auth/sign-in">
+                  <Button variant="ghost" size="sm">Giriş Yap</Button>
+                </Link>
+                <Link to="/auth/sign-up">
+                  <Button size="sm">Kayıt Ol</Button>
+                </Link>
+              </>
+            )}
+            
+            <Button variant="ghost" size="icon" className="md:hidden">
+              <Menu className="h-5 w-5" />
+            </Button>
           </div>
-          <span className="font-serif font-bold text-xl text-gradient">Leyl</span>
-        </Link>
-
-        <nav className="hidden md:flex items-center space-x-6">
-          {!user && (
-            <>
-               <Link to="/explore" className="text-foreground hover:text-primary-glow transition-smooth font-medium relative group">
-                Keşfet
-                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-primary group-hover:w-full transition-all duration-300" />
-              </Link>
-              <Link to="/auth/sign-in">
-                <Button variant="ghost">Giriş</Button>
-              </Link>
-              <Link to="/auth/sign-up">
-                <Button>Kayıt ol</Button>
-              </Link>
-            </>
-          )}
-
-          {user && role === 'customer' && (
-            <>
-              <Link to="/messages">
-                <Button variant="ghost" size="icon">
-                  <MessageSquare className="h-5 w-5" />
-                </Button>
-              </Link>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <User className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem asChild>
-                    <Link to="/profile">Hesabım</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/appointments">Randevularım</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={signOut}>Oturumu kapat</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </>
-          )}
-
-          {user && role === 'teacher' && (
-            <>
-              <Link to="/messages">
-                <Button variant="ghost" size="icon">
-                  <MessageSquare className="h-5 w-5" />
-                </Button>
-              </Link>
-              <Link to="/earnings">
-                <Button variant="ghost" size="icon">
-                  <DollarSign className="h-5 w-5" />
-                </Button>
-              </Link>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <User className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem asChild>
-                    <Link to="/profile">Hesabım</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/appointments">Randevularım</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/my-listings">İlanlarım</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={signOut}>Oturumu kapat</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </>
-          )}
-
-          {user && role === 'admin' && (
-            <>
-              <Link to="/admin/approvals">
-                <Button variant="ghost">Onaylamalar</Button>
-              </Link>
-              <Link to="/admin/earnings">
-                <Button variant="ghost">Gelirler</Button>
-              </Link>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <User className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem asChild>
-                    <Link to="/admin">Dashboard</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/profile">Hesabım</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={signOut}>Oturumu kapat</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </>
-          )}
-        </nav>
-
-        <Button variant="ghost" size="icon" className="md:hidden">
-          <Menu className="h-5 w-5" />
-        </Button>
+        </div>
       </div>
     </header>
   );

@@ -82,60 +82,66 @@ export default function SignUp() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center p-4 py-12 liquid-gradient">
+      <Card className="w-full max-w-md glass-effect border-silver/20">
         <CardHeader className="space-y-4">
           <div className="flex justify-center">
-            <img src={logo} alt="Leyl" className="h-16 w-16" />
+            <div className="relative">
+              <img src={logo} alt="Leyl" className="h-16 w-16" />
+              <div className="absolute inset-0 bg-primary/30 blur-xl" />
+            </div>
           </div>
-          <CardTitle className="text-2xl text-center">Kayıt Ol</CardTitle>
-          <CardDescription className="text-center">
+          <CardTitle className="text-3xl font-serif text-center text-gradient-silver">Kayıt Ol</CardTitle>
+          <CardDescription className="text-center text-silver-muted">
             Yeni hesap oluşturun
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Kullanıcı Adı</Label>
+              <Label htmlFor="username" className="text-silver-muted">Kullanıcı Adı</Label>
               <Input
                 id="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
+                className="glass-effect border-silver/20"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">E-posta</Label>
+              <Label htmlFor="email" className="text-silver-muted">E-posta</Label>
               <Input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                className="glass-effect border-silver/20"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Şifre</Label>
+              <Label htmlFor="password" className="text-silver-muted">Şifre</Label>
               <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                className="glass-effect border-silver/20"
               />
             </div>
             <div className="space-y-2">
-              <Label>Hesap Türü</Label>
+              <Label className="text-silver-muted">Hesap Türü</Label>
               <RadioGroup value={role} onValueChange={(v) => setRole(v as UserRole)}>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="customer" id="customer" />
-                  <Label htmlFor="customer" className="font-normal cursor-pointer">
+                  <Label htmlFor="customer" className="font-normal cursor-pointer text-silver-muted">
                     Müşteri
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="teacher" id="teacher" />
-                  <Label htmlFor="teacher" className="font-normal cursor-pointer">
+                  <Label htmlFor="teacher" className="font-normal cursor-pointer text-silver-muted">
                     Hoca (Onay gerektirir)
                   </Label>
                 </div>
@@ -145,7 +151,7 @@ export default function SignUp() {
             {role === 'teacher' && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="dateOfBirth">Doğum Tarihi *</Label>
+                  <Label htmlFor="dateOfBirth" className="text-silver-muted">Doğum Tarihi *</Label>
                   <Input
                     id="dateOfBirth"
                     type="date"
@@ -153,10 +159,11 @@ export default function SignUp() {
                     onChange={(e) => setDateOfBirth(e.target.value)}
                     required
                     max={new Date().toISOString().split('T')[0]}
+                    className="glass-effect border-silver/20"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Telefon *</Label>
+                  <Label htmlFor="phone" className="text-silver-muted">Telefon *</Label>
                   <Input
                     id="phone"
                     type="tel"
@@ -165,10 +172,11 @@ export default function SignUp() {
                     onChange={(e) => setPhone(e.target.value)}
                     required
                     maxLength={20}
+                    className="glass-effect border-silver/20"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="specialization">Uzmanlık Alanı *</Label>
+                  <Label htmlFor="specialization" className="text-silver-muted">Uzmanlık Alanı *</Label>
                   <Input
                     id="specialization"
                     placeholder="Örn: Matematik, Fizik, İngilizce"
@@ -176,10 +184,11 @@ export default function SignUp() {
                     onChange={(e) => setSpecialization(e.target.value)}
                     required
                     maxLength={200}
+                    className="glass-effect border-silver/20"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="education">Eğitim Bilgisi *</Label>
+                  <Label htmlFor="education" className="text-silver-muted">Eğitim Bilgisi *</Label>
                   <Textarea
                     id="education"
                     placeholder="Mezun olduğunuz okul ve bölüm bilgileri"
@@ -188,10 +197,11 @@ export default function SignUp() {
                     required
                     rows={3}
                     maxLength={500}
+                    className="glass-effect border-silver/20"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="yearsOfExperience">Deneyim (Yıl) *</Label>
+                  <Label htmlFor="yearsOfExperience" className="text-silver-muted">Deneyim (Yıl) *</Label>
                   <Input
                     id="yearsOfExperience"
                     type="number"
@@ -200,6 +210,7 @@ export default function SignUp() {
                     value={yearsOfExperience}
                     onChange={(e) => setYearsOfExperience(e.target.value)}
                     required
+                    className="glass-effect border-silver/20"
                   />
                 </div>
               </>
@@ -208,9 +219,9 @@ export default function SignUp() {
               {loading ? 'Kayıt yapılıyor...' : 'Kayıt Ol'}
             </Button>
           </form>
-          <div className="mt-4 text-center text-sm">
+          <div className="mt-4 text-center text-sm text-silver-muted">
             Zaten hesabınız var mı?{' '}
-            <Link to="/auth/sign-in" className="text-primary hover:underline">
+            <Link to="/auth/sign-in" className="text-primary hover:text-primary/80 transition-smooth font-medium">
               Giriş Yap
             </Link>
           </div>
