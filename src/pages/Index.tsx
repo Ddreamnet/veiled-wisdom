@@ -4,10 +4,15 @@ import { supabase, Category, Curiosity } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowRight, Sparkles, BookOpen, Users } from 'lucide-react';
+import { ParticleBackground } from '@/components/ParticleBackground';
+import { useMousePosition } from '@/hooks/useMousePosition';
+import { useScrollPosition } from '@/hooks/useScrollPosition';
 
 export default function Index() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [curiosities, setCuriosities] = useState<Curiosity[]>([]);
+  const mousePosition = useMousePosition();
+  const scrollPosition = useScrollPosition();
 
   useEffect(() => {
     fetchData();
@@ -30,11 +35,36 @@ export default function Index() {
     if (curiositiesData) setCuriosities(curiositiesData);
   };
 
+  // Calculate parallax values
+  const parallaxY = scrollPosition * 0.5;
+  const parallaxScale = 1 + scrollPosition * 0.0002;
+
   return (
     <div className="min-h-screen">
       {/* Hero Section with Liquid Gradient */}
       <section className="relative liquid-gradient py-32 overflow-hidden">
-        <div className="container relative z-10">
+        {/* Particle Background */}
+        <ParticleBackground />
+        
+        {/* Mouse-following Glow */}
+        <div
+          className="absolute w-96 h-96 rounded-full pointer-events-none transition-all duration-300 ease-out"
+          style={{
+            background: `radial-gradient(circle, hsl(280 90% 70% / 0.15) 0%, transparent 70%)`,
+            left: `${mousePosition.x}px`,
+            top: `${mousePosition.y}px`,
+            transform: `translate(-50%, -50%)`,
+            filter: 'blur(60px)',
+          }}
+        />
+        
+        <div 
+          className="container relative z-10"
+          style={{
+            transform: `translateY(-${parallaxY}px) scale(${parallaxScale})`,
+            transition: 'transform 0.1s ease-out',
+          }}
+        >
           <div className="text-center space-y-8 animate-fade-in-up">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-effect border border-silver/20 mb-4">
               <Sparkles className="w-4 h-4 text-primary" />
@@ -70,10 +100,21 @@ export default function Index() {
           </div>
         </div>
         
-        {/* Decorative Elements */}
+        {/* Decorative Elements with Parallax */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-20 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl animate-glow-pulse" />
-          <div className="absolute bottom-20 right-10 w-96 h-96 bg-accent/10 rounded-full blur-3xl animate-glow-pulse" style={{ animationDelay: '4s' }} />
+          <div 
+            className="absolute top-20 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl animate-glow-pulse"
+            style={{
+              transform: `translateY(${parallaxY * 0.3}px)`,
+            }}
+          />
+          <div 
+            className="absolute bottom-20 right-10 w-96 h-96 bg-accent/10 rounded-full blur-3xl animate-glow-pulse" 
+            style={{ 
+              animationDelay: '4s',
+              transform: `translateY(${parallaxY * 0.5}px)`,
+            }} 
+          />
         </div>
       </section>
 
