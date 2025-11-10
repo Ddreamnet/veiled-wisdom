@@ -40,7 +40,7 @@ const FooterComponent = () => {
 
       <div className="relative w-full py-12">
         <div className="w-full">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-8 mb-8">
           <div className="flex items-center justify-center">
             <Link to="/" className="flex items-center gap-3 group">
               <img src={logo} alt="Leyl" className="h-10 w-10" />
