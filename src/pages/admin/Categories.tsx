@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { AdminBreadcrumb } from '@/components/AdminBreadcrumb';
+import { CategoryImageUpload } from '@/components/CategoryImageUpload';
 
 export default function CategoriesManagement() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -32,6 +33,7 @@ export default function CategoriesManagement() {
   const [slug, setSlug] = useState('');
   const [parentId, setParentId] = useState<string>('');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string>('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -59,6 +61,7 @@ export default function CategoriesManagement() {
           name,
           slug,
           parent_id: parentId || null,
+          image_url: imageUrl || null,
         })
         .eq('id', editingId);
 
@@ -81,6 +84,7 @@ export default function CategoriesManagement() {
         name,
         slug,
         parent_id: parentId || null,
+        image_url: imageUrl || null,
       });
 
       if (error) {
@@ -102,6 +106,7 @@ export default function CategoriesManagement() {
     setName('');
     setSlug('');
     setParentId('');
+    setImageUrl('');
     setEditingId(null);
     fetchCategories();
   };
@@ -131,6 +136,7 @@ export default function CategoriesManagement() {
     setParentId(parentCategory.id);
     setName('');
     setSlug('');
+    setImageUrl('');
     setOpen(true);
   };
 
@@ -139,6 +145,7 @@ export default function CategoriesManagement() {
     setParentId('');
     setName('');
     setSlug('');
+    setImageUrl('');
     setOpen(true);
   };
 
@@ -147,6 +154,7 @@ export default function CategoriesManagement() {
     setName(category.name);
     setSlug(category.slug);
     setParentId(category.parent_id || '');
+    setImageUrl(category.image_url || '');
     setOpen(true);
   };
 
@@ -269,7 +277,17 @@ export default function CategoriesManagement() {
                 }
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto px-1">
+              <div className="space-y-2">
+                <Label>Kategori Görseli</Label>
+                <CategoryImageUpload
+                  currentImageUrl={imageUrl}
+                  categoryId={editingId || 'new'}
+                  onUploadComplete={(url) => setImageUrl(url)}
+                  onRemove={() => setImageUrl('')}
+                />
+              </div>
+              
               <div className="space-y-2">
                 <Label htmlFor="name">Kategori Adı</Label>
                 <Input
