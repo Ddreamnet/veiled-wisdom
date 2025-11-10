@@ -38,7 +38,7 @@ const FooterComponent = () => {
         </svg>
       </div>
 
-      <div className="relative w-full py-12">
+      <div className="relative w-full py-120">
         <div className="w-full">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-8 mb-8">
           <div className="flex items-center justify-center">
