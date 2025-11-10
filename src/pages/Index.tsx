@@ -79,11 +79,9 @@ export default function Index() {
 
       {/* Curiosities Section */}
       <section className="container py-24">
-        <div className="flex items-center justify-between mb-12">
-          <div>
-            <h2 className="text-4xl font-serif font-bold text-gradient-silver mb-2">Merak Konuları</h2>
-            <p className="text-silver-muted">Gizemli konuları keşfedin</p>
-          </div>
+        <div className="text-center mb-12">
+          <h2 className="text-4xl font-serif font-bold text-gradient-silver mb-2">Merak Konuları</h2>
+          <p className="text-silver-muted">Gizemli konuları keşfedin</p>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -122,7 +120,7 @@ export default function Index() {
 
       {/* Categories Section */}
       <section className="container py-24">
-        <div className="mb-12">
+        <div className="text-center mb-12">
           <h2 className="text-4xl font-serif font-bold text-gradient-silver mb-2">Kategoriler</h2>
           <p className="text-silver-muted">Uzmanlık alanlarını keşfedin</p>
         </div>
