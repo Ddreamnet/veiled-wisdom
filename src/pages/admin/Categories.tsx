@@ -5,7 +5,24 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Trash2, Plus, FolderPlus, Edit } from 'lucide-react';
+import { Trash2, Plus, FolderPlus, Edit, GripVertical } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   Dialog,
   DialogContent,
@@ -40,11 +57,19 @@ export default function CategoriesManagement() {
     fetchCategories();
   }, []);
 
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   const fetchCategories = async () => {
     const { data } = await supabase
       .from('categories')
       .select('*')
-      .order('parent_id', { ascending: true });
+      .order('display_order', { ascending: true })
+      .order('created_at', { ascending: true });
 
     if (data) {
       setCategories(data);
@@ -158,18 +183,99 @@ export default function CategoriesManagement() {
     setOpen(true);
   };
 
-  const renderCategory = (category: Category) => {
+  const handleDragEnd = async (event: DragEndEvent, parentId: string | null = null) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    const itemsToSort = parentId 
+      ? categories.filter((c) => c.parent_id === parentId)
+      : mainCategories;
+
+    const oldIndex = itemsToSort.findIndex((item) => item.id === active.id);
+    const newIndex = itemsToSort.findIndex((item) => item.id === over.id);
+
+    const reorderedItems = arrayMove(itemsToSort, oldIndex, newIndex);
+
+    // Update display_order for all affected items
+    const updates = reorderedItems.map((item, index) => ({
+      id: item.id,
+      display_order: index,
+    }));
+
+    // Optimistically update UI
+    if (parentId) {
+      setCategories((prev) =>
+        prev.map((cat) => {
+          const update = updates.find((u) => u.id === cat.id);
+          return update ? { ...cat, display_order: update.display_order } : cat;
+        })
+      );
+    } else {
+      setMainCategories(reorderedItems);
+    }
+
+    // Update database
+    try {
+      for (const update of updates) {
+        await supabase
+          .from('categories')
+          .update({ display_order: update.display_order })
+          .eq('id', update.id);
+      }
+
+      toast({
+        title: 'Başarılı',
+        description: 'Kategori sırası güncellendi.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Hata',
+        description: 'Sıralama güncellenemedi.',
+        variant: 'destructive',
+      });
+      fetchCategories(); // Revert on error
+    }
+  };
+
+  const SortableCategory = ({ category }: { category: Category }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: category.id });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    };
+
     const subCategories = categories.filter((c) => c.parent_id === category.id);
 
     return (
-      <Card key={category.id} className="mb-4">
+      <Card ref={setNodeRef} style={style} className="mb-4">
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <CardTitle className="text-lg md:text-xl">{category.name}</CardTitle>
-              <CardDescription className="text-xs md:text-sm mt-1">
-                Slug: {category.slug}
-              </CardDescription>
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div
+                {...attributes}
+                {...listeners}
+                className="cursor-grab active:cursor-grabbing touch-none"
+              >
+                <GripVertical className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <CardTitle className="text-lg md:text-xl">{category.name}</CardTitle>
+                <CardDescription className="text-xs md:text-sm mt-1">
+                  Slug: {category.slug}
+                </CardDescription>
+              </div>
             </div>
             <div className="flex gap-2">
               <Button
@@ -205,38 +311,80 @@ export default function CategoriesManagement() {
             <p className="text-sm text-muted-foreground mb-3 font-medium">
               Alt Kategoriler ({subCategories.length})
             </p>
-            <div className="space-y-2">
-              {subCategories.map((sub) => (
-                <div
-                  key={sub.id}
-                  className="flex items-center justify-between p-3 bg-muted/50 rounded-md border border-border/50"
-                >
-                  <div>
-                    <span className="font-medium text-sm md:text-base">{sub.name}</span>
-                    <p className="text-xs text-muted-foreground mt-0.5">Slug: {sub.slug}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleEdit(sub)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleDelete(sub.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={(event) => handleDragEnd(event, category.id)}
+            >
+              <SortableContext
+                items={subCategories.map((c) => c.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-2">
+                  {subCategories.map((sub) => (
+                    <SortableSubCategory key={sub.id} category={sub} />
+                  ))}
                 </div>
-              ))}
-            </div>
+              </SortableContext>
+            </DndContext>
           </CardContent>
         )}
       </Card>
+    );
+  };
+
+  const SortableSubCategory = ({ category }: { category: Category }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: category.id });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    };
+
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        className="flex items-center justify-between p-3 bg-muted/50 rounded-md border border-border/50"
+      >
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing touch-none"
+          >
+            <GripVertical className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <span className="font-medium text-sm md:text-base">{category.name}</span>
+            <p className="text-xs text-muted-foreground mt-0.5">Slug: {category.slug}</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => handleEdit(category)}
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => handleDelete(category.id)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
     );
   };
 
@@ -358,7 +506,22 @@ export default function CategoriesManagement() {
         </div>
       </div>
 
-      <div>{mainCategories.map(renderCategory)}</div>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={(event) => handleDragEnd(event, null)}
+      >
+        <SortableContext
+          items={mainCategories.map((c) => c.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div>
+            {mainCategories.map((category) => (
+              <SortableCategory key={category.id} category={category} />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
     </div>
   );
 }

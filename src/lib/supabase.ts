@@ -33,6 +33,7 @@ export type Category = {
   name: string;
   slug: string;
   image_url: string | null;
+  display_order: number;
   created_at: string;
 };
 
