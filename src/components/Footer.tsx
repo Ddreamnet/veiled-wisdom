@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
 import logo from '@/assets/logo.png';
-import { Sparkles } from 'lucide-react';
 
 export function Footer() {
   return (
@@ -8,18 +7,11 @@ export function Footer() {
       <div className="w-full px-6 lg:px-12 py-12">
         <div className="max-w-screen-2xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-          <div className="space-y-4">
+          <div>
             <Link to="/" className="flex items-center gap-3 group">
               <img src={logo} alt="Leyl" className="h-10 w-10" />
               <span className="text-2xl font-serif font-bold text-gradient-silver">Leyl</span>
             </Link>
-            <p className="text-sm text-silver-muted leading-relaxed">
-              Gizli ilimler ve antik bilgeliğin buluştuğu profesyonel platform.
-            </p>
-            <div className="flex items-center gap-2 text-xs text-silver-muted">
-              <Sparkles className="w-3 h-3 text-primary" />
-              <span>Bilgelik Yolculuğu</span>
-            </div>
           </div>
 
           <div>
