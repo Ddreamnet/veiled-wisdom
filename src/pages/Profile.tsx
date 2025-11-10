@@ -10,12 +10,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { AvatarUpload } from '@/components/AvatarUpload';
-import { User, Shield, Trash2, Calendar } from 'lucide-react';
+import { User, Shield, Trash2, Calendar, GraduationCap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
+import { Badge } from '@/components/ui/badge';
 
 export default function ProfilePage() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, role } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -195,8 +196,18 @@ export default function ProfilePage() {
           <TabsContent value="profile" className="space-y-6">
             <Card className="glass-effect border-silver/20">
               <CardHeader>
-                <CardTitle className="text-xl md:text-2xl">Profil Bilgileri</CardTitle>
-                <CardDescription>Profilinizi düzenleyin ve yönetin</CardDescription>
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div>
+                    <CardTitle className="text-xl md:text-2xl">Profil Bilgileri</CardTitle>
+                    <CardDescription>Profilinizi düzenleyin ve yönetin</CardDescription>
+                  </div>
+                  {role === 'teacher' && (
+                    <Badge className="bg-gradient-primary text-primary-foreground border-0 shadow-glow gap-1.5 px-3 py-1.5">
+                      <GraduationCap className="w-4 h-4" />
+                      <span className="font-medium">Hoca</span>
+                    </Badge>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="space-y-6">
                 {user && (
