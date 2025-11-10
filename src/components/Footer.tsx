@@ -15,11 +15,37 @@ export function Footer() {
           </div>
 
           <div>
-            <h3 className="font-semibold text-silver mb-4">Platform</h3>
+            <h3 className="font-semibold text-silver mb-4">Kategoriler</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link to="/explore" className="text-silver-muted hover:text-silver transition-smooth">
-                  Keşfet
+                <Link to="/category/bakimlar" className="text-silver-muted hover:text-silver transition-smooth">
+                  Bakımlar
+                </Link>
+              </li>
+              <li>
+                <Link to="/category/temizlemeler" className="text-silver-muted hover:text-silver transition-smooth">
+                  Temizlemeler
+                </Link>
+              </li>
+              <li>
+                <Link to="/category/analizler" className="text-silver-muted hover:text-silver transition-smooth">
+                  Analizler
+                </Link>
+              </li>
+              <li>
+                <Link to="/category/astroloji" className="text-silver-muted hover:text-silver transition-smooth">
+                  Astroloji
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="font-semibold text-silver mb-4">Hakkımızda</h3>
+            <ul className="space-y-2 text-sm">
+              <li>
+                <Link to="/about" className="text-silver-muted hover:text-silver transition-smooth">
+                  Biz Kimiz
                 </Link>
               </li>
               <li>
@@ -28,16 +54,26 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link to="/about" className="text-silver-muted hover:text-silver transition-smooth">
-                  Hakkımızda
+                <Link to="/production" className="text-silver-muted hover:text-silver transition-smooth">
+                  Üretlendirme
+                </Link>
+              </li>
+              <li>
+                <Link to="/contact" className="text-silver-muted hover:text-silver transition-smooth">
+                  İletişim
                 </Link>
               </li>
             </ul>
           </div>
 
           <div>
-            <h3 className="font-semibold text-silver mb-4">Yasal</h3>
+            <h3 className="font-semibold text-silver mb-4">Destek</h3>
             <ul className="space-y-2 text-sm">
+              <li>
+                <Link to="/contact" className="text-silver-muted hover:text-silver transition-smooth">
+                  İletişim
+                </Link>
+              </li>
               <li>
                 <Link to="/terms" className="text-silver-muted hover:text-silver transition-smooth">
                   Kullanım Koşulları
@@ -49,24 +85,8 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link to="/production" className="text-silver-muted hover:text-silver transition-smooth">
-                  Üretim
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="font-semibold text-silver mb-4">Destek</h3>
-            <ul className="space-y-2 text-sm">
-              <li>
                 <Link to="/faq" className="text-silver-muted hover:text-silver transition-smooth">
-                  Sık Sorulan Sorular
-                </Link>
-              </li>
-              <li>
-                <Link to="/contact" className="text-silver-muted hover:text-silver transition-smooth">
-                  İletişim
+                  SSS
                 </Link>
               </li>
             </ul>
