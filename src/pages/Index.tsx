@@ -44,7 +44,7 @@ export default function Index() {
   return (
     <div className="min-h-screen">
       {/* Hero Section with Liquid Gradient */}
-      <section className="relative liquid-gradient py-32 overflow-hidden">
+      <section className="relative liquid-gradient py-16 md:py-24 lg:py-32 overflow-hidden">
         {/* Particle Background */}
         <ParticleBackground />
         
@@ -68,34 +68,34 @@ export default function Index() {
             willChange: 'transform',
           }}
         >
-          <div className="text-center space-y-8 animate-fade-in-up">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-effect border border-silver/20 mb-4">
-              <Sparkles className="w-4 h-4 text-primary" />
-              <span className="text-sm text-silver-muted">Gizli İlimler ve Antik Bilgelik</span>
+          <div className="text-center space-y-6 md:space-y-8 animate-fade-in-up px-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-full glass-effect border border-silver/20 mb-2 md:mb-4">
+              <Sparkles className="w-3 h-3 md:w-4 md:h-4 text-primary" />
+              <span className="text-xs md:text-sm text-silver-muted">Gizli İlimler ve Antik Bilgelik</span>
             </div>
             
-            <h1 className="text-6xl md:text-7xl font-serif font-bold text-smoky leading-tight">
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-serif font-bold text-smoky leading-tight">
               Leyl
             </h1>
-            <p className="text-3xl md:text-4xl font-serif text-gradient-silver">
+            <p className="text-2xl md:text-3xl lg:text-4xl font-serif text-gradient-silver">
               Gizli İlimler Platformu
             </p>
             
-            <p className="text-xl text-silver-muted leading-relaxed">
+            <p className="text-base md:text-lg lg:text-xl text-silver-muted leading-relaxed max-w-3xl mx-auto">
               Antik bilgelik ve modern yaklaşımın buluştuğu platform. 
               Uzman hocalarımızla tanışın ve bilgelik yolculuğunuza başlayın.
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-              <Link to="/explore">
+            <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center pt-2 md:pt-4">
+              <Link to="/explore" className="w-full sm:w-auto">
                 <Button size="lg" className="w-full sm:w-auto">
-                  <BookOpen className="w-5 h-5 mr-2" />
+                  <BookOpen className="w-4 h-4 md:w-5 md:h-5 mr-2" />
                   Keşfet
                 </Button>
               </Link>
-              <Link to="/auth/sign-up">
+              <Link to="/auth/sign-up" className="w-full sm:w-auto">
                 <Button size="lg" variant="secondary" className="w-full sm:w-auto">
-                  <Users className="w-5 h-5 mr-2" />
+                  <Users className="w-4 h-4 md:w-5 md:h-5 mr-2" />
                   Kayıt Ol
                 </Button>
               </Link>
@@ -124,13 +124,13 @@ export default function Index() {
       </section>
 
       {/* Curiosities Section */}
-      <section className="container py-24">
-        <div className="text-center mb-12">
-          <h2 className="text-4xl font-serif font-bold text-gradient-silver mb-2">Merak Konuları</h2>
-          <p className="text-silver-muted">Gizemli konuları keşfedin</p>
+      <section className="container py-12 md:py-16 lg:py-24 px-4">
+        <div className="text-center mb-8 md:mb-12">
+          <h2 className="text-3xl md:text-4xl font-serif font-bold text-gradient-silver mb-2">Merak Konuları</h2>
+          <p className="text-sm md:text-base text-silver-muted">Gizemli konuları keşfedin</p>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
           {curiosities.map((curiosity) => (
             <Card key={curiosity.id} className="group overflow-hidden card-hover">
               {curiosity.cover_url && (
@@ -166,13 +166,13 @@ export default function Index() {
       </section>
 
       {/* Categories Section */}
-      <section className="container py-24">
-        <div className="text-center mb-12">
-          <h2 className="text-4xl font-serif font-bold text-gradient-silver mb-2">Kategoriler</h2>
-          <p className="text-silver-muted">Uzmanlık alanlarını keşfedin</p>
+      <section className="container py-12 md:py-16 lg:py-24 px-4">
+        <div className="text-center mb-8 md:mb-12">
+          <h2 className="text-3xl md:text-4xl font-serif font-bold text-gradient-silver mb-2">Kategoriler</h2>
+          <p className="text-sm md:text-base text-silver-muted">Uzmanlık alanlarını keşfedin</p>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
           {categories.map((category) => (
             <Link key={category.id} to={`/categories/${category.slug}`}>
               <Card className="group overflow-hidden h-full card-hover">
@@ -200,13 +200,13 @@ export default function Index() {
       </section>
 
       {/* Testimonials Section */}
-      <section className="container py-24">
-        <div className="text-center mb-12">
-          <h2 className="text-4xl font-serif font-bold text-gradient-silver mb-2">Kullanıcı Yorumları</h2>
-          <p className="text-silver-muted">Deneyimlerini keşfedin</p>
+      <section className="container py-12 md:py-16 lg:py-24 px-4">
+        <div className="text-center mb-8 md:mb-12">
+          <h2 className="text-3xl md:text-4xl font-serif font-bold text-gradient-silver mb-2">Kullanıcı Yorumları</h2>
+          <p className="text-sm md:text-base text-silver-muted">Deneyimlerini keşfedin</p>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
           {[1, 2, 3].map((i) => (
             <Card key={i} className="glass-effect">
               <CardContent className="p-8">
