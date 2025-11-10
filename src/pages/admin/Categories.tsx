@@ -3,9 +3,9 @@ import { supabase, Category } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, FolderPlus } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -97,33 +97,68 @@ export default function CategoriesManagement() {
     fetchCategories();
   };
 
+  const handleAddSubCategory = (parentCategory: Category) => {
+    setParentId(parentCategory.id);
+    setName('');
+    setSlug('');
+    setOpen(true);
+  };
+
+  const handleOpenNewDialog = () => {
+    setParentId('');
+    setName('');
+    setSlug('');
+    setOpen(true);
+  };
+
   const renderCategory = (category: Category) => {
     const subCategories = categories.filter((c) => c.parent_id === category.id);
 
     return (
       <Card key={category.id} className="mb-4">
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>{category.name}</CardTitle>
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={() => handleDelete(category.id)}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-lg md:text-xl">{category.name}</CardTitle>
+              <CardDescription className="text-xs md:text-sm mt-1">
+                Slug: {category.slug}
+              </CardDescription>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleAddSubCategory(category)}
+                className="gap-2"
+              >
+                <FolderPlus className="h-4 w-4" />
+                <span className="hidden sm:inline">Alt Kategori</span>
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => handleDelete(category.id)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </CardHeader>
         {subCategories.length > 0 && (
           <CardContent>
-            <p className="text-sm text-muted-foreground mb-2">Alt Kategoriler:</p>
+            <p className="text-sm text-muted-foreground mb-3 font-medium">
+              Alt Kategoriler ({subCategories.length})
+            </p>
             <div className="space-y-2">
               {subCategories.map((sub) => (
                 <div
                   key={sub.id}
-                  className="flex items-center justify-between p-2 bg-muted rounded"
+                  className="flex items-center justify-between p-3 bg-muted/50 rounded-md border border-border/50"
                 >
-                  <span>{sub.name}</span>
+                  <div>
+                    <span className="font-medium text-sm md:text-base">{sub.name}</span>
+                    <p className="text-xs text-muted-foreground mt-0.5">Slug: {sub.slug}</p>
+                  </div>
                   <Button
                     size="sm"
                     variant="ghost"
@@ -144,58 +179,92 @@ export default function CategoriesManagement() {
     <div className="container py-8 md:py-12 px-4 md:px-6 lg:px-8 space-y-8">
       <div className="space-y-4">
         <AdminBreadcrumb />
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl md:text-3xl font-bold">Kategorileri Düzenle</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold">Kategorileri Düzenle</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Ana kategorileri yönetin ve alt kategoriler ekleyin
+            </p>
+          </div>
           <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Yeni Kategori
+            <Button onClick={handleOpenNewDialog} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Yeni Ana Kategori
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="glass-effect border-silver/20">
             <DialogHeader>
-              <DialogTitle>Yeni Kategori Ekle</DialogTitle>
+              <DialogTitle>
+                {parentId ? 'Alt Kategori Ekle' : 'Yeni Ana Kategori Ekle'}
+              </DialogTitle>
               <DialogDescription>
-                Ana kategori veya alt kategori ekleyebilirsiniz.
+                {parentId 
+                  ? `"${mainCategories.find(c => c.id === parentId)?.name}" kategorisi için alt kategori ekleyin.`
+                  : 'Yeni bir ana kategori oluşturun.'
+                }
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="name">Kategori Adı</Label>
                 <Input
                   id="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  placeholder="Örn: Bakımlar, Astroloji"
+                  className="glass-effect border-silver/20"
                 />
               </div>
-              <div>
-                <Label htmlFor="slug">Slug</Label>
+              <div className="space-y-2">
+                <Label htmlFor="slug">Slug (URL'de görünecek)</Label>
                 <Input
                   id="slug"
                   value={slug}
                   onChange={(e) => setSlug(e.target.value)}
+                  placeholder="Örn: bakimlar, astroloji"
+                  className="glass-effect border-silver/20"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Küçük harf, tire ve rakam kullanın
+                </p>
               </div>
-              <div>
-                <Label>Ana Kategori (opsiyonel)</Label>
-                <Select value={parentId} onValueChange={setParentId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seçiniz" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Ana Kategori</SelectItem>
-                    {mainCategories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {!parentId && (
+                <div className="space-y-2">
+                  <Label>Ana Kategori (opsiyonel)</Label>
+                  <Select value={parentId || ''} onValueChange={setParentId}>
+                    <SelectTrigger className="glass-effect border-silver/20">
+                      <SelectValue placeholder="Ana Kategori (yok)" />
+                    </SelectTrigger>
+                    <SelectContent className="glass-effect border-silver/20">
+                      <SelectItem value="">Ana Kategori</SelectItem>
+                      {mainCategories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Boş bırakırsanız ana kategori olarak oluşturulur
+                  </p>
+                </div>
+              )}
+              {parentId && (
+                <div className="p-3 bg-primary/10 border border-primary/20 rounded-md">
+                  <p className="text-sm">
+                    <span className="font-medium">Ana Kategori:</span>{' '}
+                    <span className="text-primary">
+                      {mainCategories.find(c => c.id === parentId)?.name}
+                    </span>
+                  </p>
+                </div>
+              )}
             </div>
             <DialogFooter>
-              <Button onClick={handleCreate}>Oluştur</Button>
+              <Button onClick={handleCreate} disabled={!name || !slug}>
+                {parentId ? 'Alt Kategori Ekle' : 'Ana Kategori Oluştur'}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
