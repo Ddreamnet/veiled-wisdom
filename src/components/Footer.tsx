@@ -44,7 +44,10 @@ const FooterComponent = () => {
             <div className="flex items-center justify-center">
               <Link to="/" className="flex items-center gap-3 group">
                 <img src={logo} alt="Leyl" className="h-10 w-10" />
-                <span className="text-2xl font-serif font-bold text-gradient-silver">Leyl</span>
+                <div className="flex flex-col">
+                  <span className="text-3xl font-serif font-bold text-gradient-silver">Leyl</span>
+                  <span className="text-xs text-silver-muted">Gizli İlimler Platformu</span>
+                </div>
               </Link>
             </div>
 

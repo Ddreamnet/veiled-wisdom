@@ -38,9 +38,14 @@ const HeaderComponent = () => {
               />
               <div className="absolute inset-0 bg-primary/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </div>
-            <span className={`font-serif font-bold text-gradient-silver transition-all duration-500 ${
-              isScrolled ? 'text-xl' : 'text-2xl'
-            }`}>Leyl</span>
+            <div className="flex flex-col">
+              <span className={`font-serif font-bold text-gradient-silver transition-all duration-500 ${
+                isScrolled ? 'text-2xl' : 'text-3xl'
+              }`}>Leyl</span>
+              <span className={`text-xs text-silver-muted transition-all duration-500 ${
+                isScrolled ? 'opacity-0 h-0' : 'opacity-100'
+              }`}>Gizli İlimler Platformu</span>
+            </div>
           </Link>
 
           <nav className="hidden md:flex items-center gap-1 ml-auto">
