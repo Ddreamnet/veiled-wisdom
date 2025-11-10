@@ -210,8 +210,8 @@ const FooterComponent = () => {
       </div>
 
       <div className="relative w-full">
-        <div className="w-full border-t border-silver/10 pt-6">
-          <p className="text-sm text-silver-muted text-center">
+        <div className="w-full border-t border-silver/10 py-4">
+          <p className="text-xs text-silver-muted/80 text-center">
             © {new Date().getFullYear()} Leyl. Tüm hakları saklıdır.
           </p>
         </div>
