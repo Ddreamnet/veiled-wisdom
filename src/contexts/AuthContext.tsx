@@ -242,9 +242,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) {
+        console.error('Supabase signUp error:', error);
         toast({
           title: "Kayıt Başarısız",
-          description: error.message,
+          description: error.message || 'Beklenmeyen bir hata oluştu',
           variant: "destructive",
         });
         return { error };
