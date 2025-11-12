@@ -60,6 +60,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  const runPostSignInChecks = async (userId: string) => {
+    setLoading(true);
+    try {
+      await Promise.all([
+        fetchUserRole(userId),
+        checkTeacherApproval(userId),
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchUserRole = async (userId: string) => {
     try {
       const { data, error } = await supabase
