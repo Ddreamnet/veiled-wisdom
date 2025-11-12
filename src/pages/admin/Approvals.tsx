@@ -24,7 +24,7 @@ type TeacherApproval = {
   user_id: string;
   status: string;
   created_at: string;
-  reviewed_at: string | null;
+  updated_at: string;
   date_of_birth: string | null;
   specialization: string | null;
   education: string | null;
@@ -70,7 +70,7 @@ export default function Approvals() {
 
   const fetchApprovals = async () => {
     const loadByStatus = async (status: 'pending' | 'approved' | 'rejected') => {
-      const orderBy = status === 'pending' ? { column: 'created_at', asc: true } : { column: 'reviewed_at', asc: false };
+      const orderBy = status === 'pending' ? { column: 'created_at', asc: true } : { column: 'updated_at', asc: false };
 
       const { data, error } = await supabase
         .from('teacher_approvals')
@@ -132,7 +132,7 @@ export default function Approvals() {
       .from('teacher_approvals')
       .update({
         status: approve ? 'approved' : 'rejected',
-        reviewed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       })
       .eq('id', approvalId);
 
@@ -297,13 +297,13 @@ export default function Approvals() {
               </div>
             </div>
           )}
-          {approval.reviewed_at && (
+          {approval.status !== 'pending' && (
             <div className="flex items-start gap-2">
               <Calendar className="h-4 w-4 mt-0.5 text-primary" />
               <div>
                 <span className="font-medium">İncelenme Tarihi:</span>{' '}
                 <span className="text-muted-foreground">
-                  {new Date(approval.reviewed_at).toLocaleDateString('tr-TR', {
+                  {new Date(approval.updated_at).toLocaleDateString('tr-TR', {
                     day: 'numeric',
                     month: 'long',
                     year: 'numeric',
