@@ -86,11 +86,11 @@ export default function Approvals() {
       const userIds = (data || []).map((d: any) => d.user_id).filter(Boolean);
 
       // Fetch related profiles in one query without relying on PostgREST FK joins
-      let profilesMap = new Map<string, { id: string; username: string; avatar_url: string | null }>();
+      let profilesMap = new Map<string, { id: string; username: string; avatar_url: string | null; email?: string }>();
       if (userIds.length > 0) {
         const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
-          .select('id, username, avatar_url')
+          .select('id, username, avatar_url, email')
           .in('id', userIds);
 
         if (profilesError) {
@@ -107,6 +107,7 @@ export default function Approvals() {
           profiles: {
             username: p?.username || 'Kullanıcı',
             avatar_url: p?.avatar_url || null,
+            email: p?.email || d.email || null,
           },
         } as TeacherApproval;
       });

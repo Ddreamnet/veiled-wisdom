@@ -32,7 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -42,37 +42,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const accountType = session.user.user_metadata?.account_type;
             
             if (accountType === 'teacher') {
-              const { data: approvalData } = await supabase
-                .from('teacher_approvals')
-                .select('status')
-                .eq('user_id', session.user.id)
-                .maybeSingle();
-              
-              if (!approvalData || approvalData.status === 'pending') {
-                await supabase.auth.signOut();
-                toast({
-                  title: "Başvuru Onay Bekliyor",
-                  description: "Hoca başvurunuz inceleniyor. Onaylandıktan sonra giriş yapabileceksiniz.",
-                  variant: "destructive",
-                  duration: 6000,
-                });
-                setRole(null);
-                setLoading(false);
-                return;
-              }
-              
-              if (approvalData.status === 'rejected') {
-                await supabase.auth.signOut();
-                toast({
-                  title: "Başvuru Reddedildi",
-                  description: "Hoca başvurunuz reddedildi. Daha fazla bilgi için destek ile iletişime geçin.",
-                  variant: "destructive",
-                  duration: 6000,
-                });
-                setRole(null);
-                setLoading(false);
-                return;
-              }
+              setTimeout(async () => {
+                const { data: approvalData } = await supabase
+                  .from('teacher_approvals')
+                  .select('status')
+                  .eq('user_id', session.user.id)
+                  .maybeSingle();
+                
+                if (!approvalData || approvalData.status === 'pending') {
+                  await supabase.auth.signOut();
+                  toast({
+                    title: "Başvuru Onay Bekliyor",
+                    description: "Hoca başvurunuz inceleniyor. Onaylandıktan sonra giriş yapabileceksiniz.",
+                    variant: "destructive",
+                    duration: 6000,
+                  });
+                  setRole(null);
+                  setLoading(false);
+                  return;
+                }
+                
+                if (approvalData.status === 'rejected') {
+                  await supabase.auth.signOut();
+                  toast({
+                    title: "Başvuru Reddedildi",
+                    description: "Hoca başvurunuz reddedildi. Daha fazla bilgi için destek ile iletişime geçin.",
+                    variant: "destructive",
+                    duration: 6000,
+                  });
+                  setRole(null);
+                  setLoading(false);
+                  return;
+                }
+                
+                // Onaylı ise normal kontrol
+                setLoading(true);
+                runPostSignInChecks(session.user.id);
+              }, 0);
+              return;
             }
           }
           
