@@ -83,14 +83,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         console.error('Error fetching user role:', error);
+        return;
       }
 
-      if (!data || !data.role) {
-        // Backend tetikleyici henüz rol eklemediyse, UI tarafında varsayılan olarak customer kabul et
+      // Eğer hiç rol yoksa (teacher pending durumda olabilir)
+      if (!data) {
+        // Teacher approval kontrolü yap
+        const { data: approvalData } = await supabase
+          .from('teacher_approvals')
+          .select('status')
+          .eq('user_id', userId)
+          .maybeSingle();
+        
+        if (approvalData?.status === 'pending') {
+          setRole('customer'); // Geçici olarak customer göster, checkTeacherApproval zaten signOut yapacak
+          return;
+        }
+        
+        // Varsayılan olarak customer
         setRole('customer');
-      } else {
-        setRole(data.role as UserRole);
+        return;
       }
+
+      setRole(data.role as UserRole);
     } catch (error) {
       console.error('Error fetching user role:', error);
       setRole('customer');
