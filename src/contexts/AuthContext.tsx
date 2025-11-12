@@ -39,6 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user) {
           setTimeout(() => {
             fetchUserRole(session.user.id);
+            checkTeacherApproval(session.user.id);
           }, 0);
         } else {
           setRole(null);
@@ -72,22 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (!data || !data.role) {
-        // Attempt to repair missing/nullable role by setting default 'customer'
-        try {
-          const { data: updated } = await supabase
-            .from('user_roles')
-            .update({ role: 'customer' })
-            .eq('user_id', userId)
-            .select();
-
-          if (!updated || updated.length === 0) {
-            await supabase
-              .from('user_roles')
-              .insert([{ user_id: userId, role: 'customer' }]);
-          }
-        } catch (e) {
-          console.error('Error repairing user role:', e);
-        }
+        // Backend tetikleyici henüz rol eklemediyse, UI tarafında varsayılan olarak customer kabul et
         setRole('customer');
       } else {
         setRole(data.role as UserRole);
@@ -99,6 +85,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     }
   };
+
+  const checkTeacherApproval = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('teacher_approvals')
+        .select('status')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error checking teacher approval:', error);
+        return;
+      }
+
+      if (data?.status === 'pending') {
+        await supabase.auth.signOut();
+        toast({
+          title: "Başvuru Onay Bekliyor",
+          description: "Hoca başvurunuz inceleniyor. Onaylandıktan sonra giriş yapabileceksiniz.",
+          variant: "destructive",
+          duration: 6000,
+        });
+      } else if (data?.status === 'rejected') {
+        await supabase.auth.signOut();
+        toast({
+          title: "Başvuru Reddedildi",
+          description: "Hoca başvurunuz reddedildi. Daha fazla bilgi için destek ile iletişime geçin.",
+          variant: "destructive",
+          duration: 6000,
+        });
+      }
+    } catch (e) {
+      console.error('Error checking teacher approval:', e);
+    }
+  };
+
   const signIn = async (email: string, password: string) => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
