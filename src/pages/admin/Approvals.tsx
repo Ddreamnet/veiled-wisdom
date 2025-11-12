@@ -147,20 +147,16 @@ export default function Approvals() {
     }
 
     if (approve) {
-      // Update user role to teacher
-      const { data: updatedRole, error: roleUpdateError } = await supabase
+      // First, delete any existing role (especially 'customer')
+      await supabase
         .from('user_roles')
-        .update({ role: 'teacher' })
-        .eq('user_id', userId)
-        .select();
+        .delete()
+        .eq('user_id', userId);
 
-      let roleError = roleUpdateError as any;
-      if (!roleUpdateError && (!updatedRole || updatedRole.length === 0)) {
-        const { error: roleInsertError } = await supabase
-          .from('user_roles')
-          .insert([{ user_id: userId, role: 'teacher' }]);
-        roleError = roleInsertError;
-      }
+      // Then insert the teacher role
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert([{ user_id: userId, role: 'teacher' }]);
 
       // Update profile
       const { error: profileError } = await supabase
