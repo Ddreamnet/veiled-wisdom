@@ -183,6 +183,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .eq('user_id', data.user.id)
           .maybeSingle();
 
+        // Eğer user metadata'da teacher olarak kayıtlıysa ama approvalData yoksa, onay beklemeli
+        const accountType = data.user.user_metadata?.account_type;
+        
+        if (accountType === 'teacher' && !approvalData) {
+          await supabase.auth.signOut();
+          const pendingError = new Error("Hoca başvurunuz henüz işleme alınmadı. Lütfen daha sonra tekrar deneyin.");
+          toast({
+            title: "Başvuru İşleniyor",
+            description: pendingError.message,
+            variant: "destructive",
+            duration: 6000,
+          });
+          return { error: pendingError };
+        }
+
         if (approvalData) {
           if (approvalData.status === 'pending') {
             await supabase.auth.signOut();
@@ -251,22 +266,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error };
       }
 
-      if (data.user) {
-        // Profil, rol ve (öğretmen ise) başvuru kaydı backend tetikleyicisi ile oluşturulacak
-        if (selectedRole === 'teacher') {
-          await supabase.auth.signOut();
-          toast({
-            title: "Başvuru Alındı",
-            description: "E-posta adresinize gönderilen linke tıklayarak hesabınızı onaylayın. Başvurunuz admin onayına iletildi.",
-            duration: 7000,
-          });
-        } else {
-          toast({
-            title: "Kayıt Başarılı",
-            description: "E-posta adresinize gönderilen linke tıklayarak hesabınızı onaylayın.",
-            duration: 5000,
-          });
-        }
+      // Profil, rol ve (öğretmen ise) başvuru kaydı backend tetikleyicisi ile oluşturulacak
+      if (selectedRole === 'teacher') {
+        // Teacher kayıtlarında otomatik girişi engelle
+        await supabase.auth.signOut();
+        toast({
+          title: "Başvuru Alındı",
+          description: "E-posta adresinize gönderilen linke tıklayarak hesabınızı onaylayın. Başvurunuz admin onayına iletildi.",
+          duration: 7000,
+        });
+      } else {
+        toast({
+          title: "Kayıt Başarılı",
+          description: "E-posta adresinize gönderilen linke tıklayarak hesabınızı onaylayın.",
+          duration: 5000,
+        });
       }
 
       return { error };
