@@ -179,6 +179,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           emailRedirectTo: redirectUrl,
           data: {
             username,
+            account_type: selectedRole,
+            ...(selectedRole === 'teacher' && teacherData
+              ? {
+                  date_of_birth: teacherData.dateOfBirth,
+                  specialization: teacherData.specialization,
+                  education: teacherData.education,
+                  years_of_experience: teacherData.yearsOfExperience,
+                  phone: teacherData.phone,
+                }
+              : {}),
           },
         },
       });
@@ -193,84 +203,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (data.user) {
-        // Wait a bit for auth to fully initialize
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        // Profile oluştur
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert([
-            {
-              id: data.user.id,
-              username,
-              is_teacher_approved: selectedRole !== 'teacher',
-            },
-          ]);
-
-        if (profileError) {
-          console.error('Profile creation error:', profileError);
-          toast({
-            title: "Hata",
-            description: "Profil oluşturulamadı. Lütfen tekrar deneyin.",
-            variant: "destructive",
-          });
+        // Profil, rol ve (öğretmen ise) başvuru kaydı backend tetikleyicisi ile oluşturulacak
+        if (selectedRole === 'teacher') {
           await supabase.auth.signOut();
-          return { error: profileError };
-        }
-
-        // Role ata - teacher başvurusu için customer, diğerleri için seçilen rol
-        const assignedRole = selectedRole === 'teacher' ? 'customer' : selectedRole;
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .insert([
-            {
-              user_id: data.user.id,
-              role: assignedRole,
-            },
-          ]);
-
-        if (roleError) {
-          console.error('Role creation error:', roleError);
-          toast({
-            title: "Hata",
-            description: "Rol ataması yapılamadı.",
-            variant: "destructive",
-          });
-          return { error: roleError };
-        }
-
-        // Teacher başvurusu ise approval kaydı oluştur
-        if (selectedRole === 'teacher' && teacherData) {
-          const { error: approvalError } = await supabase
-            .from('teacher_approvals')
-            .insert([
-              {
-                user_id: data.user.id,
-                status: 'pending',
-                date_of_birth: teacherData.dateOfBirth,
-                specialization: teacherData.specialization,
-                education: teacherData.education,
-                years_of_experience: teacherData.yearsOfExperience,
-                phone: teacherData.phone,
-              },
-            ]);
-
-          if (approvalError) {
-            console.error('Teacher approval request error:', approvalError);
-            toast({
-              title: "Hata",
-              description: "Hoca başvurusu kaydedilemedi.",
-              variant: "destructive",
-            });
-            return { error: approvalError };
-          }
-
-          // Kullanıcıyı çıkış yaptır - onaylanmadan giriş yapamamalı
-          await supabase.auth.signOut();
-          
           toast({
             title: "Başvuru Alındı",
-            description: "E-posta adresinize gönderilen linke tıklayarak hesabınızı onaylayın. Hoca başvurunuz incelendikten sonra giriş yapabileceksiniz.",
+            description: "E-posta adresinize gönderilen linke tıklayarak hesabınızı onaylayın. Başvurunuz admin onayına iletildi.",
             duration: 7000,
           });
         } else {
