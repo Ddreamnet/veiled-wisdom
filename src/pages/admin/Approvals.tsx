@@ -69,60 +69,61 @@ export default function Approvals() {
   }, []);
 
   const fetchApprovals = async () => {
-    // Fetch pending
-    const { data: pending } = await supabase
-      .from('teacher_approvals')
-      .select(`
-        *,
-        profiles!inner(username, avatar_url)
-      `)
-      .eq('status', 'pending')
-      .order('created_at', { ascending: true });
+    const loadByStatus = async (status: 'pending' | 'approved' | 'rejected') => {
+      const orderBy = status === 'pending' ? { column: 'created_at', asc: true } : { column: 'reviewed_at', asc: false };
 
-    // Fetch approved
-    const { data: approved } = await supabase
-      .from('teacher_approvals')
-      .select(`
-        *,
-        profiles!inner(username, avatar_url)
-      `)
-      .eq('status', 'approved')
-      .order('reviewed_at', { ascending: false });
+      const { data, error } = await supabase
+        .from('teacher_approvals')
+        .select('*')
+        .eq('status', status)
+        .order(orderBy.column as any, { ascending: orderBy.asc });
 
-    // Fetch rejected
-    const { data: rejected } = await supabase
-      .from('teacher_approvals')
-      .select(`
-        *,
-        profiles!inner(username, avatar_url)
-      `)
-      .eq('status', 'rejected')
-      .order('reviewed_at', { ascending: false });
+      if (error) {
+        console.error('teacher_approvals fetch error:', error);
+        return [] as TeacherApproval[];
+      }
 
-    // Fetch email for each user
-    const enrichWithEmail = async (approvals: any[]) => {
-      if (!approvals) return [];
-      
-      const enriched = await Promise.all(
-        approvals.map(async (approval) => {
-          const { data: userData } = await supabase.auth.admin.getUserById(approval.user_id);
-          return {
-            ...approval,
-            profiles: {
-              ...approval.profiles,
-              email: userData?.user?.email || 'E-posta bulunamadı',
-            },
-          };
-        })
-      );
+      const userIds = (data || []).map((d: any) => d.user_id).filter(Boolean);
+
+      // Fetch related profiles in one query without relying on PostgREST FK joins
+      let profilesMap = new Map<string, { id: string; username: string; avatar_url: string | null }>();
+      if (userIds.length > 0) {
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, username, avatar_url')
+          .in('id', userIds);
+
+        if (profilesError) {
+          console.error('profiles fetch error:', profilesError);
+        } else {
+          profilesData?.forEach((p: any) => profilesMap.set(p.id, p));
+        }
+      }
+
+      const enriched: TeacherApproval[] = (data || []).map((d: any) => {
+        const p = profilesMap.get(d.user_id);
+        return {
+          ...d,
+          profiles: {
+            username: p?.username || 'Kullanıcı',
+            avatar_url: p?.avatar_url || null,
+          },
+        } as TeacherApproval;
+      });
+
       return enriched;
     };
 
-    if (pending) setPendingApprovals(await enrichWithEmail(pending));
-    if (approved) setApprovedApprovals(await enrichWithEmail(approved));
-    if (rejected) setRejectedApprovals(await enrichWithEmail(rejected));
-  };
+    const [pending, approved, rejected] = await Promise.all([
+      loadByStatus('pending'),
+      loadByStatus('approved'),
+      loadByStatus('rejected'),
+    ]);
 
+    setPendingApprovals(pending);
+    setApprovedApprovals(approved);
+    setRejectedApprovals(rejected);
+  };
   const handleApproval = async (approvalId: string, userId: string, approve: boolean) => {
     setLoading(true);
 
