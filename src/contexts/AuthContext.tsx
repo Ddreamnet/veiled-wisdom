@@ -38,11 +38,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (session?.user) {
           setTimeout(() => {
-            fetchUserRole(session.user.id);
-            checkTeacherApproval(session.user.id);
+            runPostSignInChecks(session.user!.id);
           }, 0);
         } else {
           setRole(null);
+          setLoading(false);
         }
       }
     );
@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchUserRole(session.user.id);
+        runPostSignInChecks(session.user.id);
       } else {
         setLoading(false);
       }
