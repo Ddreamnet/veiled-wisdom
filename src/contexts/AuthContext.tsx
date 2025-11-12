@@ -35,8 +35,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        
         if (session?.user) {
+          // Bloklamayı önlemek için hemen loading'i true yapıyoruz; yönlendirme yapılmasın
+          setLoading(true);
           setTimeout(() => {
             runPostSignInChecks(session.user!.id);
           }, 0);
