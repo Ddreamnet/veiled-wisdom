@@ -49,7 +49,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   .eq('user_id', session.user.id)
                   .maybeSingle();
                 
-                if (!approvalData || approvalData.status === 'pending') {
+                if (!approvalData) {
+                  // Fallback: Kayıt yoksa otomatik pending başvuru oluştur
+                  const md: any = session.user.user_metadata || {};
+                  try {
+                    await supabase.from('teacher_approvals').insert([
+                      {
+                        user_id: session.user.id,
+                        status: 'pending',
+                        date_of_birth: md.date_of_birth ?? null,
+                        specialization: md.specialization ?? null,
+                        education: md.education ?? null,
+                        years_of_experience: md.years_of_experience ?? null,
+                        phone: md.phone ?? null,
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                      },
+                    ]);
+                  } catch (e) {
+                    console.warn('teacher_approvals insert fallback failed:', e);
+                  }
+
+                  await supabase.auth.signOut();
+                  toast({
+                    title: "Başvuru Alındı",
+                    description: "Hoca başvurunuz oluşturuldu ve inceleniyor. Onaylandıktan sonra giriş yapabileceksiniz.",
+                    duration: 7000,
+                  });
+                  setRole(null);
+                  setLoading(false);
+                  return;
+                }
+
+                if (approvalData.status === 'pending') {
                   await supabase.auth.signOut();
                   toast({
                     title: "Başvuru Onay Bekliyor",
@@ -234,13 +266,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const accountType = data.user.user_metadata?.account_type;
         
         if (accountType === 'teacher' && !approvalData) {
+          // Fallback: Kayıt yoksa öğretmen başvurusunu otomatik oluştur
+          const md: any = data.user.user_metadata || {};
+          try {
+            await supabase.from('teacher_approvals').insert([
+              {
+                user_id: data.user.id,
+                status: 'pending',
+                date_of_birth: md.date_of_birth ?? null,
+                specialization: md.specialization ?? null,
+                education: md.education ?? null,
+                years_of_experience: md.years_of_experience ?? null,
+                phone: md.phone ?? null,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              },
+            ]);
+          } catch (e) {
+            console.warn('teacher_approvals insert on signIn failed:', e);
+          }
+
           await supabase.auth.signOut();
-          const pendingError = new Error("Hoca başvurunuz henüz işleme alınmadı. Lütfen daha sonra tekrar deneyin.");
+          const pendingError = new Error("Hoca başvurunuz oluşturuldu ve inceleniyor. Onaylandıktan sonra giriş yapabileceksiniz.");
           toast({
-            title: "Başvuru İşleniyor",
+            title: "Başvuru Alındı",
             description: pendingError.message,
-            variant: "destructive",
-            duration: 6000,
+            duration: 7000,
           });
           return { error: pendingError };
         }
