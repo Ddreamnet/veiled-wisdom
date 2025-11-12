@@ -127,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: confirmError };
       }
 
-      // Teacher başvurusu pending ise giriş yapmasını engelle
+      // Teacher başvurusu kontrolü - hem pending hem rejected durumları kontrol et
       if (data.user) {
         const { data: approvalData } = await supabase
           .from('teacher_approvals')
@@ -135,15 +135,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .eq('user_id', data.user.id)
           .maybeSingle();
 
-        if (approvalData && approvalData.status === 'pending') {
-          await supabase.auth.signOut();
-          const pendingError = new Error("Hoca başvurunuz henüz onaylanmadı. Lütfen bekleyin.");
-          toast({
-            title: "Başvuru Beklemede",
-            description: pendingError.message,
-            variant: "destructive",
-          });
-          return { error: pendingError };
+        if (approvalData) {
+          if (approvalData.status === 'pending') {
+            await supabase.auth.signOut();
+            const pendingError = new Error("Hoca başvurunuz inceleniyor. Onaylandıktan sonra giriş yapabileceksiniz.");
+            toast({
+              title: "Başvuru Onay Bekliyor",
+              description: pendingError.message,
+              variant: "destructive",
+              duration: 6000,
+            });
+            return { error: pendingError };
+          }
+          
+          if (approvalData.status === 'rejected') {
+            await supabase.auth.signOut();
+            const rejectedError = new Error("Hoca başvurunuz reddedildi. Daha fazla bilgi için destek ile iletişime geçin.");
+            toast({
+              title: "Başvuru Reddedildi",
+              description: rejectedError.message,
+              variant: "destructive",
+              duration: 6000,
+            });
+            return { error: rejectedError };
+          }
         }
       }
       
@@ -178,6 +193,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (data.user) {
+        // Wait a bit for auth to fully initialize
+        await new Promise(resolve => setTimeout(resolve, 100));
+
         // Profile oluştur
         const { error: profileError } = await supabase
           .from('profiles')
@@ -193,9 +211,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.error('Profile creation error:', profileError);
           toast({
             title: "Hata",
-            description: "Profil oluşturulamadı.",
+            description: "Profil oluşturulamadı. Lütfen tekrar deneyin.",
             variant: "destructive",
           });
+          await supabase.auth.signOut();
           return { error: profileError };
         }
 
