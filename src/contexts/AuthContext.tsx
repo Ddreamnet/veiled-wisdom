@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase, UserRole } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
@@ -35,14 +35,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        
         if (session?.user) {
+          // Bloklamayı önlemek için hemen loading'i true yapıyoruz; yönlendirme yapılmasın
+          setLoading(true);
           setTimeout(() => {
-            fetchUserRole(session.user.id);
-            checkTeacherApproval(session.user.id);
+            runPostSignInChecks(session.user!.id);
           }, 0);
         } else {
           setRole(null);
+          setLoading(false);
         }
       }
     );
@@ -51,7 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchUserRole(session.user.id);
+        runPostSignInChecks(session.user.id);
       } else {
         setLoading(false);
       }
@@ -59,6 +60,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const runPostSignInChecks = async (userId: string) => {
+    setLoading(true);
+    try {
+      await Promise.all([
+        fetchUserRole(userId),
+        checkTeacherApproval(userId),
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchUserRole = async (userId: string) => {
     try {
@@ -81,8 +94,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Error fetching user role:', error);
       setRole('customer');
-    } finally {
-      setLoading(false);
     }
   };
 
