@@ -57,6 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                       {
                         user_id: session.user.id,
                         status: 'pending',
+                        full_name: md.username ?? null,
                         date_of_birth: md.date_of_birth ?? null,
                         specialization: md.specialization ?? null,
                         education: md.education ?? null,
@@ -273,6 +274,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               {
                 user_id: data.user.id,
                 status: 'pending',
+                full_name: md.username ?? null,
                 date_of_birth: md.date_of_birth ?? null,
                 specialization: md.specialization ?? null,
                 education: md.education ?? null,
