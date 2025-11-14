@@ -98,8 +98,8 @@ export default function TeacherEarnings() {
 
   return (
     <div className="container px-4 md:px-6 lg:px-8 py-8 md:py-12">
-      {/* Breadcrumb Navigation */}
-      <div className="mb-4">
+      {/* Breadcrumb Navigation - Desktop only */}
+      <div className="mb-4 hidden md:block">
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -120,12 +120,12 @@ export default function TeacherEarnings() {
         </Breadcrumb>
       </div>
 
-      {/* Back Button */}
+      {/* Back Button - Mobile only */}
       <Button
         variant="ghost"
         size="sm"
         onClick={() => navigate(-1)}
-        className="mb-4"
+        className="mb-4 md:hidden"
       >
         <ArrowLeft className="h-4 w-4 mr-2" />
         Geri
