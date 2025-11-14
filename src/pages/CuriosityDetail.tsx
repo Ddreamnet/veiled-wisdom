@@ -78,6 +78,8 @@ export default function CuriosityDetail() {
           <img
             src={curiosity.cover_url}
             alt={curiosity.title}
+            loading="lazy"
+            decoding="async"
             className="w-full h-64 md:h-80 lg:h-96 object-cover rounded-lg mb-6 md:mb-8 shadow-elegant"
           />
         )}

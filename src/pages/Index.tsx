@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, memo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase, Category, Curiosity } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { ArrowRight, Sparkles, BookOpen, Users } from 'lucide-react';
 import { ParticleBackground } from '@/components/ParticleBackground';
 import { useMousePosition } from '@/hooks/useMousePosition';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
+import { useImagePreload } from '@/hooks/useImagePreload';
 
 export default function Index() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -14,26 +15,38 @@ export default function Index() {
   const mousePosition = useMousePosition();
   const scrollPosition = useScrollPosition();
 
-  useEffect(() => {
-    fetchData();
+  // Preload images for better performance
+  const imageUrls = useMemo(() => {
+    return [
+      ...categories.map(cat => cat.image_url).filter(Boolean),
+      ...curiosities.map(cur => cur.cover_url).filter(Boolean),
+    ] as string[];
+  }, [categories, curiosities]);
+  
+  useImagePreload(imageUrls);
+
+  const fetchData = useCallback(async () => {
+    // Parallel fetch for better performance
+    const [categoriesResult, curiositiesResult] = await Promise.all([
+      supabase
+        .from('categories')
+        .select('*')
+        .is('parent_id', null)
+        .limit(4),
+      supabase
+        .from('curiosities')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(3),
+    ]);
+
+    if (categoriesResult.data) setCategories(categoriesResult.data);
+    if (curiositiesResult.data) setCuriosities(curiositiesResult.data);
   }, []);
 
-  const fetchData = async () => {
-    const { data: categoriesData } = await supabase
-      .from('categories')
-      .select('*')
-      .is('parent_id', null)
-      .limit(4);
-
-    const { data: curiositiesData } = await supabase
-      .from('curiosities')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(3);
-
-    if (categoriesData) setCategories(categoriesData);
-    if (curiositiesData) setCuriosities(curiositiesData);
-  };
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   // Calculate parallax values (memoized for performance)
   const parallaxY = useMemo(() => scrollPosition * 0.5, [scrollPosition]);
@@ -139,6 +152,7 @@ export default function Index() {
                     src={curiosity.cover_url}
                     alt={curiosity.title}
                     loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover card-image"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
@@ -182,6 +196,7 @@ export default function Index() {
                       src={category.image_url}
                       alt={category.name}
                       loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover card-image"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent" />
