@@ -100,8 +100,8 @@ function AppRoutes() {
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/appointments" element={<ProtectedRoute><Appointments /></ProtectedRoute>} />
           
-          <Route path="/my-listings" element={<ProtectedRoute requiredRole={['teacher']}><MyListings /></ProtectedRoute>} />
-          <Route path="/earnings" element={<ProtectedRoute requiredRole={['teacher']}><TeacherEarnings /></ProtectedRoute>} />
+          <Route path="/teacher/my-listings" element={<ProtectedRoute requiredRole={['teacher']}><MyListings /></ProtectedRoute>} />
+          <Route path="/teacher/earnings" element={<ProtectedRoute requiredRole={['teacher']}><TeacherEarnings /></ProtectedRoute>} />
           
           <Route path="/admin" element={<ProtectedRoute requiredRole={['admin']}><AdminDashboard /></ProtectedRoute>} />
           <Route path="/admin/dashboard" element={<ProtectedRoute requiredRole={['admin']}><AdminDashboard /></ProtectedRoute>} />
