@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/table';
 import { DollarSign, Calendar, CreditCard, Clock, ArrowLeft, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -46,6 +47,7 @@ export default function TeacherEarnings() {
     pendingAmount: 0,
   });
   const [payouts, setPayouts] = useState<PayoutHistory[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
@@ -56,6 +58,7 @@ export default function TeacherEarnings() {
 
   const fetchEarnings = async () => {
     if (!user) return;
+    setLoading(true);
 
     // Get all completed appointments
     const { data: completed } = await supabase
@@ -82,6 +85,8 @@ export default function TeacherEarnings() {
       pendingCount: totalCompleted - paidCount,
       pendingAmount: totalEarnings - paidAmount,
     });
+    
+    setLoading(false);
   };
 
   const fetchPayouts = async () => {
@@ -133,7 +138,32 @@ export default function TeacherEarnings() {
 
       <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Gelirlerim</h1>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
+      {loading ? (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i}>
+                <CardHeader className="pb-3">
+                  <Skeleton className="h-4 w-32" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-8 w-24" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-48" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-64 w-full" />
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -222,6 +252,8 @@ export default function TeacherEarnings() {
           )}
         </CardContent>
       </Card>
+        </>
+      )}
     </div>
   );
 }

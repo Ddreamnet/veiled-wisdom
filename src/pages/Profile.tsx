@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { AvatarUpload } from '@/components/AvatarUpload';
@@ -20,6 +21,7 @@ export default function ProfilePage() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [dataLoading, setDataLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [username, setUsername] = useState('');
   const [bio, setBio] = useState('');
@@ -39,6 +41,7 @@ export default function ProfilePage() {
 
   const fetchProfile = async () => {
     if (!user) return;
+    setDataLoading(true);
 
     const { data } = await supabase
       .from('profiles')
@@ -52,6 +55,8 @@ export default function ProfilePage() {
       setBio(data.bio || '');
       setAvatarUrl(data.avatar_url || '');
     }
+    
+    setDataLoading(false);
   };
 
   const handleAvatarUpload = async (url: string) => {
@@ -176,7 +181,27 @@ export default function ProfilePage() {
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl md:text-4xl font-serif text-gradient-silver mb-6 md:mb-8">Hesap Ayarları</h1>
         
-        <Tabs defaultValue="profile" className="space-y-6">
+        {dataLoading ? (
+          <div className="space-y-6">
+            <Skeleton className="h-12 w-full" />
+            <Card className="glass-effect border-silver/20">
+              <CardHeader>
+                <Skeleton className="h-8 w-48 mb-2" />
+                <Skeleton className="h-4 w-64" />
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex justify-center">
+                  <Skeleton className="h-32 w-32 rounded-full" />
+                </div>
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-10 w-32" />
+              </CardContent>
+            </Card>
+          </div>
+        ) : (
+          <Tabs defaultValue="profile" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3 glass-effect border-silver/20">
             <TabsTrigger value="profile" className="gap-2">
               <User className="w-4 h-4" />
@@ -368,6 +393,7 @@ export default function ProfilePage() {
             </Card>
           </TabsContent>
         </Tabs>
+        )}
       </div>
     </div>
   );

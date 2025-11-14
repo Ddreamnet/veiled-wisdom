@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
 import { CheckCircle, XCircle, Mail, Phone, GraduationCap, Calendar } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -43,6 +44,7 @@ export default function Approvals() {
   const [approvedApprovals, setApprovedApprovals] = useState<TeacherApproval[]>([]);
   const [rejectedApprovals, setRejectedApprovals] = useState<TeacherApproval[]>([]);
   const [loading, setLoading] = useState(false);
+  const [dataLoading, setDataLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -125,6 +127,7 @@ export default function Approvals() {
     setPendingApprovals(pending);
     setApprovedApprovals(approved);
     setRejectedApprovals(rejected);
+    setDataLoading(false);
   };
   const handleApproval = async (approvalId: string, userId: string, approve: boolean) => {
     setLoading(true);
@@ -385,7 +388,29 @@ export default function Approvals() {
         </div>
       </div>
 
-      <Tabs defaultValue="pending" className="w-full">
+      {dataLoading ? (
+        <div className="space-y-4">
+          <Skeleton className="h-10 w-full max-w-md" />
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardHeader>
+                <Skeleton className="h-6 w-48 mb-2" />
+                <Skeleton className="h-4 w-32" />
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-2/3" />
+                <div className="flex gap-2 pt-2">
+                  <Skeleton className="h-9 w-24" />
+                  <Skeleton className="h-9 w-24" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <Tabs defaultValue="pending" className="w-full">
         <TabsList className="grid w-full max-w-md grid-cols-3">
           <TabsTrigger value="pending">
             Bekleyen ({pendingApprovals.length})
@@ -434,6 +459,7 @@ export default function Approvals() {
           )}
         </TabsContent>
       </Tabs>
+      )}
     </div>
   );
 }
