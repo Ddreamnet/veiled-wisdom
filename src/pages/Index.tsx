@@ -137,10 +137,10 @@ export default function Index() {
       </section>
 
       {/* Gradient Transition */}
-      <div className="h-32 bg-gradient-to-b from-purple-950/40 via-purple-950/20 to-background" />
+      <div className="h-48 bg-gradient-to-b from-purple-950/40 via-purple-950/20 to-background" />
 
       {/* Curiosities Section */}
-      <section className="container py-12 md:py-16 lg:py-24 px-4 -mt-20">
+      <section className="container py-12 md:py-16 lg:py-24 px-4 -mt-32">
         <div className="text-center mb-8 md:mb-12">
           <h2 className="text-3xl md:text-4xl font-serif font-bold text-gradient-silver mb-2">Merak Konuları</h2>
           <p className="text-sm md:text-base text-silver-muted">Gizemli konuları keşfedin</p>
