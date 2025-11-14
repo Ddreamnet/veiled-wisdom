@@ -117,9 +117,15 @@ export default function AdminDashboard() {
 
   const adminCards = [
     {
+      title: 'Kullanıcı Yönetimi',
+      description: 'Tüm kullanıcıları görüntüle ve rolleri yönet',
+      icon: Users,
+      href: '/admin/users',
+    },
+    {
       title: 'Hocaları Düzenle',
       description: 'Onaylı hocaları yönet ve düzenle',
-      icon: Users,
+      icon: UserCheck,
       href: '/admin/teachers',
     },
     {
