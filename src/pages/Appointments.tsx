@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Check, X, ArrowLeft, Home } from 'lucide-react';
 import { ReviewDialog } from '@/components/ReviewDialog';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -25,6 +26,7 @@ export default function Appointments() {
   const [pending, setPending] = useState<Appointment[]>([]);
   const [completed, setCompleted] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState<string | null>(null);
+  const [dataLoading, setDataLoading] = useState(true);
   const [reviewedAppointments, setReviewedAppointments] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -35,6 +37,7 @@ export default function Appointments() {
 
   const fetchAppointments = async () => {
     if (!user) return;
+    setDataLoading(true);
 
     const column = role === 'teacher' ? 'teacher_id' : 'customer_id';
     const now = new Date().toISOString();
@@ -90,6 +93,8 @@ export default function Appointments() {
         }
       }
     }
+    
+    setDataLoading(false);
   };
 
   const handleStatusUpdate = async (appointment: any, newStatus: 'confirmed' | 'cancelled') => {
@@ -241,30 +246,55 @@ export default function Appointments() {
       </Button>
 
       <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Randevularım</h1>
-      <Tabs defaultValue="pending">
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
-          <TabsTrigger value="pending">Bekleyen ({pending.length})</TabsTrigger>
-          <TabsTrigger value="completed">Tamamlanan ({completed.length})</TabsTrigger>
-        </TabsList>
-        <TabsContent value="pending" className="mt-6">
-          {pending.length === 0 ? (
-            <p className="text-center text-muted-foreground py-12">
-              Bekleyen randevunuz bulunmuyor.
-            </p>
-          ) : (
-            pending.map((apt) => renderAppointment(apt, false))
-          )}
-        </TabsContent>
-        <TabsContent value="completed" className="mt-6">
-          {completed.length === 0 ? (
-            <p className="text-center text-muted-foreground py-12">
-              Tamamlanmış randevunuz bulunmuyor.
-            </p>
-          ) : (
-            completed.map((apt) => renderAppointment(apt, true))
-          )}
-        </TabsContent>
-      </Tabs>
+
+      {dataLoading ? (
+        <div className="space-y-4">
+          <Skeleton className="h-10 w-full max-w-md" />
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <Skeleton className="h-6 w-48 mb-2" />
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-2/3" />
+                  <div className="flex gap-2 pt-2">
+                    <Skeleton className="h-9 w-24" />
+                    <Skeleton className="h-9 w-24" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <Tabs defaultValue="pending">
+          <TabsList className="grid w-full grid-cols-2 max-w-md">
+            <TabsTrigger value="pending">Bekleyen ({pending.length})</TabsTrigger>
+            <TabsTrigger value="completed">Tamamlanan ({completed.length})</TabsTrigger>
+          </TabsList>
+          <TabsContent value="pending" className="mt-6">
+            {pending.length === 0 ? (
+              <p className="text-center text-muted-foreground py-12">
+                Bekleyen randevunuz bulunmuyor.
+              </p>
+            ) : (
+              pending.map((apt) => renderAppointment(apt, false))
+            )}
+          </TabsContent>
+          <TabsContent value="completed" className="mt-6">
+            {completed.length === 0 ? (
+              <p className="text-center text-muted-foreground py-12">
+                Tamamlanmış randevunuz bulunmuyor.
+              </p>
+            ) : (
+              completed.map((apt) => renderAppointment(apt, true))
+            )}
+          </TabsContent>
+        </Tabs>
+      )}
     </div>
   );
 }
