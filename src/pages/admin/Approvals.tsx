@@ -25,6 +25,7 @@ type TeacherApproval = {
   status: string;
   created_at: string;
   updated_at: string;
+  full_name: string | null;
   date_of_birth: string | null;
   specialization: string | null;
   education: string | null;
@@ -105,7 +106,7 @@ export default function Approvals() {
         return {
           ...d,
           profiles: {
-            username: p?.username || 'Kullanıcı',
+            username: d.full_name || p?.username || 'Kullanıcı',
             avatar_url: p?.avatar_url || null,
             email: p?.email || d.email || null,
           },
