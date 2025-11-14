@@ -107,6 +107,13 @@ const HeaderComponent = () => {
                 >
                   Keşfet
                 </Link>
+                <Link
+                  to="/teacher/my-listings"
+                  className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth flex items-center gap-2"
+                >
+                  <BookOpen className="h-4 w-4" />
+                  İlanlarım
+                </Link>
                 <Link to="/messages">
                   <Button variant="ghost" size="icon">
                     <MessageSquare className="h-5 w-5" />
