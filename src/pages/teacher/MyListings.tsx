@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { supabase, Category, Listing, ListingPrice } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Filter, BookOpen } from 'lucide-react';
 import { ImageUpload } from '@/components/ImageUpload';
 import {
   Dialog,
@@ -26,23 +29,81 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+
+type ListingWithPrices = Listing & {
+  prices: ListingPrice[];
+  category: Category;
+};
+
+const listingFormSchema = z.object({
+  title: z.string()
+    .min(5, { message: "Başlık en az 5 karakter olmalıdır" })
+    .max(100, { message: "Başlık en fazla 100 karakter olabilir" }),
+  description: z.string()
+    .min(20, { message: "Açıklama en az 20 karakter olmalıdır" })
+    .max(1000, { message: "Açıklama en fazla 1000 karakter olabilir" }),
+  category_id: z.string().min(1, { message: "Kategori seçmelisiniz" }),
+  subcategory_id: z.string().optional(),
+  is_active: z.boolean().default(true),
+  cover_url: z.string().optional(),
+  price_30: z.string().optional(),
+  price_45: z.string().optional(),
+  price_60: z.string().optional(),
+}).refine((data) => {
+  const hasAtLeastOnePrice = data.price_30 || data.price_45 || data.price_60;
+  return hasAtLeastOnePrice;
+}, {
+  message: "En az bir fiyat girmelisiniz",
+  path: ["price_30"],
+}).refine((data) => {
+  const prices = [data.price_30, data.price_45, data.price_60].filter(Boolean);
+  return prices.every(price => {
+    const num = parseFloat(price!);
+    return !isNaN(num) && num > 0 && num <= 10000;
+  });
+}, {
+  message: "Fiyatlar 0-10000 TL arasında olmalıdır",
+  path: ["price_30"],
+});
 
 export default function MyListings() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [listings, setListings] = useState<ListingWithPrices[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [subcategories, setSubcategories] = useState<Category[]>([]);
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
+  const [filterCategory, setFilterCategory] = useState<string>('all');
 
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [categoryId, setCategoryId] = useState('');
-  const [isActive, setIsActive] = useState(true);
-  const [coverUrl, setCoverUrl] = useState('');
-  const [price30, setPrice30] = useState('');
-  const [price45, setPrice45] = useState('');
-  const [price60, setPrice60] = useState('');
+  const form = useForm<z.infer<typeof listingFormSchema>>({
+    resolver: zodResolver(listingFormSchema),
+    defaultValues: {
+      title: '',
+      description: '',
+      category_id: '',
+      subcategory_id: '',
+      is_active: true,
+      cover_url: '',
+      price_30: '',
+      price_45: '',
+      price_60: '',
+    },
+  });
 
   useEffect(() => {
     if (user) {
@@ -51,31 +112,51 @@ export default function MyListings() {
     }
   }, [user]);
 
+  useEffect(() => {
+    const categoryId = form.watch('category_id');
+    if (categoryId) {
+      fetchSubcategories(categoryId);
+    } else {
+      setSubcategories([]);
+    }
+  }, [form.watch('category_id')]);
+
   const fetchListings = async () => {
     if (!user) return;
+    setLoading(true);
 
-    const { data } = await supabase
-      .from('listings')
-      .select('*, category:categories(*)')
-      .eq('teacher_id', user.id)
-      .order('created_at', { ascending: false });
+    try {
+      const { data } = await supabase
+        .from('listings')
+        .select('*, category:categories(*)')
+        .eq('teacher_id', user.id)
+        .order('created_at', { ascending: false });
 
-    if (data) {
-      const listingsWithPrices = await Promise.all(
-        data.map(async (listing) => {
-          const { data: prices } = await supabase
-            .from('listing_prices')
-            .select('*')
-            .eq('listing_id', listing.id);
+      if (data) {
+        const listingsWithPrices = await Promise.all(
+          data.map(async (listing) => {
+            const { data: prices } = await supabase
+              .from('listing_prices')
+              .select('*')
+              .eq('listing_id', listing.id);
 
-          return {
-            ...listing,
-            prices: prices || [],
-          };
-        })
-      );
+            return {
+              ...listing,
+              prices: prices || [],
+            };
+          })
+        );
 
-      setListings(listingsWithPrices as any);
+        setListings(listingsWithPrices as any);
+      }
+    } catch (error) {
+      toast({
+        title: 'Hata',
+        description: 'İlanlar yüklenirken bir hata oluştu.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -83,99 +164,115 @@ export default function MyListings() {
     const { data } = await supabase
       .from('categories')
       .select('*')
+      .is('parent_id', null)
       .order('name');
 
     if (data) setCategories(data);
   };
 
+  const fetchSubcategories = async (parentId: string) => {
+    const { data } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('parent_id', parentId)
+      .order('name');
+
+    if (data) setSubcategories(data);
+  };
+
   const handleEdit = (listing: ListingWithPrices) => {
     setEditingId(listing.id);
-    setTitle(listing.title);
-    setDescription(listing.description || '');
-    setCategoryId(listing.category_id);
-    setIsActive(listing.is_active);
-    setCoverUrl(listing.cover_url || '');
 
     const p30 = listing.prices.find((p) => p.duration_minutes === 30);
     const p45 = listing.prices.find((p) => p.duration_minutes === 45);
     const p60 = listing.prices.find((p) => p.duration_minutes === 60);
 
-    setPrice30(p30?.price.toString() || '');
-    setPrice45(p45?.price.toString() || '');
-    setPrice60(p60?.price.toString() || '');
+    // Check if listing has a parent category (is subcategory)
+    const parentCategory = categories.find(c => c.id === listing.category.parent_id);
+    
+    form.reset({
+      title: listing.title,
+      description: listing.description || '',
+      category_id: parentCategory ? listing.category.parent_id! : listing.category_id,
+      subcategory_id: parentCategory ? listing.category_id : '',
+      is_active: listing.is_active,
+      cover_url: listing.cover_url || '',
+      price_30: p30?.price.toString() || '',
+      price_45: p45?.price.toString() || '',
+      price_60: p60?.price.toString() || '',
+    });
 
     setOpen(true);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (values: z.infer<typeof listingFormSchema>) => {
     if (!user) return;
+    setSubmitting(true);
 
-    const listingData = {
-      title,
-      description,
-      category_id: categoryId,
-      is_active: isActive,
-      cover_url: coverUrl || null,
-      teacher_id: user.id,
-    };
+    try {
+      // Use subcategory if available, otherwise use main category
+      const finalCategoryId = values.subcategory_id || values.category_id;
 
-    let listingId = editingId;
+      const listingData = {
+        title: values.title,
+        description: values.description,
+        category_id: finalCategoryId,
+        is_active: values.is_active,
+        cover_url: values.cover_url || null,
+        teacher_id: user.id,
+      };
 
-    if (editingId) {
-      const { error } = await supabase
-        .from('listings')
-        .update(listingData)
-        .eq('id', editingId);
+      let listingId = editingId;
 
-      if (error) {
-        toast({
-          title: 'Hata',
-          description: 'İlan güncellenemedi.',
-          variant: 'destructive',
-        });
-        return;
-      }
-    } else {
-      const { data, error } = await supabase
-        .from('listings')
-        .insert(listingData)
-        .select()
-        .single();
+      if (editingId) {
+        const { error } = await supabase
+          .from('listings')
+          .update(listingData)
+          .eq('id', editingId);
 
-      if (error || !data) {
-        toast({
-          title: 'Hata',
-          description: 'İlan oluşturulamadı.',
-          variant: 'destructive',
-        });
-        return;
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from('listings')
+          .insert(listingData)
+          .select()
+          .single();
+
+        if (error || !data) throw error;
+        listingId = data.id;
       }
 
-      listingId = data.id;
+      // Update prices
+      if (listingId) {
+        await supabase.from('listing_prices').delete().eq('listing_id', listingId);
+
+        const prices = [];
+        if (values.price_30) prices.push({ listing_id: listingId, duration_minutes: 30, price: parseFloat(values.price_30) });
+        if (values.price_45) prices.push({ listing_id: listingId, duration_minutes: 45, price: parseFloat(values.price_45) });
+        if (values.price_60) prices.push({ listing_id: listingId, duration_minutes: 60, price: parseFloat(values.price_60) });
+
+        if (prices.length > 0) {
+          await supabase.from('listing_prices').insert(prices);
+        }
+      }
+
+      toast({
+        title: 'Başarılı',
+        description: editingId ? 'İlan güncellendi.' : 'İlan oluşturuldu.',
+      });
+
+      setOpen(false);
+      resetForm();
+      fetchListings();
+    } catch (error) {
+      toast({
+        title: 'Hata',
+        description: 'İlan kaydedilirken bir hata oluştu.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSubmitting(false);
     }
-
-    // Update prices
-    if (listingId) {
-      await supabase.from('listing_prices').delete().eq('listing_id', listingId);
-
-      const prices = [];
-      if (price30) prices.push({ listing_id: listingId, duration_minutes: 30, price: parseFloat(price30) });
-      if (price45) prices.push({ listing_id: listingId, duration_minutes: 45, price: parseFloat(price45) });
-      if (price60) prices.push({ listing_id: listingId, duration_minutes: 60, price: parseFloat(price60) });
-
-      if (prices.length > 0) {
-        await supabase.from('listing_prices').insert(prices);
-      }
-    }
-
-    toast({
-      title: 'Başarılı',
-      description: editingId ? 'İlan güncellendi.' : 'İlan oluşturuldu.',
-    });
-
-    setOpen(false);
-    resetForm();
-    fetchListings();
   };
 
   const handleDelete = async (id: string) => {
@@ -200,180 +297,467 @@ export default function MyListings() {
 
   const resetForm = () => {
     setEditingId(null);
-    setTitle('');
-    setDescription('');
-    setCategoryId('');
-    setIsActive(true);
-    setCoverUrl('');
-    setPrice30('');
-    setPrice45('');
-    setPrice60('');
+    setSubcategories([]);
+    form.reset({
+      title: '',
+      description: '',
+      category_id: '',
+      subcategory_id: '',
+      is_active: true,
+      cover_url: '',
+      price_30: '',
+      price_45: '',
+      price_60: '',
+    });
   };
+
+  // Filtered listings
+  const filteredListings = listings.filter(listing => {
+    const matchesSearch = listing.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      listing.description?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesStatus = filterStatus === 'all' ||
+      (filterStatus === 'active' && listing.is_active) ||
+      (filterStatus === 'inactive' && !listing.is_active);
+    
+    const matchesCategory = filterCategory === 'all' || listing.category_id === filterCategory;
+
+    return matchesSearch && matchesStatus && matchesCategory;
+  });
+
+  const totalListings = listings.length;
+  const activeListings = listings.filter(l => l.is_active).length;
+  const inactiveListings = listings.filter(l => !l.is_active).length;
 
   return (
     <div className="container py-12">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold">İlanlarım</h1>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={resetForm}>
-              <Plus className="h-4 w-4 mr-2" />
-              Yeni İlan
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{editingId ? 'İlanı Düzenle' : 'Yeni İlan Oluştur'}</DialogTitle>
-              <DialogDescription>
-                İlan bilgilerini ve fiyatlandırmanı belirle.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="title">İlan Başlığı</Label>
-                <Input
-                  id="title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="description">İlan Açıklaması</Label>
-                <Textarea
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={4}
-                />
-              </div>
-              <div>
-                <Label>Kategori</Label>
-                <Select value={categoryId} onValueChange={setCategoryId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Kategori seçin" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="active"
-                  checked={isActive}
-                  onCheckedChange={setIsActive}
-                />
-                <Label htmlFor="active">İlan aktif</Label>
-              </div>
-
-              {editingId && (
-                <div>
-                  <Label>İlan Görseli</Label>
-                  <ImageUpload
-                    currentImageUrl={coverUrl}
-                    listingId={editingId}
-                    onUploadComplete={setCoverUrl}
-                    onRemove={() => setCoverUrl('')}
-                  />
-                </div>
-              )}
-
-              <div className="border-t pt-4">
-                <h3 className="font-semibold mb-4">Seans Fiyatları</h3>
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="price30">30 Dakika (TL)</Label>
-                    <Input
-                      id="price30"
-                      type="number"
-                      value={price30}
-                      onChange={(e) => setPrice30(e.target.value)}
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="price45">45 Dakika (TL)</Label>
-                    <Input
-                      id="price45"
-                      type="number"
-                      value={price45}
-                      onChange={(e) => setPrice45(e.target.value)}
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="price60">60 Dakika (TL)</Label>
-                    <Input
-                      id="price60"
-                      type="number"
-                      value={price60}
-                      onChange={(e) => setPrice60(e.target.value)}
-                      placeholder="0.00"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button onClick={handleSubmit}>
-                {editingId ? 'Güncelle' : 'Oluştur'}
+      {/* Header */}
+      <div className="flex flex-col gap-4 mb-8">
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold">İlanlarım</h1>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={resetForm}>
+                <Plus className="h-4 w-4 mr-2" />
+                Yeni İlan
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{editingId ? 'İlanı Düzenle' : 'Yeni İlan Oluştur'}</DialogTitle>
+                <DialogDescription>
+                  İlan bilgilerini ve fiyatlandırmanı belirle. Tüm alanlar zorunludur.
+                </DialogDescription>
+              </DialogHeader>
+              
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+                  {/* Title */}
+                  <FormField
+                    control={form.control}
+                    name="title"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>İlan Başlığı *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Örn: Astroloji Danışmanlığı" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          5-100 karakter arası olmalıdır
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Description */}
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>İlan Açıklaması *</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="İlanınızı detaylı bir şekilde açıklayın..." 
+                            rows={4}
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          20-1000 karakter arası olmalıdır
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Category & Subcategory */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="category_id"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Ana Kategori *</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Kategori seçin" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {categories.map((cat) => (
+                                <SelectItem key={cat.id} value={cat.id}>
+                                  {cat.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {subcategories.length > 0 && (
+                      <FormField
+                        control={form.control}
+                        name="subcategory_id"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Alt Kategori</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Alt kategori seçin (opsiyonel)" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {subcategories.map((cat) => (
+                                  <SelectItem key={cat.id} value={cat.id}>
+                                    {cat.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                  </div>
+
+                  {/* Is Active */}
+                  <FormField
+                    control={form.control}
+                    name="is_active"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center gap-2 space-y-0">
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <FormLabel className="!mt-0">İlan aktif</FormLabel>
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Image Upload (only for editing) */}
+                  {editingId && (
+                    <FormField
+                      control={form.control}
+                      name="cover_url"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>İlan Görseli</FormLabel>
+                          <FormControl>
+                            <ImageUpload
+                              currentImageUrl={field.value}
+                              listingId={editingId}
+                              onUploadComplete={field.onChange}
+                              onRemove={() => field.onChange('')}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  {/* Pricing */}
+                  <div className="border-t pt-4 space-y-4">
+                    <div>
+                      <h3 className="font-semibold mb-2">Seans Fiyatları *</h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        En az bir fiyat girmelisiniz. Fiyatlar 0-10000 TL arasında olmalıdır.
+                      </p>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="price_30"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>30 Dakika (TL)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="0.00"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="price_45"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>45 Dakika (TL)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="0.00"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="price_60"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>60 Dakika (TL)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="0.00"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+
+                  <DialogFooter>
+                    <Button type="submit" disabled={submitting}>
+                      {submitting ? 'Kaydediliyor...' : (editingId ? 'Güncelle' : 'Oluştur')}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        {/* Statistics */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <BookOpen className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Toplam İlan</p>
+                  <p className="text-2xl font-bold">{totalListings}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-green-500/10 rounded-lg">
+                  <BookOpen className="h-5 w-5 text-green-500" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Aktif İlan</p>
+                  <p className="text-2xl font-bold">{activeListings}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-muted rounded-lg">
+                  <BookOpen className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Pasif İlan</p>
+                  <p className="text-2xl font-bold">{inactiveListings}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Search & Filters */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="İlan ara..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              
+              <Select value={filterStatus} onValueChange={(value: any) => setFilterStatus(value)}>
+                <SelectTrigger className="w-full md:w-[180px]">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tüm İlanlar</SelectItem>
+                  <SelectItem value="active">Aktif</SelectItem>
+                  <SelectItem value="inactive">Pasif</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <SelectTrigger className="w-full md:w-[200px]">
+                  <SelectValue placeholder="Kategori filtrele" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tüm Kategoriler</SelectItem>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {listings.length === 0 ? (
+      {/* Listings Grid */}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <Skeleton className="w-full h-48 rounded-t-lg" />
+              <CardHeader>
+                <Skeleton className="h-6 w-3/4" />
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-2/3" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : filteredListings.length === 0 ? (
         <Card>
           <CardContent className="p-12 text-center">
-            <p className="text-muted-foreground">Henüz ilan oluşturmadınız.</p>
+            <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            {searchQuery || filterStatus !== 'all' || filterCategory !== 'all' ? (
+              <>
+                <p className="text-lg font-semibold mb-2">Sonuç bulunamadı</p>
+                <p className="text-muted-foreground mb-4">
+                  Arama kriterlerinize uygun ilan bulunamadı.
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setFilterStatus('all');
+                    setFilterCategory('all');
+                  }}
+                >
+                  Filtreleri Temizle
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="text-lg font-semibold mb-2">Henüz ilan yok</p>
+                <p className="text-muted-foreground mb-4">
+                  İlk ilanınızı oluşturarak öğrencilere ulaşmaya başlayın.
+                </p>
+                <Button onClick={() => { resetForm(); setOpen(true); }}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  İlk İlanı Oluştur
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {listings.map((listing) => (
-            <Card key={listing.id} className="hover:shadow-glow transition-smooth">
+          {filteredListings.map((listing) => (
+            <Card key={listing.id} className="hover:shadow-glow transition-smooth overflow-hidden">
               {listing.cover_url && (
                 <img
                   src={listing.cover_url}
                   alt={listing.title}
-                  className="w-full h-48 object-cover rounded-t-lg"
+                  className="w-full h-48 object-cover"
                 />
               )}
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">{listing.title}</CardTitle>
+                <div className="flex items-start justify-between gap-2">
+                  <CardTitle className="text-lg line-clamp-2">{listing.title}</CardTitle>
                   {listing.is_active ? (
-                    <span className="text-xs bg-green-500/20 text-green-500 px-2 py-1 rounded">
+                    <span className="text-xs bg-green-500/20 text-green-500 px-2 py-1 rounded whitespace-nowrap">
                       Aktif
                     </span>
                   ) : (
-                    <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded">
+                    <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded whitespace-nowrap">
                       Pasif
                     </span>
                   )}
                 </div>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground line-clamp-3">
                   {listing.description}
                 </p>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Kategori: {listing.category.name}
-                </p>
-                <div className="mb-4">
-                  <p className="text-xs text-muted-foreground mb-2">Fiyatlar:</p>
-                  {listing.prices.map((price) => (
-                    <div key={price.duration_minutes} className="text-sm">
-                      {price.duration_minutes} dk: {price.price} TL
-                    </div>
-                  ))}
+                
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Filter className="h-4 w-4" />
+                  <span>{listing.category.name}</span>
                 </div>
-                <div className="flex gap-2">
+                
+                <div className="border-t pt-3">
+                  <p className="text-xs font-semibold text-muted-foreground mb-2">Fiyatlar:</p>
+                  <div className="space-y-1">
+                    {listing.prices.length > 0 ? (
+                      listing.prices.map((price) => (
+                        <div key={price.duration_minutes} className="flex justify-between text-sm">
+                          <span>{price.duration_minutes} dakika</span>
+                          <span className="font-semibold">{price.price} TL</span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Fiyat bilgisi yok</p>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="flex gap-2 pt-2">
                   <Button
                     size="sm"
                     variant="outline"
