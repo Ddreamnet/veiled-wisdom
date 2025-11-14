@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { useNavigate } from "react-router-dom";
 import { supabase, Category, Listing, ListingPrice } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, Search, Filter, BookOpen } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Filter, BookOpen, ArrowLeft, Home } from 'lucide-react';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { ImageUpload } from '@/components/ImageUpload';
 import {
   Dialog,
@@ -80,6 +89,7 @@ const listingFormSchema = z.object({
 export default function MyListings() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [listings, setListings] = useState<ListingWithPrices[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Category[]>([]);
@@ -332,6 +342,39 @@ export default function MyListings() {
 
   return (
     <div className="container px-4 md:px-6 lg:px-8 py-8 md:py-12">
+      {/* Breadcrumb Navigation */}
+      <div className="mb-4">
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/" className="flex items-center gap-1">
+                <Home className="h-4 w-4" />
+                Ana Sayfa
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/profile">Öğretmen</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>İlanlarım</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
+
+      {/* Back Button */}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => navigate(-1)}
+        className="mb-4"
+      >
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        Geri
+      </Button>
+
       {/* Header */}
       <div className="flex flex-col gap-4 mb-6 md:mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

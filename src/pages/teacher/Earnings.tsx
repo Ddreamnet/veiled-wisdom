@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +11,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { DollarSign, Calendar, CreditCard, Clock } from 'lucide-react';
+import { DollarSign, Calendar, CreditCard, Clock, ArrowLeft, Home } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 
 type PayoutHistory = {
   id: string;
@@ -28,6 +38,7 @@ type EarningsSummary = {
 
 export default function TeacherEarnings() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [summary, setSummary] = useState<EarningsSummary>({
     totalCompleted: 0,
     totalEarnings: 0,
@@ -87,6 +98,39 @@ export default function TeacherEarnings() {
 
   return (
     <div className="container px-4 md:px-6 lg:px-8 py-8 md:py-12">
+      {/* Breadcrumb Navigation */}
+      <div className="mb-4">
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/" className="flex items-center gap-1">
+                <Home className="h-4 w-4" />
+                Ana Sayfa
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/profile">Öğretmen</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>Gelirlerim</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
+
+      {/* Back Button */}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => navigate(-1)}
+        className="mb-4"
+      >
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        Geri
+      </Button>
+
       <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Gelirlerim</h1>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
