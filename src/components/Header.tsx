@@ -107,21 +107,9 @@ const HeaderComponent = () => {
                 >
                   Keşfet
                 </Link>
-                <Link
-                  to="/teacher/my-listings"
-                  className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth flex items-center gap-2"
-                >
-                  <BookOpen className="h-4 w-4" />
-                  İlanlarım
-                </Link>
                 <Link to="/messages">
                   <Button variant="ghost" size="icon">
                     <MessageSquare className="h-5 w-5" />
-                  </Button>
-                </Link>
-                <Link to="/teacher/earnings">
-                  <Button variant="ghost" size="icon">
-                    <DollarSign className="h-5 w-5" />
                   </Button>
                 </Link>
               </>
@@ -178,7 +166,13 @@ const HeaderComponent = () => {
                       <DropdownMenuItem asChild>
                         <Link to="/appointments" className="flex items-center gap-2 cursor-pointer">
                           <Calendar className="h-4 w-4" />
-                          Randevular
+                          Randevularım
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/teacher/earnings" className="flex items-center gap-2 cursor-pointer">
+                          <DollarSign className="h-4 w-4" />
+                          Gelirlerim
                         </Link>
                       </DropdownMenuItem>
                     </>
@@ -350,12 +344,12 @@ const HeaderComponent = () => {
                         İlanlarım
                       </Link>
                       <Link
-                        to="/messages"
+                        to="/appointments"
                         onClick={() => setMobileMenuOpen(false)}
                         className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth"
                       >
-                        <MessageSquare className="h-5 w-5" />
-                        Mesajlar
+                        <Calendar className="h-5 w-5" />
+                        Randevularım
                       </Link>
                       <Link
                         to="/teacher/earnings"
@@ -363,15 +357,15 @@ const HeaderComponent = () => {
                         className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth"
                       >
                         <DollarSign className="h-5 w-5" />
-                        Gelirler
+                        Gelirlerim
                       </Link>
                       <Link
-                        to="/appointments"
+                        to="/messages"
                         onClick={() => setMobileMenuOpen(false)}
                         className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-smooth"
                       >
-                        <Calendar className="h-5 w-5" />
-                        Randevular
+                        <MessageSquare className="h-5 w-5" />
+                        Mesajlar
                       </Link>
                       <Link
                         to="/profile"
