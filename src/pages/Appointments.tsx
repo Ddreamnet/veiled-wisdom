@@ -135,31 +135,32 @@ export default function Appointments() {
 
     return (
       <Card key={appointment.id} className="mb-4">
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>Randevu #{appointment.id.slice(0, 8)}</span>
-            <Badge>{appointment.status}</Badge>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-base md:text-lg">
+            <span className="truncate">Randevu #{appointment.id.slice(0, 8)}</span>
+            <Badge className="self-start sm:self-auto">{appointment.status}</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div>
-            <p className="text-sm font-medium">İlan: {appointment.listing?.title}</p>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm font-medium break-words">İlan: {appointment.listing?.title}</p>
+            <p className="text-sm text-muted-foreground truncate">
               {isTeacher ? 'Öğrenci' : 'Öğretmen'}: {isTeacher ? appointment.customer?.username : appointment.teacher?.username}
             </p>
           </div>
           <div className="text-sm text-muted-foreground space-y-1">
-            <p>Tarih: {new Date(appointment.start_ts).toLocaleString('tr-TR')}</p>
+            <p className="break-words">Tarih: {new Date(appointment.start_ts).toLocaleString('tr-TR')}</p>
             <p>Süre: {appointment.duration_minutes} dakika</p>
             <p>Fiyat: {appointment.price_at_booking} TL</p>
           </div>
           
           {isTeacher && isPending && (
-            <div className="flex gap-2 pt-2">
+            <div className="flex flex-col sm:flex-row gap-2 pt-2">
               <Button
                 size="sm"
                 onClick={() => handleStatusUpdate(appointment, 'confirmed')}
                 disabled={isLoading}
+                className="w-full sm:w-auto"
               >
                 <Check className="w-4 h-4 mr-1" />
                 Onayla
@@ -169,6 +170,7 @@ export default function Appointments() {
                 variant="destructive"
                 onClick={() => handleStatusUpdate(appointment, 'cancelled')}
                 disabled={isLoading}
+                className="w-full sm:w-auto"
               >
                 <X className="w-4 h-4 mr-1" />
                 Reddet
@@ -198,10 +200,10 @@ export default function Appointments() {
   };
 
   return (
-    <div className="container py-12">
-      <h1 className="text-3xl font-bold mb-8">Randevularım</h1>
+    <div className="container px-4 md:px-6 lg:px-8 py-8 md:py-12">
+      <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Randevularım</h1>
       <Tabs defaultValue="pending">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-2 max-w-md">
           <TabsTrigger value="pending">Bekleyen ({pending.length})</TabsTrigger>
           <TabsTrigger value="completed">Tamamlanan ({completed.length})</TabsTrigger>
         </TabsList>
