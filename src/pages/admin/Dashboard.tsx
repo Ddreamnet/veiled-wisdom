@@ -47,9 +47,9 @@ export default function AdminDashboard() {
 
       // Fetch pending approvals
       const { count: pendingCount } = await supabase
-        .from('profiles')
+        .from('teacher_approvals')
         .select('*', { count: 'exact', head: true })
-        .eq('is_teacher_approved', false);
+        .eq('status', 'pending');
 
       // Fetch total categories
       const { count: categoriesCount } = await supabase
