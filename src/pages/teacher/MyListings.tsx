@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Edit, Trash2, Search, Filter, BookOpen } from 'lucide-react';
 import { ImageUpload } from '@/components/ImageUpload';
@@ -707,45 +708,43 @@ export default function MyListings() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {filteredListings.map((listing) => (
-            <Card key={listing.id} className="hover:shadow-glow transition-smooth overflow-hidden">
+            <Card key={listing.id} className="hover:shadow-glow transition-smooth overflow-hidden flex flex-col">
               {listing.cover_url && (
-                <img
-                  src={listing.cover_url}
-                  alt={listing.title}
-                  className="w-full h-48 object-cover"
-                />
+                <div className="aspect-video relative overflow-hidden">
+                  <img
+                    src={listing.cover_url}
+                    alt={listing.title}
+                    className="object-cover w-full h-full"
+                  />
+                </div>
               )}
-              <CardHeader>
+              <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2">
-                  <CardTitle className="text-lg line-clamp-2">{listing.title}</CardTitle>
+                  <CardTitle className="text-base md:text-lg line-clamp-2 break-words flex-1">{listing.title}</CardTitle>
                   {listing.is_active ? (
-                    <span className="text-xs bg-green-500/20 text-green-500 px-2 py-1 rounded whitespace-nowrap">
-                      Aktif
-                    </span>
+                    <Badge variant="default" className="text-xs flex-shrink-0">Aktif</Badge>
                   ) : (
-                    <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded whitespace-nowrap">
-                      Pasif
-                    </span>
+                    <Badge variant="secondary" className="text-xs flex-shrink-0">Pasif</Badge>
                   )}
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground line-clamp-3">
+              <CardContent className="space-y-4 flex-1 flex flex-col">
+                <p className="text-sm text-muted-foreground line-clamp-3 break-words">
                   {listing.description}
                 </p>
                 
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Filter className="h-4 w-4" />
-                  <span>{listing.category.name}</span>
+                  <Filter className="h-4 w-4 flex-shrink-0" />
+                  <span className="truncate">{listing.category.name}</span>
                 </div>
                 
-                <div className="border-t pt-3">
+                <div className="border-t pt-3 flex-1">
                   <p className="text-xs font-semibold text-muted-foreground mb-2">Fiyatlar:</p>
                   <div className="space-y-1">
                     {listing.prices.length > 0 ? (
                       listing.prices.map((price) => (
-                        <div key={price.duration_minutes} className="flex justify-between text-sm">
-                          <span>{price.duration_minutes} dakika</span>
+                        <div key={price.duration_minutes} className="flex justify-between text-sm gap-2">
+                          <span className="text-muted-foreground">{price.duration_minutes} dk</span>
                           <span className="font-semibold">{price.price} TL</span>
                         </div>
                       ))
@@ -755,12 +754,12 @@ export default function MyListings() {
                   </div>
                 </div>
                 
-                <div className="flex gap-2 pt-2">
+                <div className="flex flex-col sm:flex-row gap-2 pt-2">
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => handleEdit(listing)}
-                    className="flex-1"
+                    className="flex-1 w-full sm:w-auto"
                   >
                     <Edit className="h-4 w-4 mr-2" />
                     Düzenle
@@ -769,8 +768,10 @@ export default function MyListings() {
                     size="sm"
                     variant="destructive"
                     onClick={() => handleDelete(listing.id)}
+                    className="flex-1 w-full sm:w-auto"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Sil
                   </Button>
                 </div>
               </CardContent>
