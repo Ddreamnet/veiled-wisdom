@@ -181,26 +181,26 @@ export default function ProfilePage() {
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl md:text-4xl font-serif text-gradient-silver mb-6 md:mb-8">Hesap Ayarları</h1>
         
-        {dataLoading ? (
-          <div className="space-y-6">
-            <Skeleton className="h-12 w-full" />
-            <Card className="glass-effect border-silver/20">
-              <CardHeader>
-                <Skeleton className="h-8 w-48 mb-2" />
-                <Skeleton className="h-4 w-64" />
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex justify-center">
-                  <Skeleton className="h-32 w-32 rounded-full" />
-                </div>
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-24 w-full" />
-                <Skeleton className="h-10 w-32" />
-              </CardContent>
-            </Card>
-          </div>
-        ) : (
+      {dataLoading ? (
+        <div className="space-y-6">
+          <Skeleton variant="shimmer" className="h-12 w-full" />
+          <Card className="glass-effect border-silver/20">
+            <CardHeader>
+              <Skeleton variant="shimmer" className="h-8 w-48 mb-2" />
+              <Skeleton variant="shimmer" className="h-4 w-64" />
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex justify-center">
+                <Skeleton variant="shimmer" className="h-32 w-32 rounded-full" />
+              </div>
+              <Skeleton variant="shimmer" className="h-10 w-full" />
+              <Skeleton variant="shimmer" className="h-10 w-full" />
+              <Skeleton variant="shimmer" className="h-24 w-full" />
+              <Skeleton variant="shimmer" className="h-10 w-32" />
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
           <Tabs defaultValue="profile" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3 glass-effect border-silver/20">
             <TabsTrigger value="profile" className="gap-2">

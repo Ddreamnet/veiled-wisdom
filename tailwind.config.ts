@@ -111,6 +111,22 @@ export default {
           "0%, 100%": { backgroundPosition: "0% 50%" },
           "50%": { backgroundPosition: "100% 50%" },
         },
+        "shimmer": {
+          "0%": { 
+            backgroundPosition: "-200% 0",
+          },
+          "100%": { 
+            backgroundPosition: "200% 0",
+          }
+        },
+        "skeleton-wave": {
+          "0%": {
+            transform: "translateX(-100%)",
+          },
+          "100%": {
+            transform: "translateX(100%)",
+          }
+        },
         "glow-pulse": {
           "0%, 100%": { opacity: "0.5" },
           "50%": { opacity: "0.8" },

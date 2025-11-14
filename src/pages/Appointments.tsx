@@ -249,20 +249,20 @@ export default function Appointments() {
 
       {dataLoading ? (
         <div className="space-y-4">
-          <Skeleton className="h-10 w-full max-w-md" />
+          <Skeleton variant="wave" className="h-10 w-full max-w-md" />
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
               <Card key={i}>
                 <CardHeader>
-                  <Skeleton className="h-6 w-48 mb-2" />
+                  <Skeleton variant="shimmer" className="h-6 w-48 mb-2" />
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-4 w-2/3" />
+                  <Skeleton variant="shimmer" className="h-4 w-full" />
+                  <Skeleton variant="shimmer" className="h-4 w-3/4" />
+                  <Skeleton variant="shimmer" className="h-4 w-2/3" />
                   <div className="flex gap-2 pt-2">
-                    <Skeleton className="h-9 w-24" />
-                    <Skeleton className="h-9 w-24" />
+                    <Skeleton variant="shimmer" className="h-9 w-24" />
+                    <Skeleton variant="shimmer" className="h-9 w-24" />
                   </div>
                 </CardContent>
               </Card>
