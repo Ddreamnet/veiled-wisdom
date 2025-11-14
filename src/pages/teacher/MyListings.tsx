@@ -330,11 +330,11 @@ export default function MyListings() {
   const inactiveListings = listings.filter(l => !l.is_active).length;
 
   return (
-    <div className="container py-12">
+    <div className="container px-4 md:px-6 lg:px-8 py-8 md:py-12">
       {/* Header */}
-      <div className="flex flex-col gap-4 mb-8">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">İlanlarım</h1>
+      <div className="flex flex-col gap-4 mb-6 md:mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <h1 className="text-2xl md:text-3xl font-bold">İlanlarım</h1>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button onClick={resetForm}>
@@ -566,8 +566,8 @@ export default function MyListings() {
           </Dialog>
         </div>
 
-        {/* Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Statistics */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -612,52 +612,50 @@ export default function MyListings() {
         </div>
 
         {/* Search & Filters */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="İlan ara..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              
-              <Select value={filterStatus} onValueChange={(value: any) => setFilterStatus(value)}>
-                <SelectTrigger className="w-full md:w-[180px]">
-                  <Filter className="h-4 w-4 mr-2" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tüm İlanlar</SelectItem>
-                  <SelectItem value="active">Aktif</SelectItem>
-                  <SelectItem value="inactive">Pasif</SelectItem>
-                </SelectContent>
-              </Select>
+        <div className="space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="İlan ara..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Select value={filterStatus} onValueChange={(value: any) => setFilterStatus(value)}>
+              <SelectTrigger className="w-full sm:w-[150px]">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tümü</SelectItem>
+                <SelectItem value="active">Aktif</SelectItem>
+                <SelectItem value="inactive">Pasif</SelectItem>
+              </SelectContent>
+            </Select>
 
-              <Select value={filterCategory} onValueChange={setFilterCategory}>
-                <SelectTrigger className="w-full md:w-[200px]">
-                  <SelectValue placeholder="Kategori filtrele" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tüm Kategoriler</SelectItem>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
+            <Select value={filterCategory} onValueChange={setFilterCategory}>
+              <SelectTrigger className="w-full sm:w-[200px]">
+                <SelectValue placeholder="Kategori" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tüm Kategoriler</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </div>
 
       {/* Listings Grid */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {[1, 2, 3].map((i) => (
             <Card key={i}>
               <Skeleton className="w-full h-48 rounded-t-lg" />
@@ -673,12 +671,12 @@ export default function MyListings() {
         </div>
       ) : filteredListings.length === 0 ? (
         <Card>
-          <CardContent className="p-12 text-center">
+          <CardContent className="py-12 px-4 text-center">
             <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
             {searchQuery || filterStatus !== 'all' || filterCategory !== 'all' ? (
               <>
-                <p className="text-lg font-semibold mb-2">Sonuç bulunamadı</p>
-                <p className="text-muted-foreground mb-4">
+                <p className="text-base md:text-lg font-semibold mb-2">Sonuç bulunamadı</p>
+                <p className="text-sm text-muted-foreground mb-4">
                   Arama kriterlerinize uygun ilan bulunamadı.
                 </p>
                 <Button
@@ -694,8 +692,8 @@ export default function MyListings() {
               </>
             ) : (
               <>
-                <p className="text-lg font-semibold mb-2">Henüz ilan yok</p>
-                <p className="text-muted-foreground mb-4">
+                <p className="text-base md:text-lg font-semibold mb-2">Henüz ilan yok</p>
+                <p className="text-sm text-muted-foreground mb-4">
                   İlk ilanınızı oluşturarak öğrencilere ulaşmaya başlayın.
                 </p>
                 <Button onClick={() => { resetForm(); setOpen(true); }}>
@@ -707,7 +705,7 @@ export default function MyListings() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {filteredListings.map((listing) => (
             <Card key={listing.id} className="hover:shadow-glow transition-smooth overflow-hidden">
               {listing.cover_url && (

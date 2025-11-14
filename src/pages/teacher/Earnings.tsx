@@ -86,64 +86,64 @@ export default function TeacherEarnings() {
   };
 
   return (
-    <div className="container py-12">
-      <h1 className="text-3xl font-bold mb-8">Gelirlerim</h1>
+    <div className="container px-4 md:px-6 lg:px-8 py-8 md:py-12">
+      <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Gelirlerim</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              Tamamlanan Randevular
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Calendar className="h-4 w-4 flex-shrink-0" />
+              <span className="truncate">Tamamlanan Randevular</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{summary.totalCompleted}</p>
+            <p className="text-2xl md:text-3xl font-bold">{summary.totalCompleted}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <DollarSign className="h-4 w-4" />
-              Toplam Gelir
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <DollarSign className="h-4 w-4 flex-shrink-0" />
+              <span className="truncate">Toplam Gelir</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{summary.totalEarnings.toFixed(2)} TL</p>
+            <p className="text-2xl md:text-3xl font-bold break-words">{summary.totalEarnings.toFixed(2)} TL</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              Ödenecek Randevu
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Clock className="h-4 w-4 flex-shrink-0" />
+              <span className="truncate">Ödenecek Randevu</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{summary.pendingCount}</p>
+            <p className="text-2xl md:text-3xl font-bold">{summary.pendingCount}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <CreditCard className="h-4 w-4" />
-              Ödenecek Miktar
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <CreditCard className="h-4 w-4 flex-shrink-0" />
+              <span className="truncate">Ödenecek Miktar</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{summary.pendingAmount.toFixed(2)} TL</p>
+            <p className="text-2xl md:text-3xl font-bold break-words">{summary.pendingAmount.toFixed(2)} TL</p>
           </CardContent>
         </Card>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Ödeme Geçmişi</CardTitle>
+          <CardTitle className="text-lg md:text-xl">Ödeme Geçmişi</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="overflow-x-auto">
           {payouts.length === 0 ? (
             <p className="text-center text-muted-foreground py-12">
               Henüz ödeme geçmişiniz bulunmuyor.
