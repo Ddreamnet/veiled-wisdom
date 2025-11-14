@@ -27,6 +27,7 @@ const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
 const Approvals = lazy(() => import('./pages/admin/Approvals'));
 const AdminEarnings = lazy(() => import('./pages/admin/Earnings'));
 const TeachersManagement = lazy(() => import('./pages/admin/Teachers'));
+const UsersManagement = lazy(() => import('./pages/admin/Users'));
 const TeacherEdit = lazy(() => import('./pages/admin/TeacherEdit'));
 const CategoriesManagement = lazy(() => import('./pages/admin/Categories'));
 const PagesManagement = lazy(() => import('./pages/admin/Pages'));
@@ -104,6 +105,7 @@ function AppRoutes() {
           
           <Route path="/admin" element={<ProtectedRoute requiredRole={['admin']}><AdminDashboard /></ProtectedRoute>} />
           <Route path="/admin/dashboard" element={<ProtectedRoute requiredRole={['admin']}><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/admin/users" element={<ProtectedRoute requiredRole={['admin']}><UsersManagement /></ProtectedRoute>} />
           <Route path="/admin/approvals" element={<ProtectedRoute requiredRole={['admin']}><Approvals /></ProtectedRoute>} />
           <Route path="/admin/earnings" element={<ProtectedRoute requiredRole={['admin']}><AdminEarnings /></ProtectedRoute>} />
           <Route path="/admin/teachers" element={<ProtectedRoute requiredRole={['admin']}><TeachersManagement /></ProtectedRoute>} />
