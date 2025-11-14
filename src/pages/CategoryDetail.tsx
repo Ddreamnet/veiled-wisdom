@@ -113,6 +113,8 @@ export default function CategoryDetail() {
                   <img
                     src={subCat.image_url}
                     alt={subCat.name}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-40 sm:h-44 md:h-48 object-cover rounded-t-lg"
                   />
                 ) : (

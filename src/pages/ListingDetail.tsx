@@ -263,6 +263,8 @@ export default function ListingDetail() {
             <img
               src={listing.cover_url}
               alt={listing.title}
+              loading="lazy"
+              decoding="async"
               className="w-full h-96 object-cover rounded-lg mb-8 shadow-elegant"
             />
           )}

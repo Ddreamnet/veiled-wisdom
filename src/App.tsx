@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -7,6 +7,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { Skeleton } from './components/ui/skeleton';
+import { prefetchCriticalRoutes } from './lib/routePrefetch';
 import './App.css';
 
 // Lazy load pages for better performance
@@ -53,7 +54,18 @@ const PageLoader = () => (
   </div>
 );
 
-const queryClient = new QueryClient();
+// Optimized QueryClient with aggressive caching
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: 'always',
+      retry: 1,
+    },
+  },
+});
 
 function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode; requiredRole?: string[] }) {
   const { user, role, loading } = useAuth();
@@ -132,6 +144,11 @@ function AppRoutes() {
 }
 
 function App() {
+  // Prefetch critical routes on mount
+  useEffect(() => {
+    prefetchCriticalRoutes();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

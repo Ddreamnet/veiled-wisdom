@@ -127,6 +127,8 @@ export default function SubCategoryDetail() {
                   <img
                     src={listing.cover_url}
                     alt={listing.title}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-40 sm:h-44 md:h-48 object-cover rounded-t-lg"
                   />
                 ) : (
@@ -138,6 +140,8 @@ export default function SubCategoryDetail() {
                       <img
                         src={listing.profiles.avatar_url}
                         alt={listing.profiles.username}
+                        loading="lazy"
+                        decoding="async"
                         className="w-7 h-7 sm:w-8 sm:h-8 rounded-full"
                       />
                     ) : (
