@@ -144,20 +144,20 @@ export default function TeacherEarnings() {
             {[1, 2, 3, 4].map((i) => (
               <Card key={i}>
                 <CardHeader className="pb-3">
-                  <Skeleton className="h-4 w-32" />
+                  <Skeleton variant="shimmer" className="h-4 w-32" />
                 </CardHeader>
                 <CardContent>
-                  <Skeleton className="h-8 w-24" />
+                  <Skeleton variant="shimmer" className="h-8 w-24" />
                 </CardContent>
               </Card>
             ))}
           </div>
           <Card>
             <CardHeader>
-              <Skeleton className="h-6 w-48" />
+              <Skeleton variant="shimmer" className="h-6 w-48" />
             </CardHeader>
             <CardContent>
-              <Skeleton className="h-64 w-full" />
+              <Skeleton variant="wave" className="h-64 w-full" />
             </CardContent>
           </Card>
         </div>

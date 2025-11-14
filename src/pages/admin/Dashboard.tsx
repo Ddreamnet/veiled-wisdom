@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Users, FolderTree, FileText, Sparkles, TrendingUp, Calendar, DollarSign, UserCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -182,12 +183,33 @@ export default function AdminDashboard() {
   if (loading) {
     return (
       <div className="container py-8 md:py-12 px-4 md:px-6 lg:px-8">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-muted rounded w-1/4"></div>
+        <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-32 bg-muted rounded"></div>
+              <Card key={i}>
+                <CardContent className="p-6">
+                  <Skeleton variant="shimmer" className="h-32 w-full" />
+                </CardContent>
+              </Card>
             ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+            <Card>
+              <CardHeader>
+                <Skeleton variant="shimmer" className="h-6 w-48" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton variant="wave" className="h-64 w-full" />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <Skeleton variant="shimmer" className="h-6 w-48" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton variant="wave" className="h-64 w-full" />
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
