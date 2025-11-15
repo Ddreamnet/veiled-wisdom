@@ -477,12 +477,11 @@ export default function CategoriesManagement() {
               {!parentId && !editingId && (
                 <div className="space-y-2">
                   <Label>Ana Kategori (opsiyonel)</Label>
-                  <Select value={parentId || ''} onValueChange={setParentId}>
+                  <Select value={parentId || undefined} onValueChange={setParentId}>
                     <SelectTrigger className="glass-effect border-silver/20">
                       <SelectValue placeholder="Ana Kategori (yok)" />
                     </SelectTrigger>
                     <SelectContent className="glass-effect border-silver/20">
-                      <SelectItem value="">Ana Kategori</SelectItem>
                       {mainCategories.map((cat) => (
                         <SelectItem key={cat.id} value={cat.id}>
                           {cat.name}
