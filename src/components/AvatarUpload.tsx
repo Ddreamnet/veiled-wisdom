@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Upload, Loader2 } from 'lucide-react';
 import { uploadAvatar } from '@/lib/storage';
+import { useImagePreload } from '@/hooks/useImagePreload';
 
 type AvatarUploadProps = {
   currentAvatarUrl?: string | null;
@@ -15,6 +16,9 @@ export function AvatarUpload({ currentAvatarUrl, userId, onUploadComplete }: Ava
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentAvatarUrl || null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  // Preload current avatar
+  useImagePreload(currentAvatarUrl ? [currentAvatarUrl] : []);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

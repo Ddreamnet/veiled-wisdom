@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { preloadImage } from './imageCache';
 
 export const AVATAR_BUCKET = 'avatars';
 export const LISTING_IMAGES_BUCKET = 'listing-images';
@@ -45,6 +46,13 @@ export async function uploadAvatar(file: File, userId: string): Promise<UploadRe
       .from(AVATAR_BUCKET)
       .getPublicUrl(fileName);
 
+    // Preload the image for better performance
+    try {
+      await preloadImage(data.publicUrl);
+    } catch (preloadError) {
+      console.warn('Failed to preload avatar:', preloadError);
+    }
+
     return { url: data.publicUrl, error: null };
   } catch (error) {
     return { url: null, error: error as Error };
@@ -86,6 +94,13 @@ export async function uploadListingImage(file: File, listingId: string): Promise
     const { data } = supabase.storage
       .from(LISTING_IMAGES_BUCKET)
       .getPublicUrl(fileName);
+
+    // Preload the image for better performance
+    try {
+      await preloadImage(data.publicUrl);
+    } catch (preloadError) {
+      console.warn('Failed to preload listing image:', preloadError);
+    }
 
     return { url: data.publicUrl, error: null };
   } catch (error) {
@@ -152,6 +167,13 @@ export async function uploadCategoryImage(file: File, categoryId: string): Promi
     const { data } = supabase.storage
       .from(CATEGORY_IMAGES_BUCKET)
       .getPublicUrl(fileName);
+
+    // Preload the image for better performance
+    try {
+      await preloadImage(data.publicUrl);
+    } catch (preloadError) {
+      console.warn('Failed to preload category image:', preloadError);
+    }
 
     return { url: data.publicUrl, error: null };
   } catch (error) {
