@@ -17,6 +17,7 @@ const SignUp = lazy(() => import('./pages/auth/SignUp'));
 const Explore = lazy(() => import('./pages/Explore'));
 const Messages = lazy(() => import('./pages/Messages'));
 const Profile = lazy(() => import('./pages/Profile'));
+const PublicProfile = lazy(() => import('./pages/PublicProfile'));
 const Appointments = lazy(() => import('./pages/Appointments'));
 const CategoryDetail = lazy(() => import('./pages/CategoryDetail'));
 const SubCategoryDetail = lazy(() => import('./pages/SubCategoryDetail'));
@@ -110,6 +111,7 @@ function AppRoutes() {
           
           <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/profile/:id" element={<PublicProfile />} />
           <Route path="/appointments" element={<ProtectedRoute><Appointments /></ProtectedRoute>} />
           
           <Route path="/teacher/my-listings" element={<ProtectedRoute requiredRole={['teacher']}><MyListings /></ProtectedRoute>} />
