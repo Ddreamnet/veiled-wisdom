@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Upload, Loader2, X } from 'lucide-react';
 import { uploadCategoryImage } from '@/lib/storage';
+import { useImagePreload } from '@/hooks/useImagePreload';
 
 type CategoryImageUploadProps = {
   currentImageUrl?: string | null;
@@ -21,6 +22,9 @@ export function CategoryImageUpload({
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentImageUrl || null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  // Preload current image
+  useImagePreload(currentImageUrl ? [currentImageUrl] : []);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
