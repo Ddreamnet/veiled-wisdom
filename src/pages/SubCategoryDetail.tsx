@@ -50,16 +50,51 @@ export default function SubCategoryDetail() {
       if (subCat) {
         setSubCategory(subCat);
 
-        // Get listings for this subcategory
-        const { data: listingsData } = await supabase
+        // Get listings for this subcategory (fetch without profile join)
+        const { data: listingsRows, error: listingsErr } = await supabase
           .from('listings')
-          .select('*, profiles(username, avatar_url)')
+          .select('*')
           .eq('category_id', subCat.id)
           .eq('is_active', true)
           .order('created_at', { ascending: false });
 
-        if (listingsData) {
-          setListings(listingsData as any);
+        if (listingsErr) {
+          console.error('Listings fetch error:', listingsErr);
+        }
+
+        if (listingsRows && listingsRows.length > 0) {
+          const teacherIds = Array.from(
+            new Set(listingsRows.map((l) => l.teacher_id).filter(Boolean))
+          ) as string[];
+
+          let profilesMap: Record<string, { username: string; avatar_url: string | null }> = {};
+
+          if (teacherIds.length > 0) {
+            const { data: profilesData, error: profilesErr } = await supabase
+              .from('profiles')
+              .select('id, username, avatar_url')
+              .in('id', teacherIds);
+
+            if (profilesErr) {
+              console.error('Profiles fetch error:', profilesErr);
+            } else if (profilesData) {
+              profilesMap = Object.fromEntries(
+                profilesData.map((p) => [p.id, { username: p.username, avatar_url: p.avatar_url }])
+              );
+            }
+          }
+
+          const merged = (listingsRows as Listing[]).map((l) => ({
+            ...l,
+            profiles: {
+              username: profilesMap[l.teacher_id as string]?.username ?? 'Öğretmen',
+              avatar_url: profilesMap[l.teacher_id as string]?.avatar_url ?? null,
+            },
+          })) as ListingWithTeacher[];
+
+          setListings(merged);
+        } else {
+          setListings([]);
         }
       }
     }
