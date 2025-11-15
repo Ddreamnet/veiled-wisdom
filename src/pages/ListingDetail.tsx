@@ -90,7 +90,7 @@ export default function ListingDetail() {
     const { data: teacherProfile } = await supabase
       .from('profiles')
       .select('*')
-      .eq('user_id', listingData.teacher_id)
+      .eq('id', listingData.teacher_id)
       .maybeSingle();
 
     const { data: prices } = await supabase
