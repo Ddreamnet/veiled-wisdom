@@ -60,12 +60,45 @@ export default function ProfilePage() {
       return;
     }
 
-    if (data) {
-      setProfile(data);
-      setUsername(data.username || '');
-      setBio(data.bio || '');
-      setAvatarUrl(data.avatar_url || '');
+    if (!data) {
+      // Create a profile row if missing
+      const fallbackUsername =
+        (user.user_metadata && (user.user_metadata.username || user.user_metadata.full_name)) ||
+        user.email?.split('@')[0] ||
+        '';
+      const { data: created, error: upsertErr } = await supabase
+        .from('profiles')
+        .upsert({ id: user.id, username: fallbackUsername, bio: '', avatar_url: null }, { onConflict: 'id' })
+        .select('*')
+        .maybeSingle();
+
+      if (upsertErr) {
+        console.error('Profile auto-create error:', upsertErr);
+        toast({
+          title: 'Hata',
+          description: 'Profil kaydı oluşturulamadı.',
+          variant: 'destructive',
+        });
+        setDataLoading(false);
+        return;
+      }
+
+      if (created) {
+        setProfile(created);
+        setUsername(created.username || '');
+        setBio(created.bio || '');
+        setAvatarUrl(created.avatar_url || '');
+      }
+
+      setDataLoading(false);
+      return;
     }
+
+    // Existing data
+    setProfile(data);
+    setUsername(data.username || '');
+    setBio(data.bio || '');
+    setAvatarUrl(data.avatar_url || '');
     
     setDataLoading(false);
   };
@@ -75,8 +108,7 @@ export default function ProfilePage() {
 
     const { error } = await supabase
       .from('profiles')
-      .update({ avatar_url: url })
-      .eq('id', user.id);
+      .upsert({ id: user.id, avatar_url: url }, { onConflict: 'id' });
 
     if (error) {
       console.error('Avatar update error:', error);
@@ -100,8 +132,7 @@ export default function ProfilePage() {
     setLoading(true);
     const { error } = await supabase
       .from('profiles')
-      .update({ username, bio })
-      .eq('id', user.id);
+      .upsert({ id: user.id, username, bio }, { onConflict: 'id' });
 
     if (error) {
       console.error('Profile update error:', error);
