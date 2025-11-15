@@ -3,13 +3,14 @@ import { useParams, Link } from 'react-router-dom';
 import { supabase, Category, Listing } from '@/lib/supabase';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, User } from 'lucide-react';
 
 type ListingWithTeacher = Listing & {
   profiles: {
     username: string;
     avatar_url: string | null;
   };
+  minPrice?: number;
 };
 
 export default function SubCategoryDetail() {
@@ -66,8 +67,10 @@ export default function SubCategoryDetail() {
           const teacherIds = Array.from(
             new Set(listingsRows.map((l) => l.teacher_id).filter(Boolean))
           ) as string[];
+          const listingIds = listingsRows.map((l) => l.id);
 
           let profilesMap: Record<string, { username: string; avatar_url: string | null }> = {};
+          let pricesMap: Record<string, number> = {};
 
           if (teacherIds.length > 0) {
             const { data: profilesData, error: profilesErr } = await supabase
@@ -84,12 +87,32 @@ export default function SubCategoryDetail() {
             }
           }
 
+          if (listingIds.length > 0) {
+            const { data: pricesData, error: pricesErr } = await supabase
+              .from('listing_prices')
+              .select('listing_id, price')
+              .in('listing_id', listingIds);
+
+            if (pricesErr) {
+              console.error('Prices fetch error:', pricesErr);
+            } else if (pricesData) {
+              const grouped = pricesData.reduce((acc, p) => {
+                if (!acc[p.listing_id] || p.price < acc[p.listing_id]) {
+                  acc[p.listing_id] = p.price;
+                }
+                return acc;
+              }, {} as Record<string, number>);
+              pricesMap = grouped;
+            }
+          }
+
           const merged = (listingsRows as Listing[]).map((l) => ({
             ...l,
             profiles: {
               username: profilesMap[l.teacher_id as string]?.username ?? 'Öğretmen',
               avatar_url: profilesMap[l.teacher_id as string]?.avatar_url ?? null,
             },
+            minPrice: pricesMap[l.id] ?? undefined,
           })) as ListingWithTeacher[];
 
           setListings(merged);
@@ -170,26 +193,37 @@ export default function SubCategoryDetail() {
                   <div className="w-full h-40 sm:h-44 md:h-48 bg-primary/20 rounded-t-lg" />
                 )}
                 <CardContent className="p-4 sm:p-5 md:p-6">
-                  <div className="flex items-center gap-2 mb-3">
+                  <Link
+                    to={`/profile/${listing.teacher_id}`}
+                    className="flex items-center gap-2 mb-3 hover:opacity-80 transition-smooth w-fit"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     {listing.profiles.avatar_url ? (
                       <img
                         src={listing.profiles.avatar_url}
                         alt={listing.profiles.username}
                         loading="lazy"
                         decoding="async"
-                        className="w-7 h-7 sm:w-8 sm:h-8 rounded-full"
+                        className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary/20" />
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-muted flex items-center justify-center">
+                        <User className="w-4 h-4 text-muted-foreground" />
+                      </div>
                     )}
                     <span className="text-xs sm:text-sm text-muted-foreground">
                       {listing.profiles.username}
                     </span>
-                  </div>
+                  </Link>
                   <h3 className="font-semibold text-base sm:text-lg mb-2">{listing.title}</h3>
-                  <p className="text-sm text-muted-foreground line-clamp-2">
+                  <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
                     {listing.description}
                   </p>
+                  {listing.minPrice && (
+                    <p className="text-sm font-semibold text-primary">
+                      {listing.minPrice} ₺'den başlayan fiyatlarla
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             </Link>
