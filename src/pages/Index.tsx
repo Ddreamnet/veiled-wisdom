@@ -15,7 +15,7 @@ export default function Index() {
   const [curiosities, setCuriosities] = useState<Curiosity[]>([]);
   const mousePosition = useMousePosition();
   const scrollPosition = useScrollPosition();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
 
   // Preload images for better performance
   const imageUrls = useMemo(() => {
@@ -90,15 +90,19 @@ export default function Index() {
             </div>
             
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-serif font-bold text-smoky leading-tight">
-              Leyl
+              {user ? `Hoş Geldin, ${user.user_metadata?.username || 'Değerli Üye'}` : 'Leyl'}
             </h1>
             <p className="text-2xl md:text-3xl lg:text-4xl font-serif text-gradient-silver">
-              Gizli İlimler Platformu
+              {user ? 'Bilgelik Yolculuğuna Devam Et' : 'Gizli İlimler Platformu'}
             </p>
             
             <p className="text-base md:text-lg lg:text-xl text-silver-muted leading-relaxed max-w-3xl mx-auto">
-              Antik bilgelik ve modern yaklaşımın buluştuğu platform. 
-              Uzman hocalarımızla tanışın ve bilgelik yolculuğunuza başlayın.
+              {user 
+                ? role === 'teacher' 
+                  ? 'İlanlarınızı yönetin ve öğrencilerinizle buluşun.'
+                  : 'Uzman hocalarımızla seanslarınıza devam edin ve yeni konuları keşfedin.'
+                : 'Antik bilgelik ve modern yaklaşımın buluştuğu platform. Uzman hocalarımızla tanışın ve bilgelik yolculuğunuza başlayın.'
+              }
             </p>
             
             <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center pt-2 md:pt-4">
