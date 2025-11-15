@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { supabase, Category, Curiosity } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, Sparkles, BookOpen, Users } from 'lucide-react';
+import { ArrowRight, Sparkles, BookOpen, Users, Calendar, Briefcase } from 'lucide-react';
 import { ParticleBackground } from '@/components/ParticleBackground';
 import { useMousePosition } from '@/hooks/useMousePosition';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
@@ -112,7 +112,23 @@ export default function Index() {
                   Keşfet
                 </Button>
               </Link>
-              {!user && (
+              {user ? (
+                role === 'teacher' ? (
+                  <Link to="/teacher/my-listings" className="w-full sm:w-auto">
+                    <Button size="lg" variant="secondary" className="w-full sm:w-auto">
+                      <Briefcase className="w-4 h-4 md:w-5 md:h-5 mr-2" />
+                      İlanlarım
+                    </Button>
+                  </Link>
+                ) : (
+                  <Link to="/appointments" className="w-full sm:w-auto">
+                    <Button size="lg" variant="secondary" className="w-full sm:w-auto">
+                      <Calendar className="w-4 h-4 md:w-5 md:h-5 mr-2" />
+                      Randevularım
+                    </Button>
+                  </Link>
+                )
+              ) : (
                 <Link to="/auth/sign-up" className="w-full sm:w-auto">
                   <Button size="lg" variant="secondary" className="w-full sm:w-auto">
                     <Users className="w-4 h-4 md:w-5 md:h-5 mr-2" />
