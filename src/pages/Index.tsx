@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { supabase, Category, Curiosity } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, Sparkles, BookOpen, Users, Calendar, Briefcase } from 'lucide-react';
+import { ArrowRight, Sparkles, BookOpen, Users } from 'lucide-react';
 import { ParticleBackground } from '@/components/ParticleBackground';
 import { useMousePosition } from '@/hooks/useMousePosition';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
@@ -15,7 +15,7 @@ export default function Index() {
   const [curiosities, setCuriosities] = useState<Curiosity[]>([]);
   const mousePosition = useMousePosition();
   const scrollPosition = useScrollPosition();
-  const { user, role } = useAuth();
+  const { user } = useAuth();
 
   // Preload images for better performance
   const imageUrls = useMemo(() => {
@@ -90,19 +90,15 @@ export default function Index() {
             </div>
             
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-serif font-bold text-smoky leading-tight">
-              {user ? `Hoş Geldin, ${user.user_metadata?.username || 'Değerli Üye'}` : 'Leyl'}
+              Leyl
             </h1>
             <p className="text-2xl md:text-3xl lg:text-4xl font-serif text-gradient-silver">
-              {user ? 'Bilgelik Yolculuğuna Devam Et' : 'Gizli İlimler Platformu'}
+              Gizli İlimler Platformu
             </p>
             
             <p className="text-base md:text-lg lg:text-xl text-silver-muted leading-relaxed max-w-3xl mx-auto">
-              {user 
-                ? role === 'teacher' 
-                  ? 'İlanlarınızı yönetin ve öğrencilerinizle buluşun.'
-                  : 'Uzman hocalarımızla seanslarınıza devam edin ve yeni konuları keşfedin.'
-                : 'Antik bilgelik ve modern yaklaşımın buluştuğu platform. Uzman hocalarımızla tanışın ve bilgelik yolculuğunuza başlayın.'
-              }
+              Antik bilgelik ve modern yaklaşımın buluştuğu platform. 
+              Uzman hocalarımızla tanışın ve bilgelik yolculuğunuza başlayın.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center pt-2 md:pt-4">
@@ -112,23 +108,7 @@ export default function Index() {
                   Keşfet
                 </Button>
               </Link>
-              {user ? (
-                role === 'teacher' ? (
-                  <Link to="/teacher/my-listings" className="w-full sm:w-auto">
-                    <Button size="lg" variant="secondary" className="w-full sm:w-auto">
-                      <Briefcase className="w-4 h-4 md:w-5 md:h-5 mr-2" />
-                      İlanlarım
-                    </Button>
-                  </Link>
-                ) : (
-                  <Link to="/appointments" className="w-full sm:w-auto">
-                    <Button size="lg" variant="secondary" className="w-full sm:w-auto">
-                      <Calendar className="w-4 h-4 md:w-5 md:h-5 mr-2" />
-                      Randevularım
-                    </Button>
-                  </Link>
-                )
-              ) : (
+              {!user && (
                 <Link to="/auth/sign-up" className="w-full sm:w-auto">
                   <Button size="lg" variant="secondary" className="w-full sm:w-auto">
                     <Users className="w-4 h-4 md:w-5 md:h-5 mr-2" />
