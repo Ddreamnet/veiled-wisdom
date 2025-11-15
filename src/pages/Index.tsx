@@ -8,12 +8,14 @@ import { ParticleBackground } from '@/components/ParticleBackground';
 import { useMousePosition } from '@/hooks/useMousePosition';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
 import { useImagePreload } from '@/hooks/useImagePreload';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Index() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [curiosities, setCuriosities] = useState<Curiosity[]>([]);
   const mousePosition = useMousePosition();
   const scrollPosition = useScrollPosition();
+  const { user } = useAuth();
 
   // Preload images for better performance
   const imageUrls = useMemo(() => {
@@ -106,12 +108,14 @@ export default function Index() {
                   Keşfet
                 </Button>
               </Link>
-              <Link to="/auth/sign-up" className="w-full sm:w-auto">
-                <Button size="lg" variant="secondary" className="w-full sm:w-auto">
-                  <Users className="w-4 h-4 md:w-5 md:h-5 mr-2" />
-                  Kayıt Ol
-                </Button>
-              </Link>
+              {!user && (
+                <Link to="/auth/sign-up" className="w-full sm:w-auto">
+                  <Button size="lg" variant="secondary" className="w-full sm:w-auto">
+                    <Users className="w-4 h-4 md:w-5 md:h-5 mr-2" />
+                    Kayıt Ol
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         </div>
