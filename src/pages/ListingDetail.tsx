@@ -69,11 +69,17 @@ export default function ListingDetail() {
   const fetchListing = async () => {
     setLoading(true);
 
-    const { data: listingData } = await supabase
+    const { data: listingData, error: listingError } = await supabase
       .from('listings')
       .select('*, teacher:profiles!teacher_id(*)')
       .eq('id', id)
-      .single();
+      .maybeSingle();
+
+    if (listingError) {
+      console.error('Listing fetch error:', listingError);
+      setLoading(false);
+      return;
+    }
 
     if (listingData) {
       const { data: prices } = await supabase
@@ -225,16 +231,16 @@ export default function ListingDetail() {
 
   if (loading) {
     return (
-      <div className="container py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="container py-8 md:py-12 px-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
           <div className="lg:col-span-2">
-            <Skeleton className="h-12 w-3/4 mb-4" />
-            <Skeleton className="h-96 w-full mb-8" />
+            <Skeleton className="h-8 md:h-10 lg:h-12 w-3/4 mb-4" />
+            <Skeleton className="h-64 md:h-80 lg:h-96 w-full mb-6 md:mb-8" />
             <Skeleton className="h-32 w-full" />
           </div>
           <div>
-            <Skeleton className="h-64 w-full mb-4" />
-            <Skeleton className="h-48 w-full" />
+            <Skeleton className="h-48 md:h-64 w-full mb-4" />
+            <Skeleton className="h-40 md:h-48 w-full" />
           </div>
         </div>
       </div>
@@ -243,8 +249,8 @@ export default function ListingDetail() {
 
   if (!listing) {
     return (
-      <div className="container py-12">
-        <p className="text-center text-muted-foreground">İlan bulunamadı.</p>
+      <div className="container py-8 md:py-12 px-4">
+        <p className="text-center text-sm md:text-base text-muted-foreground">İlan bulunamadı.</p>
       </div>
     );
   }
@@ -254,10 +260,10 @@ export default function ListingDetail() {
   );
 
   return (
-    <div className="container py-12">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div className="container py-8 md:py-12 px-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
         <div className="lg:col-span-2">
-          <h1 className="text-4xl font-bold mb-6">{listing.title}</h1>
+          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4 md:mb-6">{listing.title}</h1>
 
           {listing.cover_url && (
             <img
@@ -265,16 +271,16 @@ export default function ListingDetail() {
               alt={listing.title}
               loading="lazy"
               decoding="async"
-              className="w-full h-96 object-cover rounded-lg mb-8 shadow-elegant"
+              className="w-full h-48 sm:h-64 md:h-80 lg:h-96 object-cover rounded-lg mb-6 md:mb-8 shadow-elegant"
             />
           )}
 
-          <Card className="mb-8">
+          <Card className="mb-6 md:mb-8">
             <CardHeader>
-              <CardTitle>İlan Açıklaması</CardTitle>
+              <CardTitle className="text-lg md:text-xl">İlan Açıklaması</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-foreground leading-relaxed whitespace-pre-line">
+              <p className="text-sm md:text-base text-foreground leading-relaxed whitespace-pre-line">
                 {listing.description}
               </p>
             </CardContent>
@@ -282,41 +288,41 @@ export default function ListingDetail() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Yorumlar</span>
+              <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <span className="text-lg md:text-xl">Yorumlar</span>
                 {reviews.length > 0 && (
-                  <div className="flex items-center gap-1 text-lg">
-                    <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+                  <div className="flex items-center gap-1 text-base md:text-lg">
+                    <Star className="w-4 h-4 md:w-5 md:h-5 fill-yellow-400 text-yellow-400" />
                     <span className="font-semibold">{averageRating.toFixed(1)}</span>
-                    <span className="text-sm text-muted-foreground">({reviews.length})</span>
+                    <span className="text-xs md:text-sm text-muted-foreground">({reviews.length})</span>
                   </div>
                 )}
               </CardTitle>
             </CardHeader>
             <CardContent>
               {reviews.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">
+                <p className="text-sm md:text-base text-muted-foreground text-center py-6 md:py-8">
                   Henüz yorum bulunmuyor.
                 </p>
               ) : (
-                <div className="space-y-6">
+                <div className="space-y-4 md:space-y-6">
                   {reviews.map((review) => (
-                    <div key={review.id} className="border-b last:border-0 pb-6 last:pb-0">
-                      <div className="flex items-start gap-4 mb-3">
-                        <Avatar>
+                    <div key={review.id} className="border-b last:border-0 pb-4 md:pb-6 last:pb-0">
+                      <div className="flex items-start gap-3 md:gap-4 mb-2 md:mb-3">
+                        <Avatar className="w-8 h-8 md:w-10 md:h-10">
                           <AvatarImage src={review.customer.avatar_url || undefined} />
                           <AvatarFallback>
                             {review.customer.username.charAt(0).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-1">
-                            <p className="font-semibold">{review.customer.username}</p>
-                            <div className="flex items-center gap-1">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start sm:items-center justify-between gap-2 mb-1">
+                            <p className="font-semibold text-sm md:text-base truncate">{review.customer.username}</p>
+                            <div className="flex items-center gap-0.5 flex-shrink-0">
                               {Array.from({ length: 5 }).map((_, i) => (
                                 <Star
                                   key={i}
-                                  className={`w-4 h-4 ${
+                                  className={`w-3 h-3 md:w-4 md:h-4 ${
                                     i < review.rating
                                       ? 'fill-yellow-400 text-yellow-400'
                                       : 'text-muted-foreground'
@@ -325,10 +331,10 @@ export default function ListingDetail() {
                               ))}
                             </div>
                           </div>
-                          <p className="text-xs text-muted-foreground mb-2">
+                          <p className="text-xs text-muted-foreground mb-1.5 md:mb-2">
                             {new Date(review.created_at).toLocaleDateString('tr-TR')}
                           </p>
-                          <p className="text-sm text-foreground leading-relaxed">
+                          <p className="text-xs md:text-sm text-foreground leading-relaxed">
                             {review.comment}
                           </p>
                         </div>
@@ -341,14 +347,14 @@ export default function ListingDetail() {
           </Card>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-4 md:space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Randevu Talep Et</CardTitle>
+              <CardTitle className="text-lg md:text-xl">Randevu Talep Et</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
-                <p className="text-sm text-amber-600 dark:text-amber-400">
+            <CardContent className="space-y-4 md:space-y-6">
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 md:p-4">
+                <p className="text-xs md:text-sm text-amber-600 dark:text-amber-400">
                   ⚠️ Randevu oluşturmadan önce hocayla tarih ve saati konuşmalısınız.
                 </p>
               </div>
@@ -360,8 +366,8 @@ export default function ListingDetail() {
                 </Button>
               </Link>
 
-              <div className="border-t pt-6">
-                <Label className="text-base mb-4 block">Seans Süresi</Label>
+              <div className="border-t pt-4 md:pt-6">
+                <Label className="text-sm md:text-base mb-3 md:mb-4 block">Seans Süresi</Label>
                 <RadioGroup
                   value={selectedDuration?.toString()}
                   onValueChange={(v) => setSelectedDuration(parseInt(v))}
@@ -369,7 +375,7 @@ export default function ListingDetail() {
                   {listing.prices.map((price) => (
                     <div
                       key={price.duration_minutes}
-                      className="flex items-center justify-between p-3 border rounded-lg"
+                      className="flex items-center justify-between p-2.5 md:p-3 border rounded-lg"
                     >
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem
@@ -378,21 +384,21 @@ export default function ListingDetail() {
                         />
                         <Label
                           htmlFor={`duration-${price.duration_minutes}`}
-                          className="cursor-pointer"
+                          className="cursor-pointer text-xs md:text-sm"
                         >
-                          <Clock className="h-4 w-4 inline mr-2" />
+                          <Clock className="h-3 w-3 md:h-4 md:w-4 inline mr-1.5 md:mr-2" />
                           {price.duration_minutes} dakika
                         </Label>
                       </div>
-                      <span className="font-semibold">{price.price} TL</span>
+                      <span className="font-semibold text-xs md:text-sm">{price.price} TL</span>
                     </div>
                   ))}
                 </RadioGroup>
               </div>
 
               <div>
-                <Label htmlFor="date" className="text-base mb-2 block">
-                  <Calendar className="h-4 w-4 inline mr-2" />
+                <Label htmlFor="date" className="text-sm md:text-base mb-2 block">
+                  <Calendar className="h-3 w-3 md:h-4 md:w-4 inline mr-1.5 md:mr-2" />
                   Tarih
                 </Label>
                 <Input
@@ -401,12 +407,13 @@ export default function ListingDetail() {
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
                   min={new Date().toISOString().split('T')[0]}
+                  className="text-sm md:text-base"
                 />
               </div>
 
               <div>
-                <Label htmlFor="time" className="text-base mb-2 block">
-                  <Clock className="h-4 w-4 inline mr-2" />
+                <Label htmlFor="time" className="text-sm md:text-base mb-2 block">
+                  <Clock className="h-3 w-3 md:h-4 md:w-4 inline mr-1.5 md:mr-2" />
                   Saat
                 </Label>
                 <Input
@@ -414,15 +421,16 @@ export default function ListingDetail() {
                   type="time"
                   value={selectedTime}
                   onChange={(e) => setSelectedTime(e.target.value)}
+                  className="text-sm md:text-base"
                 />
               </div>
 
               {selectedPrice && (
-                <div className="bg-primary/10 rounded-lg p-4">
-                  <div className="flex items-center justify-between text-lg font-semibold">
+                <div className="bg-primary/10 rounded-lg p-3 md:p-4">
+                  <div className="flex items-center justify-between text-base md:text-lg font-semibold">
                     <span>Toplam:</span>
                     <span className="flex items-center">
-                      <DollarSign className="h-5 w-5" />
+                      <DollarSign className="h-4 w-4 md:h-5 md:w-5" />
                       {selectedPrice.price} TL
                     </span>
                   </div>
@@ -470,35 +478,35 @@ export default function ListingDetail() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Hoca Hakkında</CardTitle>
+              <CardTitle className="text-base md:text-lg">Hoca Hakkında</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-start gap-4 pb-4 border-b">
+            <CardContent className="space-y-3 md:space-y-4">
+              <div className="flex items-start gap-3 md:gap-4 pb-3 md:pb-4 border-b">
                 {listing.teacher.avatar_url ? (
                   <img
                     src={listing.teacher.avatar_url}
                     alt={listing.teacher.username}
-                    className="w-16 h-16 rounded-full object-cover"
+                    className="w-12 h-12 md:w-16 md:h-16 rounded-full object-cover flex-shrink-0"
                   />
                 ) : (
-                  <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center">
-                    <span className="text-2xl text-primary">
+                  <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                    <span className="text-xl md:text-2xl text-primary">
                       {listing.teacher.username.charAt(0).toUpperCase()}
                     </span>
                   </div>
                 )}
-                <div className="flex-1">
-                  <h3 className="font-semibold text-lg mb-1">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-base md:text-lg mb-1 truncate">
                     {listing.teacher.username}
                   </h3>
                   {reviews.length > 0 ? (
-                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                    <div className="flex items-center gap-1 text-xs md:text-sm text-muted-foreground">
+                      <Star className="w-3 h-3 md:w-4 md:h-4 fill-yellow-400 text-yellow-400" />
                       <span className="font-semibold">{averageRating.toFixed(1)}</span>
-                      <span>({reviews.length} değerlendirme)</span>
+                      <span className="text-xs md:text-sm">({reviews.length} değerlendirme)</span>
                     </div>
                   ) : (
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-xs md:text-sm text-muted-foreground">
                       Henüz değerlendirme yok
                     </div>
                   )}
@@ -507,8 +515,8 @@ export default function ListingDetail() {
 
               {listing.teacher.specialization && (
                 <div>
-                  <p className="text-sm font-medium text-foreground mb-1">Uzmanlık Alanı</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs md:text-sm font-medium text-foreground mb-0.5 md:mb-1">Uzmanlık Alanı</p>
+                  <p className="text-xs md:text-sm text-muted-foreground">
                     {listing.teacher.specialization}
                   </p>
                 </div>
@@ -516,8 +524,8 @@ export default function ListingDetail() {
 
               {listing.teacher.years_of_experience !== undefined && listing.teacher.years_of_experience !== null && (
                 <div>
-                  <p className="text-sm font-medium text-foreground mb-1">Deneyim</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs md:text-sm font-medium text-foreground mb-0.5 md:mb-1">Deneyim</p>
+                  <p className="text-xs md:text-sm text-muted-foreground">
                     {listing.teacher.years_of_experience} yıl
                   </p>
                 </div>
@@ -525,8 +533,8 @@ export default function ListingDetail() {
 
               {listing.teacher.education && (
                 <div>
-                  <p className="text-sm font-medium text-foreground mb-1">Eğitim</p>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
+                  <p className="text-xs md:text-sm font-medium text-foreground mb-0.5 md:mb-1">Eğitim</p>
+                  <p className="text-xs md:text-sm text-muted-foreground leading-relaxed">
                     {listing.teacher.education}
                   </p>
                 </div>
@@ -534,8 +542,8 @@ export default function ListingDetail() {
 
               {listing.teacher.bio && (
                 <div>
-                  <p className="text-sm font-medium text-foreground mb-1">Hakkında</p>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
+                  <p className="text-xs md:text-sm font-medium text-foreground mb-0.5 md:mb-1">Hakkında</p>
+                  <p className="text-xs md:text-sm text-muted-foreground leading-relaxed">
                     {listing.teacher.bio}
                   </p>
                 </div>
