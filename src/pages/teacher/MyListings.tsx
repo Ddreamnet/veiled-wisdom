@@ -255,15 +255,30 @@ export default function MyListings() {
 
       // Update prices
       if (listingId) {
-        await supabase.from('listing_prices').delete().eq('listing_id', listingId);
+        const { error: deleteError } = await supabase
+          .from('listing_prices')
+          .delete()
+          .eq('listing_id', listingId);
+
+        if (deleteError) {
+          console.error('Price deletion error:', deleteError);
+          throw deleteError;
+        }
 
         const prices = [];
-        if (values.price_30) prices.push({ listing_id: listingId, duration_minutes: 30, price: parseFloat(values.price_30) });
-        if (values.price_45) prices.push({ listing_id: listingId, duration_minutes: 45, price: parseFloat(values.price_45) });
-        if (values.price_60) prices.push({ listing_id: listingId, duration_minutes: 60, price: parseFloat(values.price_60) });
+        if (values.price_30) prices.push({ listing_id: listingId, duration_minutes: 30 as const, price: parseFloat(values.price_30) });
+        if (values.price_45) prices.push({ listing_id: listingId, duration_minutes: 45 as const, price: parseFloat(values.price_45) });
+        if (values.price_60) prices.push({ listing_id: listingId, duration_minutes: 60 as const, price: parseFloat(values.price_60) });
 
         if (prices.length > 0) {
-          await supabase.from('listing_prices').insert(prices);
+          const { error: insertError } = await supabase
+            .from('listing_prices')
+            .insert(prices);
+
+          if (insertError) {
+            console.error('Price insertion error:', insertError);
+            throw insertError;
+          }
         }
       }
 
@@ -276,9 +291,10 @@ export default function MyListings() {
       resetForm();
       fetchListings();
     } catch (error) {
+      console.error('Listing creation/update error:', error);
       toast({
         title: 'Hata',
-        description: 'İlan kaydedilirken bir hata oluştu.',
+        description: error instanceof Error ? error.message : 'İlan kaydedilirken bir hata oluştu.',
         variant: 'destructive',
       });
     } finally {
