@@ -71,7 +71,7 @@ export default function ListingDetail() {
 
     const { data: listingData, error: listingError } = await supabase
       .from('listings')
-      .select('*, teacher:profiles!teacher_id(*)')
+      .select('*')
       .eq('id', id)
       .maybeSingle();
 
@@ -81,54 +81,66 @@ export default function ListingDetail() {
       return;
     }
 
-    if (listingData) {
-      const { data: prices } = await supabase
-        .from('listing_prices')
-        .select('*')
-        .eq('listing_id', id)
-        .order('duration_minutes');
-
-      // Fetch teacher additional details from approved applications
-      const { data: teacherApproval } = await supabase
-        .from('teacher_approvals')
-        .select('specialization, education, years_of_experience')
-        .eq('user_id', listingData.teacher_id)
-        .eq('status', 'approved')
-        .maybeSingle();
-
-      const teacherDetails: TeacherDetails = {
-        ...(listingData as any).teacher,
-        specialization: teacherApproval?.specialization,
-        education: teacherApproval?.education,
-        years_of_experience: teacherApproval?.years_of_experience,
-      };
-
-      // Fetch reviews
-      const { data: reviewsData } = await supabase
-        .from('reviews')
-        .select('*, customer:profiles!reviews_customer_id_fkey(username, avatar_url)')
-        .eq('listing_id', id)
-        .order('created_at', { ascending: false });
-
-      const reviewsList = (reviewsData || []) as ReviewWithProfile[];
-      setReviews(reviewsList);
-      
-      // Calculate average rating
-      if (reviewsList.length > 0) {
-        const avg = reviewsList.reduce((sum, r) => sum + r.rating, 0) / reviewsList.length;
-        setAverageRating(Math.round(avg * 10) / 10);
-      }
-
-      setListing({
-        ...listingData,
-        prices: prices || [],
-        teacher: teacherDetails,
-        reviews: reviewsList,
-        averageRating: reviewsList.length > 0 
-          ? reviewsList.reduce((sum, r) => sum + r.rating, 0) / reviewsList.length 
-          : 0,
-      } as any);
+    if (!listingData) {
+      setLoading(false);
+      return;
     }
+
+    // Fetch teacher profile separately
+    const { data: teacherProfile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', listingData.teacher_id)
+      .maybeSingle();
+
+    const { data: prices } = await supabase
+      .from('listing_prices')
+      .select('*')
+      .eq('listing_id', id)
+      .order('duration_minutes');
+
+    // Fetch teacher additional details from approved applications
+    const { data: teacherApproval } = await supabase
+      .from('teacher_approvals')
+      .select('specialization, education, years_of_experience')
+      .eq('user_id', listingData.teacher_id)
+      .eq('status', 'approved')
+      .maybeSingle();
+
+    const teacherDetails: TeacherDetails = {
+      username: teacherProfile?.username || 'Unknown',
+      avatar_url: teacherProfile?.avatar_url || null,
+      bio: teacherProfile?.bio || null,
+      specialization: teacherApproval?.specialization,
+      education: teacherApproval?.education,
+      years_of_experience: teacherApproval?.years_of_experience,
+    };
+
+    // Fetch reviews
+    const { data: reviewsData } = await supabase
+      .from('reviews')
+      .select('*, customer:profiles!reviews_customer_id_fkey(username, avatar_url)')
+      .eq('listing_id', id)
+      .order('created_at', { ascending: false });
+
+    const reviewsList = (reviewsData || []) as ReviewWithProfile[];
+    setReviews(reviewsList);
+    
+    // Calculate average rating
+    if (reviewsList.length > 0) {
+      const avg = reviewsList.reduce((sum, r) => sum + r.rating, 0) / reviewsList.length;
+      setAverageRating(Math.round(avg * 10) / 10);
+    }
+
+    setListing({
+      ...listingData,
+      prices: prices || [],
+      teacher: teacherDetails,
+      reviews: reviewsList,
+      averageRating: reviewsList.length > 0 
+        ? reviewsList.reduce((sum, r) => sum + r.rating, 0) / reviewsList.length 
+        : 0,
+    } as any);
 
     setLoading(false);
   };
