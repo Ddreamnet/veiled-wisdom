@@ -43,11 +43,22 @@ export default function ProfilePage() {
     if (!user) return;
     setDataLoading(true);
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
+
+    if (error) {
+      console.error('Profile fetch error:', error);
+      toast({
+        title: 'Hata',
+        description: 'Profil bilgileri yüklenemedi.',
+        variant: 'destructive',
+      });
+      setDataLoading(false);
+      return;
+    }
 
     if (data) {
       setProfile(data);
@@ -68,14 +79,18 @@ export default function ProfilePage() {
       .eq('id', user.id);
 
     if (error) {
+      console.error('Avatar update error:', error);
       toast({
         title: 'Hata',
-        description: 'Avatar güncellenemedi.',
+        description: `Avatar güncellenemedi: ${error.message}`,
         variant: 'destructive',
       });
     } else {
-      setAvatarUrl(url);
-      fetchProfile();
+      toast({
+        title: 'Başarılı',
+        description: 'Avatar güncellendi.',
+      });
+      await fetchProfile();
     }
   };
 
@@ -89,9 +104,10 @@ export default function ProfilePage() {
       .eq('id', user.id);
 
     if (error) {
+      console.error('Profile update error:', error);
       toast({
         title: 'Hata',
-        description: 'Profil güncellenemedi.',
+        description: `Profil güncellenemedi: ${error.message}`,
         variant: 'destructive',
       });
     } else {
@@ -99,7 +115,7 @@ export default function ProfilePage() {
         title: 'Başarılı',
         description: 'Profiliniz güncellendi.',
       });
-      fetchProfile();
+      await fetchProfile();
     }
     setLoading(false);
   };
