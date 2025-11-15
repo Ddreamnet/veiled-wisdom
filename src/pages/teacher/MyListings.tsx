@@ -221,7 +221,18 @@ export default function MyListings() {
     setSubmitting(true);
 
     try {
-      // Use subcategory if available, otherwise use main category
+      // Eğer seçilen ana kategorinin alt kategorileri varsa, alt kategori zorunlu
+      if (subcategories.length > 0 && !values.subcategory_id) {
+        toast({
+          title: 'Alt kategori gerekli',
+          description: 'Lütfen bir alt kategori seçin.',
+          variant: 'destructive',
+        });
+        setSubmitting(false);
+        return;
+      }
+
+      // Alt kategori varsa onu, yoksa ana kategoriyi kullan
       const finalCategoryId = values.subcategory_id || values.category_id;
 
       const listingData = {
