@@ -512,6 +512,7 @@ export default function ListingDetail() {
                   {listing.prices.map((price) => (
                     <div
                       key={price.duration_minutes}
+                      onClick={() => setSelectedDuration(price.duration_minutes)}
                       className="flex items-center justify-between p-4 border-2 rounded-xl hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer"
                     >
                       <div className="flex items-center space-x-3">
@@ -592,8 +593,7 @@ export default function ListingDetail() {
                 <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-xl p-5 border-2 border-primary/20">
                   <div className="flex items-center justify-between text-lg md:text-xl font-bold">
                     <span>Toplam Tutar:</span>
-                    <span className="flex items-center text-primary">
-                      <DollarSign className="h-5 w-5 md:h-6 md:w-6" />
+                    <span className="text-primary">
                       {selectedPrice.price} TL
                     </span>
                   </div>
@@ -704,7 +704,7 @@ export default function ListingDetail() {
         {/* Sağ Sidebar - Sadece Desktop'ta görünür */}
         <div className="hidden lg:block space-y-5 md:space-y-6">
           {/* İlan Açıklaması */}
-          <Card className="border-2 shadow-md sticky top-6">
+          <Card className="border-2 shadow-md sticky top-6 z-10">
             <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10">
               <CardTitle className="text-lg md:text-xl flex items-center gap-2">
                 <div className="h-1 w-8 bg-gradient-to-r from-primary to-primary/50 rounded-full" />
@@ -719,7 +719,7 @@ export default function ListingDetail() {
           </Card>
 
           {/* Hoca Hakkında */}
-          <Card className="border-2 shadow-md">
+          <Card className="border-2 shadow-md sticky top-6 z-0">
             <CardHeader className="bg-muted/30">
               <CardTitle className="text-lg md:text-xl flex items-center gap-2">
                 <Star className="h-5 w-5 text-primary" />
