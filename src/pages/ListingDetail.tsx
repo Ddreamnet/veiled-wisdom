@@ -8,9 +8,14 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { MessageSquare, Calendar, Clock, DollarSign, Star, Home, ChevronRight } from 'lucide-react';
+import { MessageSquare, Calendar as CalendarIcon, Clock, DollarSign, Star, Home, ChevronRight } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Input } from '@/components/ui/input';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { format } from 'date-fns';
+import { tr } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -64,7 +69,7 @@ export default function ListingDetail() {
   const [listing, setListing] = useState<ListingWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
-  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedTime, setSelectedTime] = useState('');
   const [bookingLoading, setBookingLoading] = useState(false);
   const [reviews, setReviews] = useState<ReviewWithProfile[]>([]);
@@ -206,7 +211,7 @@ export default function ListingDetail() {
       return;
     }
 
-    const startTs = new Date(`${selectedDate}T${selectedTime}`);
+    const startTs = selectedDate ? new Date(`${format(selectedDate, 'yyyy-MM-dd')}T${selectedTime}`) : new Date();
     const endTs = new Date(startTs.getTime() + selectedDuration * 60000);
 
     const { error } = await supabase.from('appointments').insert({
@@ -354,45 +359,194 @@ export default function ListingDetail() {
       </Breadcrumb>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-        <div className="lg:col-span-2">
-          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-6 md:mb-8">{listing.title}</h1>
+        <div className="lg:col-span-2 space-y-6 md:space-y-8">
+          <div>
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-6 md:mb-8">{listing.title}</h1>
 
-          {listing.cover_url && (
-            <div className="relative mb-6 md:mb-8 group overflow-hidden rounded-xl">
-              <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/20 to-transparent z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <img
-                src={listing.cover_url}
-                alt={listing.title}
-                loading="lazy"
-                decoding="async"
-                className="w-full h-64 sm:h-80 md:h-96 lg:h-[28rem] object-cover transition-transform duration-500 group-hover:scale-105"
-              />
-            </div>
-          )}
+            {listing.cover_url && (
+              <div className="relative group overflow-hidden rounded-xl shadow-lg">
+                <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/20 to-transparent z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <img
+                  src={listing.cover_url}
+                  alt={listing.title}
+                  loading="lazy"
+                  decoding="async"
+                  className="w-full h-64 sm:h-80 md:h-96 lg:h-[28rem] object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+              </div>
+            )}
+          </div>
 
-          <Card className="mb-6 md:mb-8 border-2 hover:border-primary/50 transition-colors">
-            <CardHeader>
-              <CardTitle className="text-lg md:text-xl flex items-center gap-2">
-                <div className="h-1 w-8 bg-gradient-to-r from-primary to-primary/50 rounded-full" />
-                İlan Açıklaması
+          {/* Randevu Kartı - Ana içeriğe taşındı */}
+          <Card className="border-2 border-primary/20 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10">
+              <CardTitle className="text-xl md:text-2xl flex items-center gap-2">
+                <CalendarIcon className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+                Randevu Talep Et
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-sm md:text-base text-foreground leading-relaxed whitespace-pre-line">
-                {listing.description}
-              </p>
+            <CardContent className="space-y-5 md:space-y-6 p-5 md:p-6">
+              <div className="bg-amber-50 dark:bg-amber-950/20 border-l-4 border-amber-500 rounded-r-lg p-4">
+                <p className="text-sm text-amber-800 dark:text-amber-200 flex items-start gap-2">
+                  <span className="text-lg">⚠️</span>
+                  <span>Randevu oluşturmadan önce hocayla tarih ve saati konuşmalısınız.</span>
+                </p>
+              </div>
+
+              <Link to="/messages">
+                <Button className="w-full h-12 text-base" variant="outline" size="lg">
+                  <MessageSquare className="h-5 w-5 mr-2" />
+                  Mesaj Gönder
+                </Button>
+              </Link>
+
+              <div className="border-t pt-5">
+                <Label className="text-base font-semibold mb-4 block">Seans Süresi</Label>
+                <RadioGroup
+                  value={selectedDuration?.toString()}
+                  onValueChange={(v) => setSelectedDuration(parseInt(v))}
+                  className="space-y-3"
+                >
+                  {listing.prices.map((price) => (
+                    <div
+                      key={price.duration_minutes}
+                      className="flex items-center justify-between p-4 border-2 rounded-xl hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <RadioGroupItem
+                          value={price.duration_minutes.toString()}
+                          id={`duration-${price.duration_minutes}`}
+                        />
+                        <Label
+                          htmlFor={`duration-${price.duration_minutes}`}
+                          className="cursor-pointer text-sm md:text-base font-medium flex items-center gap-2"
+                        >
+                          <Clock className="h-4 w-4 text-primary" />
+                          {price.duration_minutes} dakika
+                        </Label>
+                      </div>
+                      <span className="font-bold text-base md:text-lg text-primary">{price.price} TL</span>
+                    </div>
+                  ))}
+                </RadioGroup>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-base font-semibold flex items-center gap-2">
+                    <CalendarIcon className="h-4 w-4 text-primary" />
+                    Tarih
+                  </Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full h-12 justify-start text-left font-normal",
+                          !selectedDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {selectedDate ? format(selectedDate, 'dd MMMM yyyy', { locale: tr }) : <span>Tarih seçin</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={setSelectedDate}
+                        disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                        initialFocus
+                        locale={tr}
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-base font-semibold flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-primary" />
+                    Saat
+                  </Label>
+                  <Select value={selectedTime} onValueChange={setSelectedTime}>
+                    <SelectTrigger className="w-full h-12">
+                      <SelectValue placeholder="Saat seçin" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
+                      {Array.from({ length: 24 }, (_, i) => {
+                        const hour = i.toString().padStart(2, '0');
+                        return [
+                          <SelectItem key={`${hour}:00`} value={`${hour}:00`}>{`${hour}:00`}</SelectItem>,
+                          <SelectItem key={`${hour}:30`} value={`${hour}:30`}>{`${hour}:30`}</SelectItem>
+                        ];
+                      }).flat()}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {selectedPrice && (
+                <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-xl p-5 border-2 border-primary/20">
+                  <div className="flex items-center justify-between text-lg md:text-xl font-bold">
+                    <span>Toplam Tutar:</span>
+                    <span className="flex items-center text-primary">
+                      <DollarSign className="h-5 w-5 md:h-6 md:w-6" />
+                      {selectedPrice.price} TL
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    className="w-full h-12 text-base font-semibold"
+                    size="lg"
+                    disabled={
+                      !selectedDuration || !selectedDate || !selectedTime || bookingLoading
+                    }
+                  >
+                    Ödemeye Geç
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Randevu Onayı</AlertDialogTitle>
+                    <AlertDialogDescription className="space-y-2 text-base">
+                      Randevunuzu onaylamak istediğinize emin misiniz?
+                      <div className="mt-4 space-y-2 text-foreground">
+                        <p><strong>Tarih:</strong> {selectedDate && format(selectedDate, 'dd MMMM yyyy', { locale: tr })}</p>
+                        <p><strong>Saat:</strong> {selectedTime}</p>
+                        <p><strong>Süre:</strong> {selectedDuration} dakika</p>
+                        <p><strong>Tutar:</strong> {selectedPrice?.price} TL</p>
+                      </div>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>İptal</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleBooking}>
+                      Onayla ve Ödemeye Geç
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
+          {/* Yorumlar */}
+          <Card className="border-2">
+            <CardHeader className="bg-muted/30">
               <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <span className="text-lg md:text-xl">Yorumlar</span>
+                <span className="text-xl md:text-2xl flex items-center gap-2">
+                  <Star className="w-5 h-5 md:w-6 md:h-6 text-primary" />
+                  Yorumlar
+                </span>
                 {reviews.length > 0 && (
-                  <div className="flex items-center gap-1 text-base md:text-lg">
-                    <Star className="w-4 h-4 md:w-5 md:h-5 fill-yellow-400 text-yellow-400" />
-                    <span className="font-semibold">{averageRating.toFixed(1)}</span>
-                    <span className="text-xs md:text-sm text-muted-foreground">({reviews.length})</span>
+                  <div className="flex items-center gap-2 text-base md:text-lg">
+                    <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+                    <span className="font-bold">{averageRating.toFixed(1)}</span>
+                    <span className="text-sm text-muted-foreground">({reviews.length} değerlendirme)</span>
                   </div>
                 )}
               </CardTitle>
@@ -445,140 +599,32 @@ export default function ListingDetail() {
           </Card>
         </div>
 
-        <div className="space-y-4 md:space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg md:text-xl">Randevu Talep Et</CardTitle>
+        {/* Sağ Sidebar */}
+        <div className="space-y-5 md:space-y-6">
+          {/* İlan Açıklaması - Sidebar'a taşındı */}
+          <Card className="border-2 shadow-md sticky top-6">
+            <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10">
+              <CardTitle className="text-lg md:text-xl flex items-center gap-2">
+                <div className="h-1 w-8 bg-gradient-to-r from-primary to-primary/50 rounded-full" />
+                İlan Açıklaması
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4 md:space-y-6">
-              <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 md:p-4">
-                <p className="text-xs md:text-sm text-amber-600 dark:text-amber-400">
-                  ⚠️ Randevu oluşturmadan önce hocayla tarih ve saati konuşmalısınız.
-                </p>
-              </div>
-
-              <Link to="/messages">
-                <Button className="w-full" variant="outline">
-                  <MessageSquare className="h-4 w-4 mr-2" />
-                  Mesaj Gönder
-                </Button>
-              </Link>
-
-              <div className="border-t pt-4 md:pt-6">
-                <Label className="text-sm md:text-base mb-3 md:mb-4 block">Seans Süresi</Label>
-                <RadioGroup
-                  value={selectedDuration?.toString()}
-                  onValueChange={(v) => setSelectedDuration(parseInt(v))}
-                >
-                  {listing.prices.map((price) => (
-                    <div
-                      key={price.duration_minutes}
-                      className="flex items-center justify-between p-2.5 md:p-3 border rounded-lg"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem
-                          value={price.duration_minutes.toString()}
-                          id={`duration-${price.duration_minutes}`}
-                        />
-                        <Label
-                          htmlFor={`duration-${price.duration_minutes}`}
-                          className="cursor-pointer text-xs md:text-sm"
-                        >
-                          <Clock className="h-3 w-3 md:h-4 md:w-4 inline mr-1.5 md:mr-2" />
-                          {price.duration_minutes} dakika
-                        </Label>
-                      </div>
-                      <span className="font-semibold text-xs md:text-sm">{price.price} TL</span>
-                    </div>
-                  ))}
-                </RadioGroup>
-              </div>
-
-              <div>
-                <Label htmlFor="date" className="text-sm md:text-base mb-2 block">
-                  <Calendar className="h-3 w-3 md:h-4 md:w-4 inline mr-1.5 md:mr-2" />
-                  Tarih
-                </Label>
-                <Input
-                  id="date"
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
-                  className="text-sm md:text-base"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="time" className="text-sm md:text-base mb-2 block">
-                  <Clock className="h-3 w-3 md:h-4 md:w-4 inline mr-1.5 md:mr-2" />
-                  Saat
-                </Label>
-                <Input
-                  id="time"
-                  type="time"
-                  value={selectedTime}
-                  onChange={(e) => setSelectedTime(e.target.value)}
-                  className="text-sm md:text-base"
-                />
-              </div>
-
-              {selectedPrice && (
-                <div className="bg-primary/10 rounded-lg p-3 md:p-4">
-                  <div className="flex items-center justify-between text-base md:text-lg font-semibold">
-                    <span>Toplam:</span>
-                    <span className="flex items-center">
-                      <DollarSign className="h-4 w-4 md:h-5 md:w-5" />
-                      {selectedPrice.price} TL
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    className="w-full"
-                    size="lg"
-                    disabled={
-                      !selectedDuration || !selectedDate || !selectedTime || bookingLoading
-                    }
-                  >
-                    Ödemeye Geç
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Randevu Onayı</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Randevunuzu onaylamak istediğinize emin misiniz?
-                      <br />
-                      <br />
-                      <strong>Tarih:</strong> {selectedDate}
-                      <br />
-                      <strong>Saat:</strong> {selectedTime}
-                      <br />
-                      <strong>Süre:</strong> {selectedDuration} dakika
-                      <br />
-                      <strong>Tutar:</strong> {selectedPrice?.price} TL
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>İptal</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleBooking}>
-                      Onayla ve Ödemeye Geç
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+            <CardContent className="p-5 md:p-6">
+              <p className="text-sm md:text-base text-foreground leading-relaxed whitespace-pre-line">
+                {listing.description}
+              </p>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base md:text-lg">Hoca Hakkında</CardTitle>
+          {/* Hoca Hakkında */}
+          <Card className="border-2 shadow-md">
+            <CardHeader className="bg-muted/30">
+              <CardTitle className="text-lg md:text-xl flex items-center gap-2">
+                <Star className="h-5 w-5 text-primary" />
+                Hoca Hakkında
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 md:space-y-4">
+            <CardContent className="space-y-4 md:space-y-5 p-5 md:p-6">
               <div className="flex items-start gap-3 md:gap-4 pb-3 md:pb-4 border-b">
                 {listing.teacher.avatar_url ? (
                   <img
