@@ -1,16 +1,24 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase, Listing, ListingPrice, Review } from '@/lib/supabase';
+import { supabase, Listing, ListingPrice, Review, Category } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { MessageSquare, Calendar, Clock, DollarSign, Star } from 'lucide-react';
+import { MessageSquare, Calendar, Clock, DollarSign, Star, Home, ChevronRight } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Input } from '@/components/ui/input';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,6 +52,8 @@ type ListingWithDetails = Listing & {
   teacher: TeacherDetails;
   reviews: ReviewWithProfile[];
   averageRating: number;
+  category?: Category;
+  parentCategory?: Category;
 };
 
 export default function ListingDetail() {
@@ -99,6 +109,24 @@ export default function ListingDetail() {
       .eq('listing_id', id)
       .order('duration_minutes');
 
+    // Fetch category
+    const { data: categoryData } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('id', listingData.category_id)
+      .maybeSingle();
+
+    // Fetch parent category if exists
+    let parentCategoryData = null;
+    if (categoryData?.parent_id) {
+      const { data } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('id', categoryData.parent_id)
+        .maybeSingle();
+      parentCategoryData = data;
+    }
+
     // Fetch teacher additional details from approved applications
     const { data: teacherApproval } = await supabase
       .from('teacher_approvals')
@@ -140,6 +168,8 @@ export default function ListingDetail() {
       averageRating: reviewsList.length > 0 
         ? reviewsList.reduce((sum, r) => sum + r.rating, 0) / reviewsList.length 
         : 0,
+      category: categoryData || undefined,
+      parentCategory: parentCategoryData || undefined,
     } as any);
 
     setLoading(false);
@@ -273,6 +303,56 @@ export default function ListingDetail() {
 
   return (
     <div className="container py-8 md:py-12 px-4">
+      {/* Breadcrumb */}
+      <Breadcrumb className="mb-6">
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to="/" className="flex items-center gap-1">
+                <Home className="h-4 w-4" />
+                Ana Sayfa
+              </Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator>
+            <ChevronRight className="h-4 w-4" />
+          </BreadcrumbSeparator>
+          {listing.parentCategory && (
+            <>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link to={`/categories/${listing.parentCategory.slug}`}>
+                    {listing.parentCategory.name}
+                  </Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator>
+                <ChevronRight className="h-4 w-4" />
+              </BreadcrumbSeparator>
+            </>
+          )}
+          {listing.category && (
+            <>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link to={listing.parentCategory 
+                    ? `/categories/${listing.parentCategory.slug}/${listing.category.slug}` 
+                    : `/categories/${listing.category.slug}`}>
+                    {listing.category.name}
+                  </Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator>
+                <ChevronRight className="h-4 w-4" />
+              </BreadcrumbSeparator>
+            </>
+          )}
+          <BreadcrumbItem>
+            <BreadcrumbPage>{listing.title}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
         <div className="lg:col-span-2">
           <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-6 md:mb-8">{listing.title}</h1>
