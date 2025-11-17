@@ -535,27 +535,25 @@ export default function MyListings() {
                     )}
                   />
 
-                  {/* Image Upload (only for editing) */}
-                  {editingId && (
-                    <FormField
-                      control={form.control}
-                      name="cover_url"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>İlan Görseli</FormLabel>
-                          <FormControl>
-                            <ImageUpload
-                              currentImageUrl={field.value}
-                              listingId={editingId}
-                              onUploadComplete={field.onChange}
-                              onRemove={() => field.onChange('')}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  )}
+                  {/* Image Upload */}
+                  <FormField
+                    control={form.control}
+                    name="cover_url"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>İlan Görseli</FormLabel>
+                        <FormControl>
+                          <ImageUpload
+                            currentImageUrl={field.value}
+                            listingId={editingId || `temp-${Date.now()}`}
+                            onUploadComplete={field.onChange}
+                            onRemove={() => field.onChange('')}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
                   {/* Pricing */}
                   <div className="border-t pt-4 space-y-4">

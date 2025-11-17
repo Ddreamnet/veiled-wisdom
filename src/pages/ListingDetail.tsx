@@ -275,21 +275,27 @@ export default function ListingDetail() {
     <div className="container py-8 md:py-12 px-4">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
         <div className="lg:col-span-2">
-          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4 md:mb-6">{listing.title}</h1>
+          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-6 md:mb-8">{listing.title}</h1>
 
           {listing.cover_url && (
-            <img
-              src={listing.cover_url}
-              alt={listing.title}
-              loading="lazy"
-              decoding="async"
-              className="w-full h-48 sm:h-64 md:h-80 lg:h-96 object-cover rounded-lg mb-6 md:mb-8 shadow-elegant"
-            />
+            <div className="relative mb-6 md:mb-8 group overflow-hidden rounded-xl">
+              <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/20 to-transparent z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <img
+                src={listing.cover_url}
+                alt={listing.title}
+                loading="lazy"
+                decoding="async"
+                className="w-full h-64 sm:h-80 md:h-96 lg:h-[28rem] object-cover transition-transform duration-500 group-hover:scale-105"
+              />
+            </div>
           )}
 
-          <Card className="mb-6 md:mb-8">
+          <Card className="mb-6 md:mb-8 border-2 hover:border-primary/50 transition-colors">
             <CardHeader>
-              <CardTitle className="text-lg md:text-xl">İlan Açıklaması</CardTitle>
+              <CardTitle className="text-lg md:text-xl flex items-center gap-2">
+                <div className="h-1 w-8 bg-gradient-to-r from-primary to-primary/50 rounded-full" />
+                İlan Açıklaması
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm md:text-base text-foreground leading-relaxed whitespace-pre-line">
