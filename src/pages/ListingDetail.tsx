@@ -702,106 +702,108 @@ export default function ListingDetail() {
         </div>
 
         {/* Sağ Sidebar - Sadece Desktop'ta görünür */}
-        <div className="hidden lg:block space-y-5 md:space-y-6">
-          {/* İlan Açıklaması */}
-          <Card className="border-2 shadow-md sticky top-6 z-10">
-            <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10">
-              <CardTitle className="text-lg md:text-xl flex items-center gap-2">
-                <div className="h-1 w-8 bg-gradient-to-r from-primary to-primary/50 rounded-full" />
-                İlan Açıklaması
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-5 md:p-6">
-              <p className="text-sm md:text-base text-foreground leading-relaxed whitespace-pre-line">
-                {listing.description}
-              </p>
-            </CardContent>
-          </Card>
+        <div className="hidden lg:block">
+          <div className="sticky top-6 space-y-5 md:space-y-6">
+            {/* İlan Açıklaması */}
+            <Card className="border-2 shadow-md">
+              <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10">
+                <CardTitle className="text-lg md:text-xl flex items-center gap-2">
+                  <div className="h-1 w-8 bg-gradient-to-r from-primary to-primary/50 rounded-full" />
+                  İlan Açıklaması
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-5 md:p-6">
+                <p className="text-sm md:text-base text-foreground leading-relaxed whitespace-pre-line">
+                  {listing.description}
+                </p>
+              </CardContent>
+            </Card>
 
-          {/* Hoca Hakkında */}
-          <Card className="border-2 shadow-md sticky top-6 z-0">
-            <CardHeader className="bg-muted/30">
-              <CardTitle className="text-lg md:text-xl flex items-center gap-2">
-                <Star className="h-5 w-5 text-primary" />
-                Hoca Hakkında
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 md:space-y-5 p-5 md:p-6">
-              <div className="flex items-start gap-3 md:gap-4 pb-3 md:pb-4 border-b">
-                {listing.teacher.avatar_url ? (
-                  <img
-                    src={listing.teacher.avatar_url}
-                    alt={listing.teacher.username}
-                    className="w-12 h-12 md:w-16 md:h-16 rounded-full object-cover flex-shrink-0"
-                  />
-                ) : (
-                  <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                    <span className="text-xl md:text-2xl text-primary">
-                      {listing.teacher.username.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-base md:text-lg mb-1 truncate">
-                    {listing.teacher.username}
-                  </h3>
-                  {reviews.length > 0 ? (
-                    <div className="flex items-center gap-1 text-xs md:text-sm text-muted-foreground">
-                      <Star className="w-3 h-3 md:w-4 md:h-4 fill-yellow-400 text-yellow-400" />
-                      <span className="font-semibold">{averageRating.toFixed(1)}</span>
-                      <span className="text-xs md:text-sm">({reviews.length} değerlendirme)</span>
-                    </div>
+            {/* Hoca Hakkında */}
+            <Card className="border-2 shadow-md">
+              <CardHeader className="bg-muted/30">
+                <CardTitle className="text-lg md:text-xl flex items-center gap-2">
+                  <Star className="h-5 w-5 text-primary" />
+                  Hoca Hakkında
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 md:space-y-5 p-5 md:p-6">
+                <div className="flex items-start gap-3 md:gap-4 pb-3 md:pb-4 border-b">
+                  {listing.teacher.avatar_url ? (
+                    <img
+                      src={listing.teacher.avatar_url}
+                      alt={listing.teacher.username}
+                      className="w-12 h-12 md:w-16 md:h-16 rounded-full object-cover flex-shrink-0"
+                    />
                   ) : (
-                    <div className="text-xs md:text-sm text-muted-foreground">
-                      Henüz değerlendirme yok
+                    <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-xl md:text-2xl text-primary">
+                        {listing.teacher.username.charAt(0).toUpperCase()}
+                      </span>
                     </div>
                   )}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-base md:text-lg mb-1 truncate">
+                      {listing.teacher.username}
+                    </h3>
+                    {reviews.length > 0 ? (
+                      <div className="flex items-center gap-1 text-xs md:text-sm text-muted-foreground">
+                        <Star className="w-3 h-3 md:w-4 md:h-4 fill-yellow-400 text-yellow-400" />
+                        <span className="font-semibold">{averageRating.toFixed(1)}</span>
+                        <span className="text-xs md:text-sm">({reviews.length} değerlendirme)</span>
+                      </div>
+                    ) : (
+                      <div className="text-xs md:text-sm text-muted-foreground">
+                        Henüz değerlendirme yok
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              {listing.teacher.specialization && (
-                <div>
-                  <p className="text-xs md:text-sm font-medium text-foreground mb-0.5 md:mb-1">Uzmanlık Alanı</p>
-                  <p className="text-xs md:text-sm text-muted-foreground">
-                    {listing.teacher.specialization}
-                  </p>
-                </div>
-              )}
+                {listing.teacher.specialization && (
+                  <div>
+                    <p className="text-xs md:text-sm font-medium text-foreground mb-0.5 md:mb-1">Uzmanlık Alanı</p>
+                    <p className="text-xs md:text-sm text-muted-foreground">
+                      {listing.teacher.specialization}
+                    </p>
+                  </div>
+                )}
 
-              {listing.teacher.years_of_experience !== undefined && listing.teacher.years_of_experience !== null && (
-                <div>
-                  <p className="text-xs md:text-sm font-medium text-foreground mb-0.5 md:mb-1">Deneyim</p>
-                  <p className="text-xs md:text-sm text-muted-foreground">
-                    {listing.teacher.years_of_experience} yıl
-                  </p>
-                </div>
-              )}
+                {listing.teacher.years_of_experience !== undefined && listing.teacher.years_of_experience !== null && (
+                  <div>
+                    <p className="text-xs md:text-sm font-medium text-foreground mb-0.5 md:mb-1">Deneyim</p>
+                    <p className="text-xs md:text-sm text-muted-foreground">
+                      {listing.teacher.years_of_experience} yıl
+                    </p>
+                  </div>
+                )}
 
-              {listing.teacher.education && (
-                <div>
-                  <p className="text-xs md:text-sm font-medium text-foreground mb-0.5 md:mb-1">Eğitim</p>
-                  <p className="text-xs md:text-sm text-muted-foreground">
-                    {listing.teacher.education}
-                  </p>
-                </div>
-              )}
+                {listing.teacher.education && (
+                  <div>
+                    <p className="text-xs md:text-sm font-medium text-foreground mb-0.5 md:mb-1">Eğitim</p>
+                    <p className="text-xs md:text-sm text-muted-foreground">
+                      {listing.teacher.education}
+                    </p>
+                  </div>
+                )}
 
-              {listing.teacher.bio && (
-                <div>
-                  <p className="text-xs md:text-sm font-medium text-foreground mb-0.5 md:mb-1">Hakkında</p>
-                  <p className="text-xs md:text-sm text-muted-foreground leading-relaxed">
-                    {listing.teacher.bio}
-                  </p>
-                </div>
-              )}
+                {listing.teacher.bio && (
+                  <div>
+                    <p className="text-xs md:text-sm font-medium text-foreground mb-0.5 md:mb-1">Hakkında</p>
+                    <p className="text-xs md:text-sm text-muted-foreground leading-relaxed">
+                      {listing.teacher.bio}
+                    </p>
+                  </div>
+                )}
 
-              <Link to={`/profile/${listing.teacher_id}`}>
-                <Button variant="outline" className="w-full mt-2">
-                  Profili Görüntüle
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
+                <Link to={`/profile/${listing.teacher_id}`}>
+                  <Button variant="outline" className="w-full mt-2">
+                    Profili Görüntüle
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>
