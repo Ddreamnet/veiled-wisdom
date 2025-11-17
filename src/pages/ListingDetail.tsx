@@ -358,27 +358,127 @@ export default function ListingDetail() {
         </BreadcrumbList>
       </Breadcrumb>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-        <div className="lg:col-span-2 space-y-6 md:space-y-8">
-          <div>
-            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-6 md:mb-8">{listing.title}</h1>
+      <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6 md:gap-8">
+        {/* Görsel - Mobilde 1. sırada */}
+        <div className="order-1 lg:order-none lg:col-span-2">
+          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-6 md:mb-8">{listing.title}</h1>
 
-            {listing.cover_url && (
-              <div className="relative group overflow-hidden rounded-xl shadow-lg">
-                <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/20 to-transparent z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          {listing.cover_url && (
+            <div className="relative group overflow-hidden rounded-xl shadow-lg">
+              <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/20 to-transparent z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <img
+                src={listing.cover_url}
+                alt={listing.title}
+                loading="lazy"
+                decoding="async"
+                className="w-full h-64 sm:h-80 md:h-96 lg:h-[28rem] object-cover transition-transform duration-500 group-hover:scale-105"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* İlan Açıklaması - Mobilde 2. sırada */}
+        <Card className="order-2 lg:order-none border-2 shadow-md lg:sticky lg:top-6">
+          <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10">
+            <CardTitle className="text-lg md:text-xl flex items-center gap-2">
+              <div className="h-1 w-8 bg-gradient-to-r from-primary to-primary/50 rounded-full" />
+              İlan Açıklaması
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-5 md:p-6">
+            <p className="text-sm md:text-base text-foreground leading-relaxed whitespace-pre-line">
+              {listing.description}
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Hoca Hakkında - Mobilde 3. sırada */}
+        <Card className="order-3 lg:order-none border-2 shadow-md">
+          <CardHeader className="bg-muted/30">
+            <CardTitle className="text-lg md:text-xl flex items-center gap-2">
+              <Star className="h-5 w-5 text-primary" />
+              Hoca Hakkında
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 md:space-y-5 p-5 md:p-6">
+            <div className="flex items-start gap-3 md:gap-4 pb-3 md:pb-4 border-b">
+              {listing.teacher.avatar_url ? (
                 <img
-                  src={listing.cover_url}
-                  alt={listing.title}
-                  loading="lazy"
-                  decoding="async"
-                  className="w-full h-64 sm:h-80 md:h-96 lg:h-[28rem] object-cover transition-transform duration-500 group-hover:scale-105"
+                  src={listing.teacher.avatar_url}
+                  alt={listing.teacher.username}
+                  className="w-12 h-12 md:w-16 md:h-16 rounded-full object-cover flex-shrink-0"
                 />
+              ) : (
+                <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                  <span className="text-xl md:text-2xl text-primary">
+                    {listing.teacher.username.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-base md:text-lg mb-1 truncate">
+                  {listing.teacher.username}
+                </h3>
+                {reviews.length > 0 ? (
+                  <div className="flex items-center gap-1 text-xs md:text-sm text-muted-foreground">
+                    <Star className="w-3 h-3 md:w-4 md:h-4 fill-yellow-400 text-yellow-400" />
+                    <span className="font-semibold">{averageRating.toFixed(1)}</span>
+                    <span className="text-xs md:text-sm">({reviews.length} değerlendirme)</span>
+                  </div>
+                ) : (
+                  <div className="text-xs md:text-sm text-muted-foreground">
+                    Henüz değerlendirme yok
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {listing.teacher.specialization && (
+              <div>
+                <p className="text-xs md:text-sm font-medium text-foreground mb-0.5 md:mb-1">Uzmanlık Alanı</p>
+                <p className="text-xs md:text-sm text-muted-foreground">
+                  {listing.teacher.specialization}
+                </p>
               </div>
             )}
-          </div>
 
-          {/* Randevu Kartı - Ana içeriğe taşındı */}
-          <Card className="border-2 border-primary/20 shadow-lg">
+            {listing.teacher.years_of_experience !== undefined && listing.teacher.years_of_experience !== null && (
+              <div>
+                <p className="text-xs md:text-sm font-medium text-foreground mb-0.5 md:mb-1">Deneyim</p>
+                <p className="text-xs md:text-sm text-muted-foreground">
+                  {listing.teacher.years_of_experience} yıl
+                </p>
+              </div>
+            )}
+
+            {listing.teacher.education && (
+              <div>
+                <p className="text-xs md:text-sm font-medium text-foreground mb-0.5 md:mb-1">Eğitim</p>
+                <p className="text-xs md:text-sm text-muted-foreground">
+                  {listing.teacher.education}
+                </p>
+              </div>
+            )}
+
+            {listing.teacher.bio && (
+              <div>
+                <p className="text-xs md:text-sm font-medium text-foreground mb-0.5 md:mb-1">Hakkında</p>
+                <p className="text-xs md:text-sm text-muted-foreground leading-relaxed">
+                  {listing.teacher.bio}
+                </p>
+              </div>
+            )}
+
+            <Link to={`/profile/${listing.teacher_id}`}>
+              <Button variant="outline" className="w-full mt-2">
+                Profili Görüntüle
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* Randevu Kartı - Mobilde 4. sırada */}
+        <Card className="order-4 lg:order-none lg:col-span-2 border-2 border-primary/20 shadow-lg">
             <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10">
               <CardTitle className="text-xl md:text-2xl flex items-center gap-2">
                 <CalendarIcon className="h-5 w-5 md:h-6 md:w-6 text-primary" />
@@ -534,8 +634,8 @@ export default function ListingDetail() {
             </CardContent>
           </Card>
 
-          {/* Yorumlar */}
-          <Card className="border-2">
+        {/* Yorumlar - Mobilde 5. sırada */}
+        <Card className="order-5 lg:order-none lg:col-span-2 border-2">
             <CardHeader className="bg-muted/30">
               <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <span className="text-xl md:text-2xl flex items-center gap-2">
@@ -597,104 +697,6 @@ export default function ListingDetail() {
               )}
             </CardContent>
           </Card>
-        </div>
-
-        {/* Sağ Sidebar */}
-        <div className="space-y-5 md:space-y-6">
-          {/* İlan Açıklaması - Sidebar'a taşındı */}
-          <Card className="border-2 shadow-md sticky top-6">
-            <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10">
-              <CardTitle className="text-lg md:text-xl flex items-center gap-2">
-                <div className="h-1 w-8 bg-gradient-to-r from-primary to-primary/50 rounded-full" />
-                İlan Açıklaması
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-5 md:p-6">
-              <p className="text-sm md:text-base text-foreground leading-relaxed whitespace-pre-line">
-                {listing.description}
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Hoca Hakkında */}
-          <Card className="border-2 shadow-md">
-            <CardHeader className="bg-muted/30">
-              <CardTitle className="text-lg md:text-xl flex items-center gap-2">
-                <Star className="h-5 w-5 text-primary" />
-                Hoca Hakkında
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 md:space-y-5 p-5 md:p-6">
-              <div className="flex items-start gap-3 md:gap-4 pb-3 md:pb-4 border-b">
-                {listing.teacher.avatar_url ? (
-                  <img
-                    src={listing.teacher.avatar_url}
-                    alt={listing.teacher.username}
-                    className="w-12 h-12 md:w-16 md:h-16 rounded-full object-cover flex-shrink-0"
-                  />
-                ) : (
-                  <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                    <span className="text-xl md:text-2xl text-primary">
-                      {listing.teacher.username.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-base md:text-lg mb-1 truncate">
-                    {listing.teacher.username}
-                  </h3>
-                  {reviews.length > 0 ? (
-                    <div className="flex items-center gap-1 text-xs md:text-sm text-muted-foreground">
-                      <Star className="w-3 h-3 md:w-4 md:h-4 fill-yellow-400 text-yellow-400" />
-                      <span className="font-semibold">{averageRating.toFixed(1)}</span>
-                      <span className="text-xs md:text-sm">({reviews.length} değerlendirme)</span>
-                    </div>
-                  ) : (
-                    <div className="text-xs md:text-sm text-muted-foreground">
-                      Henüz değerlendirme yok
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {listing.teacher.specialization && (
-                <div>
-                  <p className="text-xs md:text-sm font-medium text-foreground mb-0.5 md:mb-1">Uzmanlık Alanı</p>
-                  <p className="text-xs md:text-sm text-muted-foreground">
-                    {listing.teacher.specialization}
-                  </p>
-                </div>
-              )}
-
-              {listing.teacher.years_of_experience !== undefined && listing.teacher.years_of_experience !== null && (
-                <div>
-                  <p className="text-xs md:text-sm font-medium text-foreground mb-0.5 md:mb-1">Deneyim</p>
-                  <p className="text-xs md:text-sm text-muted-foreground">
-                    {listing.teacher.years_of_experience} yıl
-                  </p>
-                </div>
-              )}
-
-              {listing.teacher.education && (
-                <div>
-                  <p className="text-xs md:text-sm font-medium text-foreground mb-0.5 md:mb-1">Eğitim</p>
-                  <p className="text-xs md:text-sm text-muted-foreground leading-relaxed">
-                    {listing.teacher.education}
-                  </p>
-                </div>
-              )}
-
-              {listing.teacher.bio && (
-                <div>
-                  <p className="text-xs md:text-sm font-medium text-foreground mb-0.5 md:mb-1">Hakkında</p>
-                  <p className="text-xs md:text-sm text-muted-foreground leading-relaxed">
-                    {listing.teacher.bio}
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
       </div>
     </div>
   );
