@@ -386,7 +386,7 @@ export default function ListingDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-5 md:space-y-6 p-5 md:p-6">
-              <div className="bg-amber-50 dark:bg-amber-950/20 border-l-4 border-amber-500 rounded-r-lg p-4">
+              <div className="bg-amber-50 dark:bg-amber-950/20 border-l-4 border-amber-500 rounded-r-lg p-4 mb-5">
                 <p className="text-sm text-amber-800 dark:text-amber-200 flex items-start gap-2">
                   <span className="text-lg">⚠️</span>
                   <span>Randevu oluşturmadan önce hocayla tarih ve saati konuşmalısınız.</span>
