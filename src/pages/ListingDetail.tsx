@@ -471,11 +471,24 @@ export default function ListingDetail() {
                 </div>
               )}
 
-              <Link to={`/profile/${listing.teacher_id}`}>
-                <Button variant="outline" className="w-full mt-2">
-                  Profili Görüntüle
-                </Button>
-              </Link>
+              <div className="flex flex-col gap-2">
+                {user && user.id !== listing.teacher_id && (
+                  <Button 
+                    onClick={() => navigate(`/messages?userId=${listing.teacher_id}`)} 
+                    className="w-full"
+                    variant="default"
+                  >
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Mesaj Gönder
+                  </Button>
+                )}
+
+                <Link to={`/profile/${listing.teacher_id}`}>
+                  <Button variant="outline" className="w-full">
+                    Profili Görüntüle
+                  </Button>
+                </Link>
+              </div>
             </CardContent>
           </Card>
 
@@ -495,12 +508,15 @@ export default function ListingDetail() {
                 </p>
               </div>
 
-              <Link to="/messages">
-                <Button className="w-full h-12 text-base" variant="outline" size="lg">
-                  <MessageSquare className="h-5 w-5 mr-2" />
-                  Mesaj Gönder
-                </Button>
-              </Link>
+              <Button 
+                onClick={() => navigate(`/messages?userId=${listing.teacher_id}`)}
+                className="w-full h-12 text-base" 
+                variant="outline" 
+                size="lg"
+              >
+                <MessageSquare className="h-5 w-5 mr-2" />
+                Mesaj Gönder
+              </Button>
 
               <div className="border-t pt-5">
                 <Label className="text-base font-semibold mb-4 block">Seans Süresi</Label>
@@ -796,11 +812,24 @@ export default function ListingDetail() {
                   </div>
                 )}
 
-                <Link to={`/profile/${listing.teacher_id}`}>
-                  <Button variant="outline" className="w-full mt-2">
-                    Profili Görüntüle
-                  </Button>
-                </Link>
+                <div className="flex flex-col gap-2">
+                  {user && user.id !== listing.teacher_id && (
+                    <Button 
+                      onClick={() => navigate(`/messages?userId=${listing.teacher_id}`)} 
+                      className="w-full"
+                      variant="default"
+                    >
+                      <MessageSquare className="h-4 w-4 mr-2" />
+                      Mesaj Gönder
+                    </Button>
+                  )}
+
+                  <Link to={`/profile/${listing.teacher_id}`}>
+                    <Button variant="outline" className="w-full">
+                      Profili Görüntüle
+                    </Button>
+                  </Link>
+                </div>
               </CardContent>
             </Card>
           </div>

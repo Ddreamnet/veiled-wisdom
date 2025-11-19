@@ -143,8 +143,8 @@ export default function PublicProfile() {
   };
 
   const handleContactClick = () => {
-    // Navigate to messages or open contact dialog
-    navigate('/messages');
+    // Navigate to messages with userId parameter
+    navigate(`/messages?userId=${id}`);
   };
 
   if (loading) {
