@@ -126,56 +126,17 @@ export function useConversations() {
     if (!user) return null;
 
     try {
-      // Önce bu iki kullanıcı arasında konuşma var mı kontrol et
-      const { data: existingParticipants, error: checkError } = await supabase
-        .from('conversation_participants')
-        .select('conversation_id')
-        .eq('user_id', user.id);
+      // Supabase RPC fonksiyonu kullanarak konuşma oluştur/bul
+      const { data, error } = await supabase.rpc('get_or_create_conversation', {
+        other_user_id: otherUserId
+      });
 
-      if (checkError) throw checkError;
-
-      if (existingParticipants && existingParticipants.length > 0) {
-        // Her konuşmada diğer kullanıcı var mı kontrol et
-        for (const participant of existingParticipants) {
-          const { data: otherParticipant, error: otherError } = await supabase
-            .from('conversation_participants')
-            .select('user_id')
-            .eq('conversation_id', participant.conversation_id)
-            .eq('user_id', otherUserId)
-            .maybeSingle();
-
-          if (otherError) throw otherError;
-
-          if (otherParticipant) {
-            // Konuşma zaten var
-            return participant.conversation_id;
-          }
-        }
-      }
-
-      // Konuşma yok, yeni oluştur
-      const { data: newConversation, error: createError } = await supabase
-        .from('conversations')
-        .insert({})
-        .select()
-        .single();
-
-      if (createError) throw createError;
-
-      // Her iki kullanıcıyı da katılımcı olarak ekle
-      const { error: participantError } = await supabase
-        .from('conversation_participants')
-        .insert([
-          { conversation_id: newConversation.id, user_id: user.id },
-          { conversation_id: newConversation.id, user_id: otherUserId },
-        ]);
-
-      if (participantError) throw participantError;
+      if (error) throw error;
 
       // Listeyi yenile
       await fetchConversations();
 
-      return newConversation.id;
+      return data;
     } catch (err: any) {
       console.error('Error creating conversation:', err);
       setError(err.message);
