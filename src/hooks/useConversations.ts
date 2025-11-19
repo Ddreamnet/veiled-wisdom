@@ -16,6 +16,7 @@ export type ConversationWithParticipant = {
     body: string;
     created_at: string;
   } | null;
+  unread_count: number;
 };
 
 export function useConversations() {
@@ -49,21 +50,34 @@ export function useConversations() {
       if (error) throw error;
 
       // Veriyi uygun formata dönüştür
-      const formattedConversations = (data || []).map((row: any) => ({
-        id: row.conversation_id,
-        created_at: row.conversation_created_at,
-        updated_at: row.conversation_updated_at,
-        last_message_at: row.last_message_at,
-        other_participant: {
-          id: row.other_user_id,
-          username: row.other_username,
-          avatar_url: row.other_avatar_url,
-        },
-        last_message: row.last_message_body ? {
-          body: row.last_message_body,
-          created_at: row.last_message_created_at,
-        } : null,
-      }));
+      const formattedConversations = await Promise.all(
+        (data || []).map(async (row: any) => {
+          // Her konuşma için okunmamış mesaj sayısını hesapla
+          const { count } = await supabase
+            .from('messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('conversation_id', row.conversation_id)
+            .neq('sender_id', user.id)
+            .eq('read', false);
+
+          return {
+            id: row.conversation_id,
+            created_at: row.conversation_created_at,
+            updated_at: row.conversation_updated_at,
+            last_message_at: row.last_message_at,
+            other_participant: {
+              id: row.other_user_id,
+              username: row.other_username,
+              avatar_url: row.other_avatar_url,
+            },
+            last_message: row.last_message_body ? {
+              body: row.last_message_body,
+              created_at: row.last_message_created_at,
+            } : null,
+            unread_count: count || 0,
+          };
+        })
+      );
 
       setConversations(formattedConversations);
     } catch (err: any) {

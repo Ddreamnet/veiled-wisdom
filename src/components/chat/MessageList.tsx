@@ -5,14 +5,16 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Message } from '@/hooks/useMessages';
 import { cn } from '@/lib/utils';
+import { markMessagesAsRead } from '@/lib/messageHelpers';
 
 type MessageListProps = {
   messages: Message[];
   loading: boolean;
   currentUserId: string | undefined;
+  conversationId: string | null;
 };
 
-export function MessageList({ messages, loading, currentUserId }: MessageListProps) {
+export function MessageList({ messages, loading, currentUserId, conversationId }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -22,6 +24,18 @@ export function MessageList({ messages, loading, currentUserId }: MessageListPro
       bottomRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
   }, [messages]);
+
+  // Mesajlar görüntülendiğinde okundu olarak işaretle
+  useEffect(() => {
+    if (conversationId && currentUserId && messages.length > 0) {
+      // Kısa bir gecikme sonrası okundu olarak işaretle
+      const timer = setTimeout(() => {
+        markMessagesAsRead(conversationId, currentUserId);
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [conversationId, currentUserId, messages]);
 
   if (loading) {
     return (

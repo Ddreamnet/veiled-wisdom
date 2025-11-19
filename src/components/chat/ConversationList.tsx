@@ -3,6 +3,7 @@ import { tr } from 'date-fns/locale';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 import { ConversationWithParticipant } from '@/hooks/useConversations';
 import { cn } from '@/lib/utils';
 
@@ -89,13 +90,28 @@ export function ConversationList({
                   <p className="font-medium text-sm truncate">
                     {conversation.other_participant.username || 'Kullanıcı'}
                   </p>
-                  {timeAgo && (
-                    <span className="text-xs text-muted-foreground ml-2 flex-shrink-0">
-                      {timeAgo}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                    {timeAgo && (
+                      <span className="text-xs text-muted-foreground">
+                        {timeAgo}
+                      </span>
+                    )}
+                    {conversation.unread_count > 0 && (
+                      <Badge 
+                        variant="default" 
+                        className="h-5 min-w-5 flex items-center justify-center p-0 px-1.5 text-xs"
+                      >
+                        {conversation.unread_count > 99 ? '99+' : conversation.unread_count}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
-                <p className="text-sm text-muted-foreground truncate">{truncatedMessage}</p>
+                <p className={cn(
+                  "text-sm truncate",
+                  conversation.unread_count > 0 ? "text-foreground font-medium" : "text-muted-foreground"
+                )}>
+                  {truncatedMessage}
+                </p>
               </div>
             </button>
           );
