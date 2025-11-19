@@ -123,19 +123,29 @@ export function useConversations() {
 
   // Yeni konuşma oluştur veya var olanı bul
   const getOrCreateConversation = async (otherUserId: string): Promise<string | null> => {
-    if (!user) return null;
+    if (!user) {
+      console.log('No user logged in');
+      return null;
+    }
+
+    console.log('getOrCreateConversation - current user:', user.id, 'other user:', otherUserId);
 
     try {
       // Supabase RPC fonksiyonu kullanarak konuşma oluştur/bul
+      console.log('Calling RPC function: get_or_create_conversation');
       const { data, error } = await supabase.rpc('get_or_create_conversation', {
         other_user_id: otherUserId
       });
 
+      console.log('RPC response - data:', data, 'error:', error);
+
       if (error) throw error;
 
       // Listeyi yenile
+      console.log('Refreshing conversations list');
       await fetchConversations();
 
+      console.log('Returning conversation ID:', data);
       return data;
     } catch (err: any) {
       console.error('Error creating conversation:', err);

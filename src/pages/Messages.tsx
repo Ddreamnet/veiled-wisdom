@@ -17,19 +17,27 @@ export default function Messages() {
   // URL'den userId parametresi varsa yeni konuşma başlat
   useEffect(() => {
     const userId = searchParams.get('userId');
+    console.log('Messages page - userId from URL:', userId, 'current user:', user?.id);
+    
     if (userId && user) {
+      console.log('Starting conversation with:', userId);
       handleStartConversation(userId);
     }
   }, [searchParams, user]);
 
   const handleStartConversation = async (otherUserId: string) => {
+    console.log('handleStartConversation called with:', otherUserId);
     const conversationId = await getOrCreateConversation(otherUserId);
+    console.log('getOrCreateConversation returned:', conversationId);
+    
     if (conversationId) {
+      console.log('Setting selected conversation to:', conversationId);
       setSelectedConversationId(conversationId);
       setShowMobileChat(true);
       // URL'den userId parametresini temizle
       navigate('/messages', { replace: true });
     } else {
+      console.log('Failed to create/get conversation');
       toast({
         title: 'Hata',
         description: 'Konuşma oluşturulamadı. Lütfen tekrar deneyin.',
