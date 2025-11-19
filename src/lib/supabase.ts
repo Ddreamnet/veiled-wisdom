@@ -85,3 +85,25 @@ export type Review = {
   comment: string;
   created_at: string;
 };
+
+export type Conversation = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  last_message_at: string;
+};
+
+export type ConversationParticipant = {
+  id: string;
+  conversation_id: string;
+  user_id: string;
+  joined_at: string;
+};
+
+export type MessageType = {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  body: string;
+  created_at: string;
+};
