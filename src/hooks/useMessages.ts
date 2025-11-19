@@ -44,11 +44,15 @@ export function useMessages(conversationId: string | null) {
       setLoading(true);
       setError(null);
 
+      console.log('Fetching messages for conversation:', conversationId);
+
       const { data, error: fetchError } = await supabase
         .from('messages')
         .select('*')
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true });
+
+      console.log('Messages fetched:', data?.length || 0, 'Error:', fetchError);
 
       if (fetchError) throw fetchError;
 
