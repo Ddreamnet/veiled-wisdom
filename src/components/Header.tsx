@@ -25,12 +25,15 @@ import {
   X,
 } from "lucide-react";
 import { useScrollPosition } from "@/hooks/useScrollPosition";
+import { useUnreadCount } from "@/hooks/useUnreadCount";
+import { Badge } from "@/components/ui/badge";
 
 const HeaderComponent = () => {
   const { user, role, signOut } = useAuth();
   const scrollPosition = useScrollPosition();
   const isScrolled = scrollPosition > 20;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { unreadCount } = useUnreadCount();
 
   return (
     <header
@@ -98,8 +101,16 @@ const HeaderComponent = () => {
                   Keşfet
                 </Link>
                 <Link to="/messages">
-                  <Button variant="ghost" size="icon" className="transition-all duration-200 ease-out">
+                  <Button variant="ghost" size="icon" className="relative transition-all duration-200 ease-out">
                     <MessageSquare className="h-5 w-5" />
+                    {unreadCount > 0 && (
+                      <Badge 
+                        variant="destructive" 
+                        className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-0 px-1 text-xs"
+                      >
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </Badge>
+                    )}
                   </Button>
                 </Link>
               </>
@@ -107,6 +118,19 @@ const HeaderComponent = () => {
 
             {user && role === "teacher" && (
               <>
+                <Link to="/messages">
+                  <Button variant="ghost" size="icon" className="relative transition-all duration-200 ease-out">
+                    <MessageSquare className="h-5 w-5" />
+                    {unreadCount > 0 && (
+                      <Badge 
+                        variant="destructive" 
+                        className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-0 px-1 text-xs"
+                      >
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </Badge>
+                    )}
+                  </Button>
+                </Link>
                 <Link
                   to="/explore"
                   className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"

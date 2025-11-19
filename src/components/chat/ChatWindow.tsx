@@ -55,7 +55,12 @@ export function ChatWindow({ conversation, onBack }: ChatWindowProps) {
       </div>
 
       {/* Messages */}
-      <MessageList messages={messages} loading={loading} currentUserId={user?.id} />
+      <MessageList 
+        messages={messages} 
+        loading={loading} 
+        currentUserId={user?.id} 
+        conversationId={conversation.id}
+      />
 
       {/* Input */}
       <MessageInput onSendMessage={sendMessage} sending={sending} />
