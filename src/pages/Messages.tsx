@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useConversations } from '@/hooks/useConversations';
+import { useUnreadCount } from '@/hooks/useUnreadCount';
 import { ConversationList } from '@/components/chat/ConversationList';
 import { ChatWindow } from '@/components/chat/ChatWindow';
 import { toast } from '@/hooks/use-toast';
@@ -10,7 +11,8 @@ export default function Messages() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
-  const { conversations, loading, getOrCreateConversation } = useConversations();
+  const { conversations, loading, getOrCreateConversation, refetch: refetchConversations } = useConversations();
+  const { refetch: refetchUnreadCount } = useUnreadCount();
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [showMobileChat, setShowMobileChat] = useState(false);
 
@@ -56,6 +58,12 @@ export default function Messages() {
     setSelectedConversationId(null);
   };
 
+  const handleMessagesRead = () => {
+    // Mesajlar okunduğunda hem konuşma listesini hem de header sayacını güncelle
+    refetchConversations();
+    refetchUnreadCount();
+  };
+
   if (!user) {
     return (
       <div className="container py-12">
@@ -91,7 +99,7 @@ export default function Messages() {
             </div>
 
             {/* Sağ Panel - Chat Penceresi */}
-            <ChatWindow conversation={selectedConversation} />
+            <ChatWindow conversation={selectedConversation} onMessagesRead={handleMessagesRead} />
           </div>
 
           {/* Mobile Layout */}
@@ -109,7 +117,7 @@ export default function Messages() {
                 />
               </div>
             ) : (
-              <ChatWindow conversation={selectedConversation} onBack={handleBackToList} />
+              <ChatWindow conversation={selectedConversation} onBack={handleBackToList} onMessagesRead={handleMessagesRead} />
             )}
           </div>
         </div>

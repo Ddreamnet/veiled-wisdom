@@ -12,9 +12,10 @@ type MessageListProps = {
   loading: boolean;
   currentUserId: string | undefined;
   conversationId: string | null;
+  onMessagesRead?: () => void;
 };
 
-export function MessageList({ messages, loading, currentUserId, conversationId }: MessageListProps) {
+export function MessageList({ messages, loading, currentUserId, conversationId, onMessagesRead }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -29,13 +30,15 @@ export function MessageList({ messages, loading, currentUserId, conversationId }
   useEffect(() => {
     if (conversationId && currentUserId && messages.length > 0) {
       // Kısa bir gecikme sonrası okundu olarak işaretle
-      const timer = setTimeout(() => {
-        markMessagesAsRead(conversationId, currentUserId);
+      const timer = setTimeout(async () => {
+        await markMessagesAsRead(conversationId, currentUserId);
+        // Mesajlar okunduktan sonra sayaçları güncelle
+        onMessagesRead?.();
       }, 500);
 
       return () => clearTimeout(timer);
     }
-  }, [conversationId, currentUserId, messages]);
+  }, [conversationId, currentUserId, messages, onMessagesRead]);
 
   if (loading) {
     return (
