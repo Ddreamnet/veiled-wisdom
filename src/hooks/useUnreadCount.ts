@@ -18,7 +18,16 @@ export function useUnreadCount() {
     fetchUnreadCount();
     setupRealtimeSubscription();
 
+    // Listen for custom unread count change events
+    const handleUnreadCountChange = () => {
+      console.log('useUnreadCount - Received unread-count-changed event');
+      fetchUnreadCount();
+    };
+
+    window.addEventListener('unread-count-changed', handleUnreadCountChange);
+
     return () => {
+      window.removeEventListener('unread-count-changed', handleUnreadCountChange);
       // Cleanup will be handled by channel reference
     };
   }, [user]);
