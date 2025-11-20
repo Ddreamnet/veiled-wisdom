@@ -73,12 +73,12 @@ export default function Messages() {
 
   return (
     <div className="h-[calc(100vh-4rem)]">
-      <div className="container h-full py-6">
-        <div className="h-full bg-card rounded-lg border border-border overflow-hidden">
+      <div className="container h-full py-4 md:py-6 px-2 sm:px-4">
+        <div className="h-full bg-card rounded-lg border border-border overflow-hidden shadow-sm">
           {/* Desktop Layout */}
           <div className="hidden md:flex h-full">
             {/* Sol Panel - Konuşma Listesi */}
-            <div className="w-80 border-r border-border flex flex-col">
+            <div className="w-80 lg:w-96 border-r border-border flex flex-col">
               <div className="p-4 border-b border-border">
                 <h2 className="text-xl font-semibold">Mesajlar</h2>
               </div>
@@ -98,8 +98,8 @@ export default function Messages() {
           <div className="md:hidden h-full">
             {!showMobileChat ? (
               <div className="h-full flex flex-col">
-                <div className="p-4 border-b border-border">
-                  <h2 className="text-xl font-semibold">Mesajlar</h2>
+                <div className="p-3 sm:p-4 border-b border-border">
+                  <h2 className="text-lg sm:text-xl font-semibold">Mesajlar</h2>
                 </div>
                 <ConversationList
                   conversations={conversations}
