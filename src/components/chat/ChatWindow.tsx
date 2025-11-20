@@ -10,9 +10,10 @@ import { Button } from '@/components/ui/button';
 type ChatWindowProps = {
   conversation: ConversationWithParticipant | null;
   onBack?: () => void;
+  onMessagesRead?: () => void;
 };
 
-export function ChatWindow({ conversation, onBack }: ChatWindowProps) {
+export function ChatWindow({ conversation, onBack, onMessagesRead }: ChatWindowProps) {
   const { user } = useAuth();
   const { messages, loading, sending, sendMessage } = useMessages(conversation?.id || null);
 
@@ -60,6 +61,7 @@ export function ChatWindow({ conversation, onBack }: ChatWindowProps) {
         loading={loading} 
         currentUserId={user?.id} 
         conversationId={conversation.id}
+        onMessagesRead={onMessagesRead}
       />
 
       {/* Input */}
