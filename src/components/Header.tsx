@@ -118,6 +118,12 @@ const HeaderComponent = () => {
 
             {user && role === "teacher" && (
               <>
+                <Link
+                  to="/explore"
+                  className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
+                >
+                  Keşfet
+                </Link>
                 <Link to="/messages">
                   <Button variant="ghost" size="icon" className="relative transition-all duration-200 ease-out">
                     <MessageSquare className="h-5 w-5" />
@@ -129,17 +135,6 @@ const HeaderComponent = () => {
                         {unreadCount > 99 ? '99+' : unreadCount}
                       </Badge>
                     )}
-                  </Button>
-                </Link>
-                <Link
-                  to="/explore"
-                  className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
-                >
-                  Keşfet
-                </Link>
-                <Link to="/messages">
-                  <Button variant="ghost" size="icon" className="transition-all duration-200 ease-out">
-                    <MessageSquare className="h-5 w-5" />
                   </Button>
                 </Link>
               </>
