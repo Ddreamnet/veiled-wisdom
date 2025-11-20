@@ -9,6 +9,7 @@ export type Message = {
   sender_id: string;
   body: string;
   created_at: string;
+  read: boolean;
 };
 
 export function useMessages(conversationId: string | null) {
@@ -117,6 +118,7 @@ export function useMessages(conversationId: string | null) {
       sender_id: user.id,
       body: body.trim(),
       created_at: new Date().toISOString(),
+      read: true, // Kendi mesajımız okunmuş sayılır
     };
 
     setMessages((prev) => [...prev, optimisticMessage]);

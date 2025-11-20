@@ -18,6 +18,7 @@ type MessageListProps = {
 export function MessageList({ messages, loading, currentUserId, conversationId, onMessagesRead }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const hasMarkedAsRead = useRef(false);
 
   // Yeni mesaj geldiğinde otomatik scroll
   useEffect(() => {
@@ -26,17 +27,30 @@ export function MessageList({ messages, loading, currentUserId, conversationId, 
     }
   }, [messages]);
 
-  // Mesajlar görüntülendiğinde okundu olarak işaretle
+  // Mesajlar görüntülendiğinde okundu olarak işaretle (sadece bir kere)
   useEffect(() => {
-    if (conversationId && currentUserId && messages.length > 0) {
-      // Kısa bir gecikme sonrası okundu olarak işaretle
-      const timer = setTimeout(async () => {
-        await markMessagesAsRead(conversationId, currentUserId);
-        // Mesajlar okunduktan sonra sayaçları güncelle
-        onMessagesRead?.();
-      }, 500);
+    // Konuşma değiştiğinde reset et
+    hasMarkedAsRead.current = false;
+  }, [conversationId]);
 
-      return () => clearTimeout(timer);
+  useEffect(() => {
+    if (conversationId && currentUserId && messages.length > 0 && !hasMarkedAsRead.current) {
+      // Okunmamış mesaj var mı kontrol et
+      const hasUnreadMessages = messages.some(
+        (msg) => msg.sender_id !== currentUserId && !msg.read
+      );
+
+      if (hasUnreadMessages) {
+        // Kısa bir gecikme sonrası okundu olarak işaretle
+        const timer = setTimeout(async () => {
+          await markMessagesAsRead(conversationId, currentUserId);
+          hasMarkedAsRead.current = true;
+          // Mesajlar okunduktan sonra sayaçları güncelle
+          onMessagesRead?.();
+        }, 1000);
+
+        return () => clearTimeout(timer);
+      }
     }
   }, [conversationId, currentUserId, messages, onMessagesRead]);
 
