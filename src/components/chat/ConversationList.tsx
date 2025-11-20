@@ -55,8 +55,8 @@ export function ConversationList({
         {conversations.map((conversation) => {
           const isSelected = conversation.id === selectedConversationId;
           const truncatedMessage = conversation.last_message?.body
-            ? conversation.last_message.body.length > 50
-              ? conversation.last_message.body.substring(0, 50) + '...'
+            ? conversation.last_message.body.length > 20
+              ? conversation.last_message.body.substring(0, 20) + '...'
               : conversation.last_message.body
             : 'Henüz mesaj yok';
 
