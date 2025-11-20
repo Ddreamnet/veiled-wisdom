@@ -110,8 +110,8 @@ export function useUnreadCount() {
             if (
               updatedMessage.sender_id !== user.id &&
               conversationIds.includes(updatedMessage.conversation_id) &&
-              !oldMessage.read &&
-              updatedMessage.read
+              oldMessage.read === false &&
+              updatedMessage.read === true
             ) {
               setUnreadCount((prev) => Math.max(0, prev - 1));
             }

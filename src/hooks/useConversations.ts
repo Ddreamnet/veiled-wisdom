@@ -33,27 +33,6 @@ export function useConversations() {
     }
 
     fetchConversations();
-    
-    // Realtime subscription for new messages to update conversation list
-    const channel = supabase
-      .channel('conversations-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'messages',
-        },
-        () => {
-          // Yeni mesaj geldiğinde konuşma listesini güncelle
-          fetchConversations();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, [user]);
 
   const fetchConversations = async () => {

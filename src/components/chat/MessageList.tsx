@@ -34,17 +34,17 @@ export function MessageList({ messages, loading, currentUserId, conversationId, 
   }, [conversationId]);
 
   useEffect(() => {
-    if (conversationId && currentUserId && messages.length > 0 && !hasMarkedAsRead.current) {
+    if (conversationId && currentUserId && !hasMarkedAsRead.current) {
       // Okunmamış mesaj var mı kontrol et
       const hasUnreadMessages = messages.some(
         (msg) => msg.sender_id !== currentUserId && !msg.read
       );
 
       if (hasUnreadMessages) {
+        hasMarkedAsRead.current = true;
         // Kısa bir gecikme sonrası okundu olarak işaretle
         const timer = setTimeout(async () => {
           await markMessagesAsRead(conversationId, currentUserId);
-          hasMarkedAsRead.current = true;
           // Mesajlar okunduktan sonra sayaçları güncelle
           onMessagesRead?.();
         }, 1000);
@@ -52,7 +52,7 @@ export function MessageList({ messages, loading, currentUserId, conversationId, 
         return () => clearTimeout(timer);
       }
     }
-  }, [conversationId, currentUserId, messages, onMessagesRead]);
+  }, [conversationId, currentUserId, messages.length]);
 
   if (loading) {
     return (
