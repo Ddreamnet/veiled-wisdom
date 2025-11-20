@@ -15,6 +15,9 @@ export async function markMessagesAsRead(conversationId: string, userId: string)
     console.log('markMessagesAsRead - RPC completed, error:', error);
 
     if (error) throw error;
+
+    // Trigger custom event to notify all useUnreadCount hooks
+    window.dispatchEvent(new CustomEvent('unread-count-changed'));
   } catch (err: any) {
     console.error('Error marking messages as read:', err);
     throw err;
