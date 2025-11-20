@@ -29,6 +29,8 @@ export function useUnreadCount() {
     try {
       setLoading(true);
 
+      console.log('fetchUnreadCount - Starting for user:', user.id);
+
       // Kullanıcının dahil olduğu tüm konuşmaları bul
       const { data: participantData, error: participantError } = await supabase
         .from('conversation_participants')
@@ -39,8 +41,11 @@ export function useUnreadCount() {
 
       const conversationIds = participantData?.map((p) => p.conversation_id) || [];
 
+      console.log('fetchUnreadCount - Found conversations:', conversationIds);
+
       if (conversationIds.length === 0) {
         setUnreadCount(0);
+        console.log('fetchUnreadCount - No conversations, setting count to 0');
         return;
       }
 
@@ -54,6 +59,7 @@ export function useUnreadCount() {
 
       if (countError) throw countError;
 
+      console.log('fetchUnreadCount - Unread count:', count);
       setUnreadCount(count || 0);
     } catch (err: any) {
       console.error('Error fetching unread count:', err);

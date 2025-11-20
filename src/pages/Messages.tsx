@@ -58,10 +58,14 @@ export default function Messages() {
     setSelectedConversationId(null);
   };
 
-  const handleMessagesRead = () => {
-    // Mesajlar okunduğunda hem konuşma listesini hem de header sayacını güncelle
-    refetchConversations();
-    refetchUnreadCount();
+  const handleMessagesRead = async () => {
+    console.log('handleMessagesRead - Refetching conversations and unread count');
+    // Konuşma listesini ve okunmamış sayacı güncelle
+    await Promise.all([
+      refetchConversations(),
+      refetchUnreadCount()
+    ]);
+    console.log('handleMessagesRead - Refetch completed');
   };
 
   if (!user) {
