@@ -44,15 +44,17 @@ export function MessageList({ messages, loading, currentUserId, conversationId, 
         hasMarkedAsRead.current = true;
         // Kısa bir gecikme sonrası okundu olarak işaretle
         const timer = setTimeout(async () => {
+          console.log('Marking messages as read for conversation:', conversationId);
           await markMessagesAsRead(conversationId, currentUserId);
+          console.log('Messages marked as read, triggering onMessagesRead callback');
           // Mesajlar okunduktan sonra sayaçları güncelle
           onMessagesRead?.();
-        }, 1000);
+        }, 500); // Gecikmeyi kısalttım
 
         return () => clearTimeout(timer);
       }
     }
-  }, [conversationId, currentUserId, messages.length]);
+  }, [conversationId, currentUserId, messages.length, onMessagesRead]);
 
   if (loading) {
     return (

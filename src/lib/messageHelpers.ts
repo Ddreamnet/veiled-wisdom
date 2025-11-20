@@ -5,16 +5,22 @@ import { supabase } from './supabase';
  */
 export async function markMessagesAsRead(conversationId: string, userId: string): Promise<void> {
   try {
-    const { error } = await supabase
+    console.log('markMessagesAsRead - Starting update for conversation:', conversationId, 'userId:', userId);
+    
+    const { data, error, count } = await supabase
       .from('messages')
       .update({ read: true })
       .eq('conversation_id', conversationId)
       .neq('sender_id', userId)
-      .eq('read', false);
+      .eq('read', false)
+      .select();
+
+    console.log('markMessagesAsRead - Updated messages:', data, 'count:', count, 'error:', error);
 
     if (error) throw error;
   } catch (err: any) {
     console.error('Error marking messages as read:', err);
+    throw err;
   }
 }
 
