@@ -18,6 +18,7 @@ const routeLabels: Record<string, string> = {
   '/admin/categories': 'Kategoriler',
   '/admin/pages': 'Sayfalar',
   '/admin/curiosities': 'Merak Konuları',
+  '/admin/users': 'Kullanıcılar',
 };
 
 export function AdminBreadcrumb() {
@@ -33,11 +34,11 @@ export function AdminBreadcrumb() {
   });
 
   return (
-    <Breadcrumb>
+    <Breadcrumb className="mb-4 md:mb-6">
       <BreadcrumbList>
         <BreadcrumbItem>
           <BreadcrumbLink asChild>
-            <Link to="/" className="flex items-center gap-1 text-silver-muted hover:text-silver transition-smooth">
+            <Link to="/" className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-smooth">
               <Home className="h-4 w-4" />
               <span>Ana Sayfa</span>
             </Link>
@@ -47,16 +48,16 @@ export function AdminBreadcrumb() {
         {breadcrumbItems.map((item, index) => (
           <div key={item.path} className="flex items-center gap-2">
             <BreadcrumbSeparator>
-              <ChevronRight className="h-4 w-4 text-silver-muted" />
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
             </BreadcrumbSeparator>
             <BreadcrumbItem>
               {item.isLast ? (
-                <BreadcrumbPage className="text-silver font-medium">
+                <BreadcrumbPage className="text-foreground font-medium">
                   {item.label}
                 </BreadcrumbPage>
               ) : (
                 <BreadcrumbLink asChild>
-                  <Link to={item.path} className="text-silver-muted hover:text-silver transition-smooth">
+                  <Link to={item.path} className="text-muted-foreground hover:text-foreground transition-smooth">
                     {item.label}
                   </Link>
                 </BreadcrumbLink>

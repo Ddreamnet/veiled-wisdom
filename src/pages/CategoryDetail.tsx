@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { supabase, Category } from '@/lib/supabase';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageBreadcrumb } from '@/components/PageBreadcrumb';
 
 export default function CategoryDetail() {
   const { slug } = useParams<{ slug: string }>();
@@ -91,6 +92,10 @@ export default function CategoryDetail() {
 
   return (
     <div className="container py-8 md:py-12 px-4">
+      <PageBreadcrumb customItems={[
+        { label: 'Kategorileri Keşfet', href: '/explore' },
+        { label: category.name }
+      ]} />
       <div className="mb-6 md:mb-8">
         <h1 className="text-3xl md:text-4xl font-bold mb-2">{category.name}</h1>
         <p className="text-sm md:text-base text-muted-foreground">
