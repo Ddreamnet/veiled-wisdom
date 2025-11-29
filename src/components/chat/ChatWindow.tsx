@@ -4,9 +4,9 @@ import { MessageInput } from './MessageInput';
 import { useMessages } from '@/hooks/useMessages';
 import { ConversationWithParticipant } from '@/hooks/useConversations';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 type ChatWindowProps = {
   conversation: ConversationWithParticipant | null;
@@ -16,6 +16,7 @@ type ChatWindowProps = {
 
 export function ChatWindow({ conversation, onBack, onMessagesRead }: ChatWindowProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { messages, loading, sending, sendMessage } = useMessages(conversation?.id || null);
 
   if (!conversation) {
@@ -58,6 +59,16 @@ export function ChatWindow({ conversation, onBack, onMessagesRead }: ChatWindowP
               <p className="text-xs text-muted-foreground">Aktif</p>
             </div>
           </Link>
+          
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => navigate(`/call/${conversation.id}`)}
+            className="gap-2"
+          >
+            <Video className="h-4 w-4" />
+            <span className="hidden sm:inline">Görüntülü Ara</span>
+          </Button>
         </div>
       </div>
 

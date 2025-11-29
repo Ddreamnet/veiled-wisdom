@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.send-appointment-reminder]
 verify_jwt = false
+
+[functions.create-daily-room]
+verify_jwt = true
