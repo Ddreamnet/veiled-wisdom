@@ -40,11 +40,11 @@ export default function AdminDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch total approved teachers
+      // Fetch total teachers from user_roles
       const { count: teachersCount } = await supabase
-        .from('profiles')
+        .from('user_roles')
         .select('*', { count: 'exact', head: true })
-        .eq('is_teacher_approved', true);
+        .eq('role', 'teacher');
 
       // Fetch pending approvals
       const { count: pendingCount } = await supabase

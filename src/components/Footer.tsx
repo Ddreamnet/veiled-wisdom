@@ -55,22 +55,22 @@ const FooterComponent = () => {
               <h3 className="font-semibold text-silver mb-4">Kategoriler</h3>
               <ul className="space-y-2 text-sm">
                 <li>
-                  <Link to="/category/bakimlar" className="text-silver-muted hover:text-silver transition-smooth">
+                  <Link to="/categories/bakimlar" className="text-silver-muted hover:text-silver transition-smooth">
                     Bakımlar
                   </Link>
                 </li>
                 <li>
-                  <Link to="/category/temizlemeler" className="text-silver-muted hover:text-silver transition-smooth">
+                  <Link to="/categories/temizlemeler" className="text-silver-muted hover:text-silver transition-smooth">
                     Temizlemeler
                   </Link>
                 </li>
                 <li>
-                  <Link to="/category/analizler" className="text-silver-muted hover:text-silver transition-smooth">
+                  <Link to="/categories/analizler" className="text-silver-muted hover:text-silver transition-smooth">
                     Analizler
                   </Link>
                 </li>
                 <li>
-                  <Link to="/category/astroloji" className="text-silver-muted hover:text-silver transition-smooth">
+                  <Link to="/categories/astroloji" className="text-silver-muted hover:text-silver transition-smooth">
                     Astroloji
                   </Link>
                 </li>
