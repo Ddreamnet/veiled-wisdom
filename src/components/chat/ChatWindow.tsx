@@ -6,6 +6,7 @@ import { ConversationWithParticipant } from '@/hooks/useConversations';
 import { useAuth } from '@/contexts/AuthContext';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 
 type ChatWindowProps = {
   conversation: ConversationWithParticipant | null;
@@ -40,18 +41,23 @@ export function ChatWindow({ conversation, onBack, onMessagesRead }: ChatWindowP
               <ArrowLeft className="h-5 w-5" />
             </Button>
           )}
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={conversation.other_participant.avatar_url || undefined} />
-            <AvatarFallback>
-              {conversation.other_participant.username?.[0]?.toUpperCase() || 'U'}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <h3 className="font-semibold text-base">
-              {conversation.other_participant.username || 'Kullanıcı'}
-            </h3>
-            <p className="text-xs text-muted-foreground">Aktif</p>
-          </div>
+          <Link 
+            to={`/profile/${conversation.other_participant.id}`}
+            className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
+          >
+            <Avatar className="h-10 w-10">
+              <AvatarImage src={conversation.other_participant.avatar_url || undefined} />
+              <AvatarFallback>
+                {conversation.other_participant.username?.[0]?.toUpperCase() || 'U'}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <h3 className="font-semibold text-base">
+                {conversation.other_participant.username || 'Kullanıcı'}
+              </h3>
+              <p className="text-xs text-muted-foreground">Aktif</p>
+            </div>
+          </Link>
         </div>
       </div>
 
