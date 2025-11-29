@@ -3,7 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import { supabase, Category, Listing } from '@/lib/supabase';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ChevronRight, User } from 'lucide-react';
+import { User } from 'lucide-react';
+import { PageBreadcrumb } from '@/components/PageBreadcrumb';
 
 type ListingWithTeacher = Listing & {
   profiles: {
@@ -155,13 +156,11 @@ export default function SubCategoryDetail() {
 
   return (
     <div className="container py-8 md:py-12 px-4">
-      <nav className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground mb-6 md:mb-8">
-        <Link to={`/categories/${slug}`} className="hover:text-foreground transition-smooth">
-          {mainCategory.name}
-        </Link>
-        <ChevronRight className="h-3 w-3 md:h-4 md:w-4" />
-        <span className="text-foreground">{subCategory.name}</span>
-      </nav>
+      <PageBreadcrumb customItems={[
+        { label: 'Kategorileri Keşfet', href: '/explore' },
+        { label: mainCategory.name, href: `/categories/${slug}` },
+        { label: subCategory.name }
+      ]} />
 
       <div className="mb-6 md:mb-8">
         <h1 className="text-3xl md:text-4xl font-bold mb-2">{subCategory.name}</h1>

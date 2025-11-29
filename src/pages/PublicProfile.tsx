@@ -7,8 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { User, Mail, MapPin, Calendar, Star, MessageCircle, Briefcase } from 'lucide-react';
+import { User, Star, MessageCircle, Briefcase, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
+import { PageBreadcrumb } from '@/components/PageBreadcrumb';
 
 type ListingWithCategory = Listing & {
   categories: {
@@ -150,6 +151,7 @@ export default function PublicProfile() {
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-6 sm:py-8 md:py-10 lg:py-12 max-w-6xl">
+        <PageBreadcrumb />
         <div className="space-y-6">
           <Skeleton className="h-48 w-full rounded-lg" />
           <Skeleton className="h-64 w-full rounded-lg" />
@@ -169,6 +171,11 @@ export default function PublicProfile() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 max-w-7xl">
+        <PageBreadcrumb customItems={[
+          { label: 'Profil', href: '/profile' },
+          { label: profile.username || 'Kullanıcı' }
+        ]} />
+        
         {/* Profile Header with gradient background */}
         <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-primary/10 via-primary/5 to-background border border-primary/20 shadow-glow mb-6 sm:mb-8">
           {/* Decorative background elements */}

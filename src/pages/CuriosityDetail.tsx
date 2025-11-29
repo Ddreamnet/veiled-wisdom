@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { supabase, Curiosity } from '@/lib/supabase';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft } from 'lucide-react';
+import { PageBreadcrumb } from '@/components/PageBreadcrumb';
 
 export default function CuriosityDetail() {
   const { slug } = useParams<{ slug: string }>();
@@ -56,12 +55,10 @@ export default function CuriosityDetail() {
 
   return (
     <div className="container py-8 md:py-12 px-4 md:px-6 lg:px-8">
-      <Link to="/">
-        <Button variant="ghost" className="mb-6 md:mb-8">
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Ana Sayfaya Dön
-        </Button>
-      </Link>
+      <PageBreadcrumb customItems={[
+        { label: 'Merak Konuları' },
+        { label: curiosity.title }
+      ]} />
 
       <article>
         <h1 className="text-2xl md:text-3xl lg:text-5xl font-bold mb-4 md:mb-6">{curiosity.title}</h1>

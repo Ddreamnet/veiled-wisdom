@@ -6,6 +6,7 @@ import { useUnreadCount } from '@/hooks/useUnreadCount';
 import { ConversationList } from '@/components/chat/ConversationList';
 import { ChatWindow } from '@/components/chat/ChatWindow';
 import { toast } from '@/hooks/use-toast';
+import { PageBreadcrumb } from '@/components/PageBreadcrumb';
 
 export default function Messages() {
   const navigate = useNavigate();
@@ -86,6 +87,9 @@ export default function Messages() {
   return (
     <div className="h-[calc(100vh-4rem)]">
       <div className="container h-full py-4 md:py-6 px-2 sm:px-4">
+        <div className="mb-4 hidden md:block">
+          <PageBreadcrumb />
+        </div>
         <div className="h-full bg-card rounded-lg border border-border overflow-hidden shadow-sm">
           {/* Desktop Layout */}
           <div className="hidden md:flex h-full">

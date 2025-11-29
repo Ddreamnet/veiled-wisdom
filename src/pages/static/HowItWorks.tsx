@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { UserPlus, Search, Calendar, MessageSquare } from 'lucide-react';
+import { PageBreadcrumb } from '@/components/PageBreadcrumb';
 
 export default function HowItWorks() {
   const steps = [
@@ -27,6 +28,7 @@ export default function HowItWorks() {
 
   return (
     <div className="container py-8 md:py-12 px-4 md:px-6 lg:px-8">
+      <PageBreadcrumb />
       <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-6 md:mb-8 text-center">Nasıl Çalışır</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         {steps.map((step, index) => {

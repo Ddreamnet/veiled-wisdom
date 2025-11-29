@@ -15,6 +15,7 @@ import { User, Shield, Trash2, Calendar, GraduationCap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { PageBreadcrumb } from '@/components/PageBreadcrumb';
 
 export default function ProfilePage() {
   const { user, signOut, role } = useAuth();
@@ -226,6 +227,7 @@ export default function ProfilePage() {
   return (
     <div className="container py-8 md:py-12 px-4">
       <div className="max-w-4xl mx-auto">
+        <PageBreadcrumb />
         <h1 className="text-3xl md:text-4xl font-serif text-gradient-silver mb-6 md:mb-8">Hesap Ayarları</h1>
         
       {dataLoading ? (

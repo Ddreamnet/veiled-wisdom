@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase, Category } from '@/lib/supabase';
 import { Card, CardContent } from '@/components/ui/card';
+import { PageBreadcrumb } from '@/components/PageBreadcrumb';
 
 export default function Explore() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -21,6 +22,7 @@ export default function Explore() {
 
   return (
     <div className="container py-8 md:py-12 px-4">
+      <PageBreadcrumb />
       <h1 className="text-3xl md:text-4xl font-serif font-bold text-gradient-silver mb-6 md:mb-8">Kategorileri Keşfet</h1>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
         {categories.map((category) => (
