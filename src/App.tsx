@@ -34,6 +34,7 @@ const TeacherEdit = lazy(() => import('./pages/admin/TeacherEdit'));
 const CategoriesManagement = lazy(() => import('./pages/admin/Categories'));
 const PagesManagement = lazy(() => import('./pages/admin/Pages'));
 const CuriositiesManagement = lazy(() => import('./pages/admin/Curiosities'));
+const VideoCall = lazy(() => import('./pages/VideoCall'));
 const About = lazy(() => import('./pages/static/About'));
 const HowItWorks = lazy(() => import('./pages/static/HowItWorks'));
 const Production = lazy(() => import('./pages/static/Production'));
@@ -112,6 +113,7 @@ function AppRoutes() {
           <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/profile/:id" element={<PublicProfile />} />
+          <Route path="/call/:conversationId" element={<ProtectedRoute><VideoCall /></ProtectedRoute>} />
           <Route path="/appointments" element={<ProtectedRoute><Appointments /></ProtectedRoute>} />
           
           <Route path="/teacher/my-listings" element={<ProtectedRoute requiredRole={['teacher']}><MyListings /></ProtectedRoute>} />
