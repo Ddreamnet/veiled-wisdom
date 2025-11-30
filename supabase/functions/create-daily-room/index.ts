@@ -17,6 +17,9 @@ serve(async (req) => {
     if (!DAILY_API_KEY) {
       throw new Error("DAILY_API_KEY is not configured");
     }
+    
+    console.log('Daily API Key exists:', !!DAILY_API_KEY);
+    console.log('Daily API Key length:', DAILY_API_KEY?.length);
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
