@@ -17,7 +17,6 @@ export default function Index() {
   const scrollPosition = useScrollPosition();
   const { user } = useAuth();
 
-  // Preload images for better performance
   const imageUrls = useMemo(() => {
     return [
       ...categories.map(cat => cat.image_url).filter(Boolean),
@@ -28,7 +27,6 @@ export default function Index() {
   useImagePreload(imageUrls);
 
   const fetchData = useCallback(async () => {
-    // Parallel fetch for better performance
     const [categoriesResult, curiositiesResult] = await Promise.all([
       supabase
         .from('categories')
@@ -50,7 +48,6 @@ export default function Index() {
     fetchData();
   }, [fetchData]);
 
-  // Calculate parallax values (memoized for performance)
   const parallaxY = useMemo(() => scrollPosition * 0.5, [scrollPosition]);
   const parallaxScale = useMemo(() => 1 + scrollPosition * 0.0002, [scrollPosition]);
   const decorativeParallax1 = useMemo(() => parallaxY * 0.3, [parallaxY]);
