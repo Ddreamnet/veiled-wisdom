@@ -173,6 +173,42 @@ const HeaderComponent = () => {
                     </Link>
                   </DropdownMenuItem>
 
+                  {role === "customer" && (
+                    <>
+                      <DropdownMenuSeparator className="bg-silver/10" />
+                      <DropdownMenuItem asChild>
+                        <Link to="/appointments" className="flex items-center gap-2 cursor-pointer">
+                          <Calendar className="h-4 w-4" />
+                          Randevularım
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+
+                  {role === "teacher" && (
+                    <>
+                      <DropdownMenuSeparator className="bg-silver/10" />
+                      <DropdownMenuItem asChild>
+                        <Link to="/teacher/my-listings" className="flex items-center gap-2 cursor-pointer">
+                          <BookOpen className="h-4 w-4" />
+                          İlanlarım
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/appointments" className="flex items-center gap-2 cursor-pointer">
+                          <Calendar className="h-4 w-4" />
+                          Randevularım
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/teacher/earnings" className="flex items-center gap-2 cursor-pointer">
+                          <DollarSign className="h-4 w-4" />
+                          Gelirlerim
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+
                   <DropdownMenuSeparator className="bg-silver/10" />
                   
                   <DropdownMenuItem
