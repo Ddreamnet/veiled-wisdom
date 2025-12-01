@@ -10,43 +10,28 @@ import { useScrollPosition } from '@/hooks/useScrollPosition';
 import { useImagePreload } from '@/hooks/useImagePreload';
 import { useAuth } from '@/contexts/AuthContext';
 import logoImage from '@/assets/logo.png';
-
 export default function Index() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [curiosities, setCuriosities] = useState<Curiosity[]>([]);
   const mousePosition = useMousePosition();
   const scrollPosition = useScrollPosition();
-  const { user } = useAuth();
+  const {
+    user
+  } = useAuth();
 
   // Preload images for better performance
   const imageUrls = useMemo(() => {
-    return [
-      ...categories.map(cat => cat.image_url).filter(Boolean),
-      ...curiosities.map(cur => cur.cover_url).filter(Boolean),
-    ] as string[];
+    return [...categories.map(cat => cat.image_url).filter(Boolean), ...curiosities.map(cur => cur.cover_url).filter(Boolean)] as string[];
   }, [categories, curiosities]);
-  
   useImagePreload(imageUrls);
-
   const fetchData = useCallback(async () => {
     // Parallel fetch for better performance
-    const [categoriesResult, curiositiesResult] = await Promise.all([
-      supabase
-        .from('categories')
-        .select('*')
-        .is('parent_id', null)
-        .limit(4),
-      supabase
-        .from('curiosities')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(3),
-    ]);
-
+    const [categoriesResult, curiositiesResult] = await Promise.all([supabase.from('categories').select('*').is('parent_id', null).limit(4), supabase.from('curiosities').select('*').order('created_at', {
+      ascending: false
+    }).limit(3)]);
     if (categoriesResult.data) setCategories(categoriesResult.data);
     if (curiositiesResult.data) setCuriosities(curiositiesResult.data);
   }, []);
-
   useEffect(() => {
     fetchData();
   }, [fetchData]);
@@ -56,41 +41,29 @@ export default function Index() {
   const parallaxScale = useMemo(() => 1 + scrollPosition * 0.0002, [scrollPosition]);
   const decorativeParallax1 = useMemo(() => parallaxY * 0.3, [parallaxY]);
   const decorativeParallax2 = useMemo(() => parallaxY * 0.5, [parallaxY]);
-
-  return (
-    <div className="min-h-screen">
+  return <div className="min-h-screen">
       {/* Hero Section with Liquid Gradient */}
-      <section className="relative liquid-gradient py-16 md:py-24 lg:py-32 overflow-hidden">
+      <section className="relative liquid-gradient md:py-24 lg:py-32 overflow-hidden py-[64px]">
         {/* Particle Background */}
         <ParticleBackground />
         
         {/* Mouse-following Glow */}
-        <div
-          className="absolute w-96 h-96 rounded-full pointer-events-none"
-          style={{
-            background: `radial-gradient(circle, hsl(280 90% 70% / 0.15) 0%, transparent 70%)`,
-            left: `${mousePosition.x}px`,
-            top: `${mousePosition.y}px`,
-            transform: `translate3d(-50%, -50%, 0)`,
-            filter: 'blur(60px)',
-            willChange: 'transform',
-          }}
-        />
+        <div className="absolute w-96 h-96 rounded-full pointer-events-none" style={{
+        background: `radial-gradient(circle, hsl(280 90% 70% / 0.15) 0%, transparent 70%)`,
+        left: `${mousePosition.x}px`,
+        top: `${mousePosition.y}px`,
+        transform: `translate3d(-50%, -50%, 0)`,
+        filter: 'blur(60px)',
+        willChange: 'transform'
+      }} />
         
-        <div 
-          className="container relative z-10"
-          style={{
-            transform: `translate3d(0, -${parallaxY}px, 0) scale(${parallaxScale})`,
-            willChange: 'transform',
-          }}
-        >
+        <div className="container relative z-10" style={{
+        transform: `translate3d(0, -${parallaxY}px, 0) scale(${parallaxScale})`,
+        willChange: 'transform'
+      }}>
           <div className="text-center space-y-6 md:space-y-8 animate-fade-in-up px-4">
             <div className="flex justify-center mb-2 md:mb-4">
-              <img 
-                src={logoImage} 
-                alt="Leyl Logo" 
-                className="h-16 md:h-24 lg:h-28 w-auto object-contain"
-              />
+              <img src={logoImage} alt="Leyl Logo" className="h-16 md:h-24 lg:h-28 w-auto object-contain" />
             </div>
             
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-serif font-bold text-smoky leading-tight">
@@ -112,35 +85,27 @@ export default function Index() {
                   Keşfet
                 </Button>
               </Link>
-              {!user && (
-                <Link to="/auth/sign-up" className="w-full sm:w-auto">
+              {!user && <Link to="/auth/sign-up" className="w-full sm:w-auto">
                   <Button size="lg" variant="secondary" className="w-full sm:w-auto">
                     <Users className="w-4 h-4 md:w-5 md:h-5 mr-2" />
                     Kayıt Ol
                   </Button>
-                </Link>
-              )}
+                </Link>}
             </div>
           </div>
         </div>
         
         {/* Decorative Elements with Parallax */}
         <div className="absolute inset-0 pointer-events-none">
-          <div 
-            className="absolute top-20 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl animate-glow-pulse"
-            style={{
-              transform: `translate3d(0, ${decorativeParallax1}px, 0)`,
-              willChange: 'transform',
-            }}
-          />
-          <div 
-            className="absolute bottom-20 right-10 w-96 h-96 bg-accent/10 rounded-full blur-3xl animate-glow-pulse" 
-            style={{ 
-              animationDelay: '4s',
-              transform: `translate3d(0, ${decorativeParallax2}px, 0)`,
-              willChange: 'transform',
-            }} 
-          />
+          <div className="absolute top-20 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl animate-glow-pulse" style={{
+          transform: `translate3d(0, ${decorativeParallax1}px, 0)`,
+          willChange: 'transform'
+        }} />
+          <div className="absolute bottom-20 right-10 w-96 h-96 bg-accent/10 rounded-full blur-3xl animate-glow-pulse" style={{
+          animationDelay: '4s',
+          transform: `translate3d(0, ${decorativeParallax2}px, 0)`,
+          willChange: 'transform'
+        }} />
         </div>
       </section>
 
@@ -155,20 +120,11 @@ export default function Index() {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-          {curiosities.map((curiosity) => (
-            <Card key={curiosity.id} className="group overflow-hidden card-hover">
-              {curiosity.cover_url && (
-                <div className="relative h-48 sm:h-52 md:h-56 overflow-hidden">
-                  <img
-                    src={curiosity.cover_url}
-                    alt={curiosity.title}
-                    loading="lazy"
-                    decoding="async"
-                    className="w-full h-full object-cover card-image"
-                  />
+          {curiosities.map(curiosity => <Card key={curiosity.id} className="group overflow-hidden card-hover">
+              {curiosity.cover_url && <div className="relative h-48 sm:h-52 md:h-56 overflow-hidden">
+                  <img src={curiosity.cover_url} alt={curiosity.title} loading="lazy" decoding="async" className="w-full h-full object-cover card-image" />
                   <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
-                </div>
-              )}
+                </div>}
               <CardHeader className="p-4 sm:p-5 md:p-6">
                 <CardTitle className="text-lg sm:text-xl text-silver group-hover:text-gradient-purple transition-all">
                   {curiosity.title}
@@ -185,8 +141,7 @@ export default function Index() {
                   </Button>
                 </Link>
               </CardContent>
-            </Card>
-          ))}
+            </Card>)}
         </div>
       </section>
 
@@ -198,21 +153,12 @@ export default function Index() {
         </div>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
-          {categories.map((category) => (
-            <Link key={category.id} to={`/categories/${category.slug}`}>
+          {categories.map(category => <Link key={category.id} to={`/categories/${category.slug}`}>
               <Card className="group overflow-hidden h-full card-hover">
-                {category.image_url && (
-                  <div className="relative h-40 sm:h-44 md:h-48 overflow-hidden">
-                    <img
-                      src={category.image_url}
-                      alt={category.name}
-                      loading="lazy"
-                      decoding="async"
-                      className="w-full h-full object-cover card-image"
-                    />
+                {category.image_url && <div className="relative h-40 sm:h-44 md:h-48 overflow-hidden">
+                    <img src={category.image_url} alt={category.name} loading="lazy" decoding="async" className="w-full h-full object-cover card-image" />
                     <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent" />
-                  </div>
-                )}
+                  </div>}
                 <CardContent className="p-4 sm:p-5 md:p-6">
                   <h3 className="font-semibold text-base sm:text-lg text-silver group-hover:text-gradient-purple transition-all mb-2">
                     {category.name}
@@ -220,11 +166,9 @@ export default function Index() {
                   <p className="text-xs sm:text-sm text-silver-muted">Aktif ilanları keşfedin</p>
                 </CardContent>
               </Card>
-            </Link>
-          ))}
+            </Link>)}
         </div>
       </section>
 
-    </div>
-  );
+    </div>;
 }
