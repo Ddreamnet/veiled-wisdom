@@ -26,24 +26,9 @@ export default function TeachersManagement() {
   const fetchTeachers = async () => {
     setLoading(true);
     try {
-      const { data: roles, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'teacher');
-
-      if (rolesError) throw rolesError;
-      if (!roles || roles.length === 0) {
-        setTeachers([]);
-        setLoading(false);
-        return;
-      }
-
-      const teacherIds = roles.map((r) => r.user_id);
-
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .in('id', teacherIds)
         .eq('is_teacher_approved', true);
 
       if (error) throw error;
