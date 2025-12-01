@@ -82,14 +82,12 @@ const HeaderComponent = () => {
 
           <nav className="hidden lg:flex items-center gap-1 ml-auto">
             {!user && (
-              <>
-                <Link
-                  to="/explore"
-                  className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
-                >
-                  Keşfet
-                </Link>
-              </>
+              <Link
+                to="/explore"
+                className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
+              >
+                Keşfet
+              </Link>
             )}
 
             {user && role === "customer" && (
@@ -142,6 +140,9 @@ const HeaderComponent = () => {
 
             {user && role === "admin" && (
               <>
+                <Link to="/admin/dashboard">
+                  <Button variant="ghost" className="transition-all duration-200 ease-out">Dashboard</Button>
+                </Link>
                 <Link to="/admin/approvals">
                   <Button variant="ghost" className="transition-all duration-200 ease-out">Onaylamalar</Button>
                 </Link>
@@ -172,50 +173,8 @@ const HeaderComponent = () => {
                     </Link>
                   </DropdownMenuItem>
 
-                  {role === "customer" && (
-                    <>
-                      <DropdownMenuItem asChild>
-                        <Link to="/appointments" className="flex items-center gap-2 cursor-pointer">
-                          <Calendar className="h-4 w-4" />
-                          Randevularım
-                        </Link>
-                      </DropdownMenuItem>
-                    </>
-                  )}
-
-                  {role === "teacher" && (
-                    <>
-                      <DropdownMenuItem asChild>
-                        <Link to="/teacher/my-listings" className="flex items-center gap-2 cursor-pointer">
-                          <BookOpen className="h-4 w-4" />
-                          İlanlarım
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/appointments" className="flex items-center gap-2 cursor-pointer">
-                          <Calendar className="h-4 w-4" />
-                          Randevularım
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/teacher/earnings" className="flex items-center gap-2 cursor-pointer">
-                          <DollarSign className="h-4 w-4" />
-                          Gelirlerim
-                        </Link>
-                      </DropdownMenuItem>
-                    </>
-                  )}
-
-                  {role === "admin" && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/admin/dashboard" className="flex items-center gap-2 cursor-pointer">
-                        <LayoutDashboard className="h-4 w-4" />
-                        Dashboard
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-
                   <DropdownMenuSeparator className="bg-silver/10" />
+                  
                   <DropdownMenuItem
                     onClick={signOut}
                     className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive"
@@ -323,6 +282,14 @@ const HeaderComponent = () => {
                       >
                         <MessageSquare className="h-5 w-5" />
                         Mesajlar
+                        {unreadCount > 0 && (
+                          <Badge 
+                            variant="destructive" 
+                            className="ml-auto h-5 min-w-5 flex items-center justify-center p-0 px-1 text-xs"
+                          >
+                            {unreadCount > 99 ? '99+' : unreadCount}
+                          </Badge>
+                        )}
                       </Link>
                       <Link
                         to="/appointments"
@@ -332,28 +299,6 @@ const HeaderComponent = () => {
                         <Calendar className="h-5 w-5" />
                         Randevularım
                       </Link>
-                      <Link
-                        to="/profile"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
-                      >
-                        <Settings className="h-5 w-5" />
-                        Profil
-                      </Link>
-
-                      <div className="border-t border-silver/10 my-4" />
-
-                      <Button
-                        onClick={() => {
-                          signOut();
-                          setMobileMenuOpen(false);
-                        }}
-                        variant="ghost"
-                        className="w-full justify-start text-destructive hover:text-destructive gap-3 transition-all duration-200 ease-out"
-                      >
-                        <LogOut className="h-5 w-5" />
-                        Çıkış Yap
-                      </Button>
                     </>
                   )}
 
@@ -397,29 +342,15 @@ const HeaderComponent = () => {
                       >
                         <MessageSquare className="h-5 w-5" />
                         Mesajlar
+                        {unreadCount > 0 && (
+                          <Badge 
+                            variant="destructive" 
+                            className="ml-auto h-5 min-w-5 flex items-center justify-center p-0 px-1 text-xs"
+                          >
+                            {unreadCount > 99 ? '99+' : unreadCount}
+                          </Badge>
+                        )}
                       </Link>
-                      <Link
-                        to="/profile"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
-                      >
-                        <Settings className="h-5 w-5" />
-                        Profil
-                      </Link>
-
-                      <div className="border-t border-silver/10 my-4" />
-
-                      <Button
-                        onClick={() => {
-                          signOut();
-                          setMobileMenuOpen(false);
-                        }}
-                        variant="ghost"
-                        className="w-full justify-start text-destructive hover:text-destructive gap-3 transition-all duration-200 ease-out"
-                      >
-                        <LogOut className="h-5 w-5" />
-                        Çıkış Yap
-                      </Button>
                     </>
                   )}
 
@@ -436,39 +367,17 @@ const HeaderComponent = () => {
                       <Link
                         to="/admin/approvals"
                         onClick={() => setMobileMenuOpen(false)}
-                        className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out text-left"
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
                       >
                         Onaylamalar
                       </Link>
                       <Link
                         to="/admin/earnings"
                         onClick={() => setMobileMenuOpen(false)}
-                        className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out text-left"
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
                       >
                         Gelirler
                       </Link>
-                      <Link
-                        to="/profile"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
-                      >
-                        <Settings className="h-5 w-5" />
-                        Profil
-                      </Link>
-
-                      <div className="border-t border-silver/10 my-4" />
-
-                      <Button
-                        onClick={() => {
-                          signOut();
-                          setMobileMenuOpen(false);
-                        }}
-                        variant="ghost"
-                        className="w-full justify-start text-destructive hover:text-destructive gap-3 transition-all duration-200 ease-out"
-                      >
-                        <LogOut className="h-5 w-5" />
-                        Çıkış Yap
-                      </Button>
                     </>
                   )}
                 </nav>
