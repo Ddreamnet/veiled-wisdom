@@ -14,11 +14,11 @@ const routeLabels: Record<string, string> = {
   '/admin/dashboard': 'Dashboard',
   '/admin/approvals': 'Onaylamalar',
   '/admin/earnings': 'Gelirler',
-  '/admin/teachers': 'Hocalar',
+  '/admin/teachers': 'Hocaları Düzenle',
   '/admin/categories': 'Kategoriler',
   '/admin/pages': 'Sayfalar',
   '/admin/curiosities': 'Merak Konuları',
-  '/admin/users': 'Kullanıcılar',
+  '/admin/users': 'Kullanıcı Yönetimi',
 };
 
 export function AdminBreadcrumb() {
@@ -27,7 +27,14 @@ export function AdminBreadcrumb() {
   
   const breadcrumbItems = pathSegments.map((segment, index) => {
     const path = '/' + pathSegments.slice(0, index + 1).join('/');
-    const label = routeLabels[path] || segment;
+    // For dynamic routes, use a more friendly label
+    let label = routeLabels[path] || segment;
+    
+    // If this is a UUID (teacher edit page), show "Hoca Düzenle"
+    if (segment.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      label = 'Hoca Düzenle';
+    }
+    
     const isLast = index === pathSegments.length - 1;
     
     return { path, label, isLast };
