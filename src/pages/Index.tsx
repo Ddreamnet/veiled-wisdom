@@ -3,12 +3,13 @@ import { Link } from 'react-router-dom';
 import { supabase, Category, Curiosity } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, Sparkles, BookOpen, Users } from 'lucide-react';
+import { ArrowRight, BookOpen, Users } from 'lucide-react';
 import { ParticleBackground } from '@/components/ParticleBackground';
 import { useMousePosition } from '@/hooks/useMousePosition';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
 import { useImagePreload } from '@/hooks/useImagePreload';
 import { useAuth } from '@/contexts/AuthContext';
+import logoImage from '@/assets/logo.png';
 
 export default function Index() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -84,9 +85,12 @@ export default function Index() {
           }}
         >
           <div className="text-center space-y-6 md:space-y-8 animate-fade-in-up px-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-full glass-effect border border-silver/20 mb-2 md:mb-4">
-              <Sparkles className="w-3 h-3 md:w-4 md:h-4 text-primary" />
-              <span className="text-xs md:text-sm text-silver-muted">Gizli İlimler ve Antik Bilgelik</span>
+            <div className="flex justify-center mb-2 md:mb-4">
+              <img 
+                src={logoImage} 
+                alt="Leyl Logo" 
+                className="h-16 md:h-24 lg:h-28 w-auto object-contain"
+              />
             </div>
             
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-serif font-bold text-smoky leading-tight">
@@ -221,38 +225,6 @@ export default function Index() {
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section className="container py-12 md:py-16 lg:py-24 px-4">
-        <div className="text-center mb-8 md:mb-12">
-          <h2 className="text-3xl md:text-4xl font-serif font-bold text-gradient-silver mb-2">Kullanıcı Yorumları</h2>
-          <p className="text-sm md:text-base text-silver-muted">Deneyimlerini keşfedin</p>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-          {[1, 2, 3].map((i) => (
-            <Card key={i} className="glass-effect">
-              <CardContent className="p-6 sm:p-7 md:p-8">
-                <div className="flex items-center mb-4 sm:mb-6">
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-purple flex items-center justify-center text-white font-semibold text-lg sm:text-xl shadow-glow-sm">
-                    {String.fromCharCode(64 + i)}
-                  </div>
-                  <div className="ml-3 sm:ml-4">
-                    <p className="font-semibold text-sm sm:text-base text-silver">Kullanıcı {i}</p>
-                    <p className="text-xs sm:text-sm text-primary flex items-center gap-1">
-                      {[...Array(5)].map((_, idx) => (
-                        <span key={idx}>⭐</span>
-                      ))}
-                    </p>
-                  </div>
-                </div>
-                <p className="text-sm sm:text-base text-silver-muted italic leading-relaxed">
-                  "Harika bir deneyimdi. Hocam çok ilgili ve yardımcıydı. Kesinlikle tavsiye ederim."
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
     </div>
   );
 }
