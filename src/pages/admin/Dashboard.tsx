@@ -2,11 +2,23 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Users, FolderTree, FileText, Sparkles, TrendingUp, Calendar, DollarSign, UserCheck } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { supabase } from '@/lib/supabase';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { AdminBreadcrumb } from '@/components/AdminBreadcrumb';
+
+// Lazy load chart components
+const ChartContainer = lazy(() => import('@/components/ui/chart').then(m => ({ default: m.ChartContainer })));
+const ChartTooltip = lazy(() => import('@/components/ui/chart').then(m => ({ default: m.ChartTooltip })));
+const ChartTooltipContent = lazy(() => import('@/components/ui/chart').then(m => ({ default: m.ChartTooltipContent })));
+
+// Lazy load recharts
+const AreaChart = lazy(() => import('recharts').then(m => ({ default: m.AreaChart })));
+const Area = lazy(() => import('recharts').then(m => ({ default: m.Area })));
+const BarChart = lazy(() => import('recharts').then(m => ({ default: m.BarChart })));
+const Bar = lazy(() => import('recharts').then(m => ({ default: m.Bar })));
+const CartesianGrid = lazy(() => import('recharts').then(m => ({ default: m.CartesianGrid })));
+const XAxis = lazy(() => import('recharts').then(m => ({ default: m.XAxis })));
+const YAxis = lazy(() => import('recharts').then(m => ({ default: m.YAxis })));
 
 type DashboardStats = {
   totalTeachers: number;
@@ -21,6 +33,13 @@ type AppointmentTrend = {
   date: string;
   count: number;
 };
+
+// Chart loading fallback
+const ChartSkeleton = () => (
+  <div className="h-[200px] w-full bg-muted/50 rounded animate-pulse flex items-center justify-center">
+    <span className="text-muted-foreground text-sm">Grafik yükleniyor...</span>
+  </div>
+);
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats>({
@@ -40,59 +59,38 @@ export default function AdminDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch total teachers from user_roles
-      const { count: teachersCount } = await supabase
-        .from('user_roles')
-        .select('*', { count: 'exact', head: true })
-        .eq('role', 'teacher');
+      // Fetch all stats in parallel
+      const [
+        teachersResult,
+        pendingResult,
+        categoriesResult,
+        appointmentsResult,
+        completedResult,
+        revenueResult,
+        trendsResult,
+      ] = await Promise.all([
+        supabase.from('user_roles').select('*', { count: 'exact', head: true }).eq('role', 'teacher'),
+        supabase.from('teacher_approvals').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('categories').select('*', { count: 'exact', head: true }),
+        supabase.from('appointments').select('*', { count: 'exact', head: true }),
+        supabase.from('appointments').select('*', { count: 'exact', head: true }).eq('status', 'completed'),
+        supabase
+          .from('appointments')
+          .select('price_at_booking')
+          .eq('status', 'completed')
+          .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
+        supabase
+          .from('appointments')
+          .select('created_at')
+          .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+          .order('created_at', { ascending: true }),
+      ]);
 
-      // Fetch pending approvals
-      const { count: pendingCount } = await supabase
-        .from('teacher_approvals')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending');
+      const monthlyRevenue = revenueResult.data?.reduce((sum, apt) => sum + (apt.price_at_booking * 0.15), 0) || 0;
 
-      // Fetch total categories
-      const { count: categoriesCount } = await supabase
-        .from('categories')
-        .select('*', { count: 'exact', head: true });
-
-      // Fetch total appointments
-      const { count: appointmentsCount } = await supabase
-        .from('appointments')
-        .select('*', { count: 'exact', head: true });
-
-      // Fetch completed appointments
-      const { count: completedCount } = await supabase
-        .from('appointments')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'completed');
-
-      // Fetch monthly revenue (15% commission)
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      
-      const { data: revenueData } = await supabase
-        .from('appointments')
-        .select('price_at_booking')
-        .eq('status', 'completed')
-        .gte('created_at', thirtyDaysAgo.toISOString());
-
-      const monthlyRevenue = revenueData?.reduce((sum, apt) => sum + (apt.price_at_booking * 0.15), 0) || 0;
-
-      // Fetch appointment trends for last 7 days
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-      const { data: trendsData } = await supabase
-        .from('appointments')
-        .select('created_at')
-        .gte('created_at', sevenDaysAgo.toISOString())
-        .order('created_at', { ascending: true });
-
-      // Group by date
+      // Group trends by date
       const trendMap = new Map<string, number>();
-      trendsData?.forEach((apt) => {
+      trendsResult.data?.forEach((apt) => {
         const date = new Date(apt.created_at).toLocaleDateString('tr-TR', { month: 'short', day: 'numeric' });
         trendMap.set(date, (trendMap.get(date) || 0) + 1);
       });
@@ -100,12 +98,12 @@ export default function AdminDashboard() {
       const trends = Array.from(trendMap.entries()).map(([date, count]) => ({ date, count }));
 
       setStats({
-        totalTeachers: teachersCount || 0,
-        pendingApprovals: pendingCount || 0,
-        totalCategories: categoriesCount || 0,
-        totalAppointments: appointmentsCount || 0,
+        totalTeachers: teachersResult.count || 0,
+        pendingApprovals: pendingResult.count || 0,
+        totalCategories: categoriesResult.count || 0,
+        totalAppointments: appointmentsResult.count || 0,
         monthlyRevenue,
-        completedAppointments: completedCount || 0,
+        completedAppointments: completedResult.count || 0,
       });
 
       setAppointmentTrends(trends);
@@ -254,28 +252,30 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             {appointmentTrends.length > 0 ? (
-              <ChartContainer
-                config={{
-                  count: {
-                    label: 'Randevu',
-                    color: 'hsl(var(--primary))',
-                  },
-                }}
-                className="h-[200px]"
-              >
-                <AreaChart data={appointmentTrends}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Area
-                    type="monotone"
-                    dataKey="count"
-                    stroke="hsl(var(--primary))"
-                    fill="hsl(var(--primary) / 0.2)"
-                  />
-                </AreaChart>
-              </ChartContainer>
+              <Suspense fallback={<ChartSkeleton />}>
+                <ChartContainer
+                  config={{
+                    count: {
+                      label: 'Randevu',
+                      color: 'hsl(var(--primary))',
+                    },
+                  }}
+                  className="h-[200px]"
+                >
+                  <AreaChart data={appointmentTrends}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Area
+                      type="monotone"
+                      dataKey="count"
+                      stroke="hsl(var(--primary))"
+                      fill="hsl(var(--primary) / 0.2)"
+                    />
+                  </AreaChart>
+                </ChartContainer>
+              </Suspense>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-8">Henüz veri yok</p>
             )}
@@ -288,29 +288,31 @@ export default function AdminDashboard() {
             <CardDescription>Genel bakış</CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer
-              config={{
-                value: {
-                  label: 'Sayı',
-                  color: 'hsl(var(--primary))',
-                },
-              }}
-              className="h-[200px]"
-            >
-              <BarChart
-                data={[
-                  { name: 'Hocalar', value: stats.totalTeachers },
-                  { name: 'Kategoriler', value: stats.totalCategories },
-                  { name: 'Randevular', value: stats.totalAppointments },
-                ]}
+            <Suspense fallback={<ChartSkeleton />}>
+              <ChartContainer
+                config={{
+                  value: {
+                    label: 'Sayı',
+                    color: 'hsl(var(--primary))',
+                  },
+                }}
+                className="h-[200px]"
               >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="value" fill="hsl(var(--primary))" />
-              </BarChart>
-            </ChartContainer>
+                <BarChart
+                  data={[
+                    { name: 'Hocalar', value: stats.totalTeachers },
+                    { name: 'Kategoriler', value: stats.totalCategories },
+                    { name: 'Randevular', value: stats.totalAppointments },
+                  ]}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="value" fill="hsl(var(--primary))" />
+                </BarChart>
+              </ChartContainer>
+            </Suspense>
           </CardContent>
         </Card>
       </div>

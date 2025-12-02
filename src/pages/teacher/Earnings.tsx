@@ -51,54 +51,57 @@ export default function TeacherEarnings() {
 
   useEffect(() => {
     if (user) {
-      fetchEarnings();
-      fetchPayouts();
+      fetchData();
     }
   }, [user]);
 
-  const fetchEarnings = async () => {
+  const fetchData = async () => {
     if (!user) return;
     setLoading(true);
 
-    // Get all completed appointments
-    const { data: completed } = await supabase
-      .from('appointments')
-      .select('price_at_booking')
-      .eq('teacher_id', user.id)
-      .eq('status', 'completed');
+    try {
+      // Fetch all data in parallel
+      const [completedResult, payoutSummaryResult, payoutHistoryResult] = await Promise.all([
+        supabase
+          .from('appointments')
+          .select('price_at_booking')
+          .eq('teacher_id', user.id)
+          .eq('status', 'completed'),
+        supabase
+          .from('teacher_payouts')
+          .select('appointment_count, amount')
+          .eq('teacher_id', user.id),
+        supabase
+          .from('teacher_payouts')
+          .select('*')
+          .eq('teacher_id', user.id)
+          .order('paid_at', { ascending: false }),
+      ]);
 
-    const totalCompleted = completed?.length || 0;
-    const totalEarnings = completed?.reduce((sum, apt) => sum + Number(apt.price_at_booking), 0) || 0;
+      const completed = completedResult.data || [];
+      const payoutData = payoutSummaryResult.data || [];
 
-    // Get payouts to calculate pending
-    const { data: payoutData } = await supabase
-      .from('teacher_payouts')
-      .select('appointment_count, amount')
-      .eq('teacher_id', user.id);
+      const totalCompleted = completed.length;
+      const totalEarnings = completed.reduce((sum, apt) => sum + Number(apt.price_at_booking), 0);
 
-    const paidCount = payoutData?.reduce((sum, p) => sum + p.appointment_count, 0) || 0;
-    const paidAmount = payoutData?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+      const paidCount = payoutData.reduce((sum, p) => sum + p.appointment_count, 0);
+      const paidAmount = payoutData.reduce((sum, p) => sum + Number(p.amount), 0);
 
-    setSummary({
-      totalCompleted,
-      totalEarnings,
-      pendingCount: totalCompleted - paidCount,
-      pendingAmount: totalEarnings - paidAmount,
-    });
-    
-    setLoading(false);
-  };
+      setSummary({
+        totalCompleted,
+        totalEarnings,
+        pendingCount: totalCompleted - paidCount,
+        pendingAmount: totalEarnings - paidAmount,
+      });
 
-  const fetchPayouts = async () => {
-    if (!user) return;
-
-    const { data } = await supabase
-      .from('teacher_payouts')
-      .select('*')
-      .eq('teacher_id', user.id)
-      .order('paid_at', { ascending: false });
-
-    if (data) setPayouts(data);
+      if (payoutHistoryResult.data) {
+        setPayouts(payoutHistoryResult.data);
+      }
+    } catch (error) {
+      console.error('Error fetching earnings:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
