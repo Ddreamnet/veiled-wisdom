@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { FileText, Pencil, Loader2 } from "lucide-react";
+import { FileText, Loader2 } from "lucide-react";
 import { AdminBreadcrumb } from "@/components/AdminBreadcrumb";
 import { useStaticPages, StaticPage } from "@/hooks/useStaticPages";
 import { PageEditDialog } from "@/components/admin/PageEditDialog";
@@ -82,16 +81,16 @@ export default function PagesManagement() {
             const savedPage = savedPages?.find((p) => p.slug === page.slug);
 
             return (
-              <Card key={page.slug} className="hover:shadow-glow transition-smooth">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <Card 
+                key={page.slug} 
+                className="hover:shadow-glow transition-smooth cursor-pointer hover:border-primary/50"
+                onClick={() => setEditingPage(pageData)}
+              >
+                <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <FileText className="h-5 w-5 text-primary" />
                     {pageData.title}
                   </CardTitle>
-                  <Button variant="outline" size="sm" onClick={() => setEditingPage(pageData)}>
-                    <Pencil className="h-4 w-4 mr-1" />
-                    Düzenle
-                  </Button>
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground">/{page.slug}</p>
