@@ -12,8 +12,7 @@ type OptimizeOptions = {
 
 /**
  * Convert a Supabase storage URL to an optimized URL with WebP format
- * Uses Supabase Image Transformation API if enabled
- * Falls back to original URL if transformation is not available
+ * Uses Supabase Image Transformation API
  */
 export function getOptimizedImageUrl(
   originalUrl: string | null | undefined,
@@ -21,12 +20,6 @@ export function getOptimizedImageUrl(
 ): string {
   if (!originalUrl) return '';
   
-  // Return original URL - Supabase Image Transformation needs to be enabled in dashboard
-  // To enable: Supabase Dashboard > Storage > Settings > Enable Image Transformations
-  // Once enabled, uncomment the transformation code below
-  return originalUrl;
-
-  /*
   // Only optimize Supabase storage URLs
   if (!originalUrl.includes('supabase.co/storage/v1/object/public/')) {
     return originalUrl;
@@ -48,7 +41,6 @@ export function getOptimizedImageUrl(
   params.append('format', format);
 
   return `${transformUrl}?${params.toString()}`;
-  */
 }
 
 /**
