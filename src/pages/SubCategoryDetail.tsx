@@ -1,132 +1,15 @@
-import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { supabase, Category, Listing } from '@/lib/supabase';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { User } from 'lucide-react';
 import { PageBreadcrumb } from '@/components/PageBreadcrumb';
-
-type ListingWithTeacher = Listing & {
-  profiles: {
-    username: string;
-    avatar_url: string | null;
-  };
-  minPrice?: number;
-};
+import { useSubCategoryListings } from '@/lib/queries';
 
 export default function SubCategoryDetail() {
   const { slug, subslug } = useParams<{ slug: string; subslug: string }>();
-  const [mainCategory, setMainCategory] = useState<Category | null>(null);
-  const [subCategory, setSubCategory] = useState<Category | null>(null);
-  const [listings, setListings] = useState<ListingWithTeacher[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading } = useSubCategoryListings(slug, subslug);
 
-  useEffect(() => {
-    if (slug && subslug) {
-      fetchData();
-    }
-  }, [slug, subslug]);
-
-  const fetchData = async () => {
-    setLoading(true);
-
-    // Get main category
-    const { data: mainCat } = await supabase
-      .from('categories')
-      .select('*')
-      .eq('slug', slug)
-      .is('parent_id', null)
-      .single();
-
-    if (mainCat) {
-      setMainCategory(mainCat);
-
-      // Get subcategory
-      const { data: subCat } = await supabase
-        .from('categories')
-        .select('*')
-        .eq('slug', subslug)
-        .eq('parent_id', mainCat.id)
-        .single();
-
-      if (subCat) {
-        setSubCategory(subCat);
-
-        // Get listings for this subcategory (fetch without profile join)
-        const { data: listingsRows, error: listingsErr } = await supabase
-          .from('listings')
-          .select('*')
-          .eq('category_id', subCat.id)
-          .eq('is_active', true)
-          .order('created_at', { ascending: false });
-
-        if (listingsErr) {
-          console.error('Listings fetch error:', listingsErr);
-        }
-
-        if (listingsRows && listingsRows.length > 0) {
-          const teacherIds = Array.from(
-            new Set(listingsRows.map((l) => l.teacher_id).filter(Boolean))
-          ) as string[];
-          const listingIds = listingsRows.map((l) => l.id);
-
-          let profilesMap: Record<string, { username: string; avatar_url: string | null }> = {};
-          let pricesMap: Record<string, number> = {};
-
-          if (teacherIds.length > 0) {
-            const { data: profilesData, error: profilesErr } = await supabase
-              .from('profiles')
-              .select('id, username, avatar_url')
-              .in('id', teacherIds);
-
-            if (profilesErr) {
-              console.error('Profiles fetch error:', profilesErr);
-            } else if (profilesData) {
-              profilesMap = Object.fromEntries(
-                profilesData.map((p) => [p.id, { username: p.username, avatar_url: p.avatar_url }])
-              );
-            }
-          }
-
-          if (listingIds.length > 0) {
-            const { data: pricesData, error: pricesErr } = await supabase
-              .from('listing_prices')
-              .select('listing_id, price')
-              .in('listing_id', listingIds);
-
-            if (pricesErr) {
-              console.error('Prices fetch error:', pricesErr);
-            } else if (pricesData) {
-              const grouped = pricesData.reduce((acc, p) => {
-                if (!acc[p.listing_id] || p.price < acc[p.listing_id]) {
-                  acc[p.listing_id] = p.price;
-                }
-                return acc;
-              }, {} as Record<string, number>);
-              pricesMap = grouped;
-            }
-          }
-
-          const merged = (listingsRows as Listing[]).map((l) => ({
-            ...l,
-            profiles: {
-              username: profilesMap[l.teacher_id as string]?.username ?? 'Öğretmen',
-              avatar_url: profilesMap[l.teacher_id as string]?.avatar_url ?? null,
-            },
-            minPrice: pricesMap[l.id] ?? undefined,
-          })) as ListingWithTeacher[];
-
-          setListings(merged);
-        } else {
-          setListings([]);
-        }
-      }
-    }
-
-    setLoading(false);
-  };
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="container py-8 md:py-12 px-4">
         <Skeleton className="h-5 md:h-6 w-72 md:w-96 mb-6 md:mb-8" />
@@ -146,13 +29,15 @@ export default function SubCategoryDetail() {
     );
   }
 
-  if (!mainCategory || !subCategory) {
+  if (!data?.mainCategory || !data?.subCategory) {
     return (
       <div className="container py-8 md:py-12 px-4">
         <p className="text-center text-sm md:text-base text-muted-foreground">Kategori bulunamadı.</p>
       </div>
     );
   }
+
+  const { mainCategory, subCategory, listings } = data;
 
   return (
     <div className="container py-8 md:py-12 px-4">
