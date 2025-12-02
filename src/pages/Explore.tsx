@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageBreadcrumb } from '@/components/PageBreadcrumb';
 import { useCategories } from '@/lib/queries';
+import { getOptimizedThumbnailUrl } from '@/lib/imageOptimizer';
 
 export default function Explore() {
   const { data: categories = [], isLoading } = useCategories();
@@ -39,7 +40,7 @@ export default function Explore() {
               {category.image_url && (
                 <div className="relative h-40 sm:h-44 md:h-48 overflow-hidden">
                   <img
-                    src={category.image_url}
+                    src={getOptimizedThumbnailUrl(category.image_url)}
                     alt={category.name}
                     loading="lazy"
                     decoding="async"
