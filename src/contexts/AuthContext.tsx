@@ -158,8 +158,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', userId)
-        .maybeSingle();
+        .eq('user_id', userId);
 
       if (error) {
         console.error('Error fetching user role:', error);
@@ -167,7 +166,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Eğer hiç rol yoksa (teacher pending durumda olabilir)
-      if (!data) {
+      if (!data || data.length === 0) {
         // Teacher approval kontrolü yap
         const { data: approvalData } = await supabase
           .from('teacher_approvals')
@@ -185,7 +184,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      setRole(data.role as UserRole);
+      // Birden fazla rol varsa öncelik sırasına göre seç: admin > teacher > customer
+      const roles = data.map(d => d.role as UserRole);
+      if (roles.includes('admin')) {
+        setRole('admin');
+      } else if (roles.includes('teacher')) {
+        setRole('teacher');
+      } else if (roles.includes('customer')) {
+        setRole('customer');
+      } else {
+        setRole(roles[0] as UserRole);
+      }
     } catch (error) {
       console.error('Error fetching user role:', error);
       setRole('customer');
