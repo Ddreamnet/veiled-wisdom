@@ -89,11 +89,11 @@ export default function Approvals() {
       const userIds = (data || []).map((d: any) => d.user_id).filter(Boolean);
 
       // Fetch related profiles in one query without relying on PostgREST FK joins
-      let profilesMap = new Map<string, { id: string; username: string; avatar_url: string | null; email?: string }>();
+      let profilesMap = new Map<string, { id: string; username: string; avatar_url: string | null }>();
       if (userIds.length > 0) {
         const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
-          .select('id, username, avatar_url, email')
+          .select('id, username, avatar_url')
           .in('id', userIds);
 
         if (profilesError) {
@@ -110,7 +110,7 @@ export default function Approvals() {
           profiles: {
             username: d.full_name || p?.username || 'Kullanıcı',
             avatar_url: p?.avatar_url || null,
-            email: p?.email || d.email || null,
+            email: d.email || null, // Email is stored in teacher_approvals table
           },
         } as TeacherApproval;
       });
@@ -153,15 +153,36 @@ export default function Approvals() {
 
     if (approve) {
       // First, delete any existing role (especially 'customer')
-      await supabase
+      const { error: deleteError } = await supabase
         .from('user_roles')
         .delete()
         .eq('user_id', userId);
+
+      if (deleteError) {
+        console.error('Role delete error:', deleteError);
+      }
 
       // Then insert the teacher role
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert([{ user_id: userId, role: 'teacher' }]);
+
+      if (roleError) {
+        console.error('Role insert error:', roleError);
+        // Rollback approval status
+        await supabase
+          .from('teacher_approvals')
+          .update({ status: 'pending', updated_at: new Date().toISOString() })
+          .eq('id', approvalId);
+        
+        toast({
+          title: 'Hata',
+          description: 'Rol atanamadı. İşlem geri alındı.',
+          variant: 'destructive',
+        });
+        setLoading(false);
+        return;
+      }
 
       // Update profile
       const { error: profileError } = await supabase
@@ -169,14 +190,9 @@ export default function Approvals() {
         .update({ is_teacher_approved: true })
         .eq('id', userId);
 
-      if (roleError || profileError) {
-        toast({
-          title: 'Hata',
-          description: 'Rol güncellenemedi.',
-          variant: 'destructive',
-        });
-        setLoading(false);
-        return;
+      if (profileError) {
+        console.error('Profile update error:', profileError);
+        // Role is already set, just log the error
       }
     }
 

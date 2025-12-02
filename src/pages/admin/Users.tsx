@@ -36,7 +36,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type UserData = {
   id: string;
-  email: string;
   username: string | null;
   avatar_url: string | null;
   role: UserRole | null;
@@ -88,7 +87,6 @@ export default function UsersManagement() {
 
         return {
           id: profile.id,
-          email: profile.email || 'Email yok',
           username: profile.username || null,
           avatar_url: profile.avatar_url || null,
           role: userRole?.role || null,
@@ -254,7 +252,6 @@ export default function UsersManagement() {
       <TableHeader>
         <TableRow>
           <TableHead>Kullanıcı</TableHead>
-          <TableHead>Email</TableHead>
           <TableHead>Rol</TableHead>
           <TableHead>Hoca Durumu</TableHead>
           <TableHead>Kayıt Tarihi</TableHead>
@@ -264,7 +261,7 @@ export default function UsersManagement() {
       <TableBody>
         {filteredUsers.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={6} className="text-center text-muted-foreground">
+            <TableCell colSpan={5} className="text-center text-muted-foreground">
               Kullanıcı bulunamadı
             </TableCell>
           </TableRow>
@@ -276,13 +273,12 @@ export default function UsersManagement() {
                   <Avatar>
                     <AvatarImage src={user.avatar_url || undefined} />
                     <AvatarFallback>
-                      {user.username?.[0]?.toUpperCase() || user.email[0].toUpperCase()}
+                      {user.username?.[0]?.toUpperCase() || 'U'}
                     </AvatarFallback>
                   </Avatar>
                   <span className="font-medium">{user.username || 'İsimsiz'}</span>
                 </div>
               </TableCell>
-              <TableCell>{user.email}</TableCell>
               <TableCell>
                 <Badge variant={getRoleBadgeVariant(user.role)} className="flex items-center gap-1 w-fit">
                   {getRoleIcon(user.role)}
@@ -410,7 +406,7 @@ export default function UsersManagement() {
           <AlertDialogHeader>
             <AlertDialogTitle>Kullanıcı Rolünü Değiştir</AlertDialogTitle>
             <AlertDialogDescription>
-              {selectedUser?.email} adresli kullanıcının rolünü değiştirmek üzeresiniz.
+              <strong>{selectedUser?.username || 'İsimsiz'}</strong> kullanıcısının rolünü değiştirmek üzeresiniz.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-4">
