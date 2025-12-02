@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { UserRole } from '@/lib/supabase';
@@ -27,7 +26,6 @@ export default function SignUp() {
   const [username, setUsername] = useState('');
   const [role, setRole] = useState<UserRole>('customer');
   const [loading, setLoading] = useState(false);
-  const [emailNotice, setEmailNotice] = useState<string | null>(null);
   const { signUp } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -74,10 +72,21 @@ export default function SignUp() {
       phone,
     } : undefined;
 
-    const { error } = await signUp(email, password, username, role, teacherData);
+    const result = await signUp(email, password, username, role, teacherData);
     
-    if (!error) {
-      setEmailNotice('Kayıt başarılı! Lütfen e-postanızı ve spam klasörünü kontrol edin ve onay linkine tıklayın.');
+    if (!result.error) {
+      if (role === 'teacher') {
+        // Hoca başvurusu - login sayfasına yönlendir
+        navigate('/auth/sign-in');
+        toast({
+          title: "Başvurunuz Alındı",
+          description: "Kayıt başvurunuz tamamlandı. Admin tarafından onaylanmanız bekleniyor.",
+          duration: 7000,
+        });
+      } else {
+        // Müşteri - login sayfasına yönlendir
+        navigate('/auth/sign-in');
+      }
     }
     
     setLoading(false);
@@ -99,14 +108,6 @@ export default function SignUp() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {emailNotice && (
-            <Alert className="mb-4">
-              <AlertTitle>E-posta Onayı Gerekli</AlertTitle>
-              <AlertDescription>
-                {emailNotice}
-              </AlertDescription>
-            </Alert>
-          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="username" className="text-silver-muted">Kullanıcı Adı</Label>
