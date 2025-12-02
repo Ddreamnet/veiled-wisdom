@@ -120,8 +120,8 @@ export default function CategoryDetail() {
                 ) : (
                   <div className="w-full h-40 sm:h-44 md:h-48 bg-primary/20 rounded-t-lg" />
                 )}
-                <CardContent className="p-4 sm:p-5 md:p-6">
-                  <h3 className="font-semibold text-base sm:text-lg mb-2">{subCat.name}</h3>
+                <CardContent className="p-4 sm:p-5 md:p-6 flex items-center justify-between">
+                  <h3 className="font-semibold text-base sm:text-lg">{subCat.name}</h3>
                   <p className="text-xs sm:text-sm text-muted-foreground">{listingCounts[subCat.id] || 0} ilan</p>
                 </CardContent>
               </Card>
