@@ -1,15 +1,15 @@
-import { useEffect, useState, useMemo, memo, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { supabase, Category, Curiosity } from '@/lib/supabase';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, BookOpen, Users } from 'lucide-react';
-import { ParticleBackground } from '@/components/ParticleBackground';
-import { useMousePosition } from '@/hooks/useMousePosition';
-import { useScrollPosition } from '@/hooks/useScrollPosition';
-import { useImagePreload } from '@/hooks/useImagePreload';
-import { useAuth } from '@/contexts/AuthContext';
-import logoImage from '@/assets/logo.png';
+import { useEffect, useState, useMemo, memo, useCallback } from "react";
+import { Link } from "react-router-dom";
+import { supabase, Category, Curiosity } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowRight, BookOpen, Users } from "lucide-react";
+import { ParticleBackground } from "@/components/ParticleBackground";
+import { useMousePosition } from "@/hooks/useMousePosition";
+import { useScrollPosition } from "@/hooks/useScrollPosition";
+import { useImagePreload } from "@/hooks/useImagePreload";
+import { useAuth } from "@/contexts/AuthContext";
+import logoImage from "@/assets/logo.png";
 
 export default function Index() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -21,26 +21,18 @@ export default function Index() {
   // Preload images for better performance
   const imageUrls = useMemo(() => {
     return [
-      ...categories.map(cat => cat.image_url).filter(Boolean),
-      ...curiosities.map(cur => cur.cover_url).filter(Boolean),
+      ...categories.map((cat) => cat.image_url).filter(Boolean),
+      ...curiosities.map((cur) => cur.cover_url).filter(Boolean),
     ] as string[];
   }, [categories, curiosities]);
-  
+
   useImagePreload(imageUrls);
 
   const fetchData = useCallback(async () => {
     // Parallel fetch for better performance
     const [categoriesResult, curiositiesResult] = await Promise.all([
-      supabase
-        .from('categories')
-        .select('*')
-        .is('parent_id', null)
-        .limit(4),
-      supabase
-        .from('curiosities')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(3),
+      supabase.from("categories").select("*").is("parent_id", null).limit(4),
+      supabase.from("curiosities").select("*").order("created_at", { ascending: false }).limit(3),
     ]);
 
     if (categoriesResult.data) setCategories(categoriesResult.data);
@@ -63,7 +55,7 @@ export default function Index() {
       <section className="relative liquid-gradient py-16 md:py-24 lg:py-32 overflow-hidden">
         {/* Particle Background */}
         <ParticleBackground />
-        
+
         {/* Mouse-following Glow */}
         <div
           className="absolute w-96 h-96 rounded-full pointer-events-none"
@@ -72,39 +64,31 @@ export default function Index() {
             left: `${mousePosition.x}px`,
             top: `${mousePosition.y}px`,
             transform: `translate3d(-50%, -50%, 0)`,
-            filter: 'blur(60px)',
-            willChange: 'transform',
+            filter: "blur(60px)",
+            willChange: "transform",
           }}
         />
-        
-        <div 
+
+        <div
           className="container relative z-10"
           style={{
             transform: `translate3d(0, -${parallaxY}px, 0) scale(${parallaxScale})`,
-            willChange: 'transform',
+            willChange: "transform",
           }}
         >
           <div className="text-center space-y-6 md:space-y-8 animate-fade-in-up px-4">
             <div className="flex justify-center mb-2 md:mb-4">
-              <img 
-                src={logoImage} 
-                alt="Leyl Logo" 
-                className="h-16 md:h-24 lg:h-28 w-auto object-contain"
-              />
+              <img src={logoImage} alt="Leyl Logo" className="h-16 md:h-24 lg:h-28 w-auto object-contain" />
             </div>
-            
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-serif font-bold text-smoky leading-tight">
-              Leyl
-            </h1>
-            <p className="text-2xl md:text-3xl lg:text-4xl font-serif text-gradient-silver">
-              Gizli İlimler Platformu
-            </p>
-            
+
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-serif font-bold text-smoky leading-tight">Leyl</h1>
+            <p className="text-2xl md:text-3xl lg:text-4xl font-serif text-gradient-silver">Gizli İlimler Platformu</p>
+
             <p className="text-base md:text-lg lg:text-xl text-silver-muted leading-relaxed max-w-3xl mx-auto">
-              Antik bilgelik ve modern yaklaşımın buluştuğu platform. 
-              Uzman hocalarımızla tanışın ve bilgelik yolculuğunuza başlayın.
+              Antik bilgelik ve modern yaklaşımın buluştuğu platform. Uzman hocalarımızla tanışın ve bilgelik
+              yolculuğunuza başlayın.
             </p>
-            
+
             <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center pt-2 md:pt-4">
               <Link to="/explore" className="w-full sm:w-auto">
                 <Button size="lg" className="w-full sm:w-auto">
@@ -123,23 +107,23 @@ export default function Index() {
             </div>
           </div>
         </div>
-        
+
         {/* Decorative Elements with Parallax */}
         <div className="absolute inset-0 pointer-events-none">
-          <div 
+          <div
             className="absolute top-20 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl animate-glow-pulse"
             style={{
               transform: `translate3d(0, ${decorativeParallax1}px, 0)`,
-              willChange: 'transform',
+              willChange: "transform",
             }}
           />
-          <div 
-            className="absolute bottom-20 right-10 w-96 h-96 bg-accent/10 rounded-full blur-3xl animate-glow-pulse" 
-            style={{ 
-              animationDelay: '4s',
+          <div
+            className="absolute bottom-20 right-10 w-96 h-96 bg-accent/10 rounded-full blur-3xl animate-glow-pulse"
+            style={{
+              animationDelay: "4s",
               transform: `translate3d(0, ${decorativeParallax2}px, 0)`,
-              willChange: 'transform',
-            }} 
+              willChange: "transform",
+            }}
           />
         </div>
       </section>
@@ -153,7 +137,7 @@ export default function Index() {
           <h2 className="text-3xl md:text-4xl font-serif font-bold text-gradient-silver mb-2">Merak Konuları</h2>
           <p className="text-sm md:text-base text-silver-muted">Gizemli konuları keşfedin</p>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           {curiosities.map((curiosity) => (
             <Card key={curiosity.id} className="group overflow-hidden card-hover">
@@ -180,7 +164,7 @@ export default function Index() {
                 </p>
                 <Link to={`/curiosities/${curiosity.slug}`}>
                   <Button variant="ghost" size="sm" className="w-full group/btn text-sm">
-                    Yazıyı İnceleyin 
+                    Yazıyı İnceleyin
                     <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
                   </Button>
                 </Link>
@@ -196,7 +180,7 @@ export default function Index() {
           <h2 className="text-3xl md:text-4xl font-serif font-bold text-gradient-silver mb-2">Kategoriler</h2>
           <p className="text-sm md:text-base text-silver-muted">Uzmanlık alanlarını keşfedin</p>
         </div>
-        
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
           {categories.map((category) => (
             <Link key={category.id} to={`/categories/${category.slug}`}>
@@ -217,14 +201,12 @@ export default function Index() {
                   <h3 className="font-semibold text-base sm:text-lg text-silver group-hover:text-gradient-purple transition-all mb-2">
                     {category.name}
                   </h3>
-                  <p className="text-xs sm:text-sm text-silver-muted">Aktif ilanları keşfedin</p>
                 </CardContent>
               </Card>
             </Link>
           ))}
         </div>
       </section>
-
     </div>
   );
 }
