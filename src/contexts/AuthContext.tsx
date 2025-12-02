@@ -31,12 +31,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
 
   useEffect(() => {
+    // Track if we already have a user to prevent unnecessary re-renders on token refresh
+    let hasInitialized = false;
+    
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        // Skip TOKEN_REFRESHED events if user is already set - prevents tab switch re-renders
+        if (event === 'TOKEN_REFRESHED' && hasInitialized) {
+          setSession(session);
+          return;
+        }
+        
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
+          hasInitialized = true;
+          
           // Email onayından sonra teacher ise otomatik girişi engelle
           if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
             const accountType = session.user.user_metadata?.account_type;
@@ -132,6 +143,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
+        hasInitialized = true;
         runPostSignInChecks(session.user.id);
       } else {
         setLoading(false);
