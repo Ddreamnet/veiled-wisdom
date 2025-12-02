@@ -101,15 +101,16 @@ export default function Approvals() {
       profilesData?.forEach((p: any) => profilesMap.set(p.id, p));
     }
 
-    // Fetch all roles for these users
-    let rolesMap = new Map<string, string>();
+    // Fetch all roles for these users - specifically check for teacher role
+    let teacherRolesSet = new Set<string>();
     if (userIds.length > 0) {
       const { data: rolesData } = await supabase
         .from('user_roles')
         .select('user_id, role')
-        .in('user_id', userIds);
+        .in('user_id', userIds)
+        .eq('role', 'teacher');
 
-      rolesData?.forEach((r: any) => rolesMap.set(r.user_id, r.role));
+      rolesData?.forEach((r: any) => teacherRolesSet.add(r.user_id));
     }
 
     // Process and categorize approvals
@@ -119,10 +120,10 @@ export default function Approvals() {
 
     (allApprovals || []).forEach((d: any) => {
       const profile = profilesMap.get(d.user_id);
-      const role = rolesMap.get(d.user_id);
+      const hasTeacherRole = teacherRolesSet.has(d.user_id);
 
       const hasProfileIssue = !profile;
-      const hasRoleIssue = d.status === 'approved' && role !== 'teacher';
+      const hasRoleIssue = d.status === 'approved' && !hasTeacherRole;
 
       const enriched: TeacherApproval = {
         ...d,
