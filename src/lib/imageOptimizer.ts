@@ -13,6 +13,7 @@ type OptimizeOptions = {
 /**
  * Convert a Supabase storage URL to an optimized URL with WebP format
  * Uses Supabase Image Transformation API
+ * NOTE: Temporarily disabled - returning original URLs
  */
 export function getOptimizedImageUrl(
   originalUrl: string | null | undefined,
@@ -20,27 +21,9 @@ export function getOptimizedImageUrl(
 ): string {
   if (!originalUrl) return '';
   
-  // Only optimize Supabase storage URLs
-  if (!originalUrl.includes('supabase.co/storage/v1/object/public/')) {
-    return originalUrl;
-  }
-
-  const { width, height, quality = 80, format = 'webp' } = options;
-
-  // Convert /object/public/ to /render/image/public/ for transformation
-  const transformUrl = originalUrl.replace(
-    '/storage/v1/object/public/',
-    '/storage/v1/render/image/public/'
-  );
-
-  // Build query params
-  const params = new URLSearchParams();
-  if (width) params.append('width', width.toString());
-  if (height) params.append('height', height.toString());
-  params.append('quality', quality.toString());
-  params.append('format', format);
-
-  return `${transformUrl}?${params.toString()}`;
+  // Temporarily return original URL to fix display issue
+  // Image Transformation can be re-enabled after verifying bucket settings
+  return originalUrl;
 }
 
 /**

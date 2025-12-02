@@ -3,7 +3,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageBreadcrumb } from "@/components/PageBreadcrumb";
 import { useCategoryWithSubcategories } from "@/lib/queries";
-import { getOptimizedThumbnailUrl } from "@/lib/imageOptimizer";
 
 export default function CategoryDetail() {
   const { slug } = useParams<{ slug: string }>();
@@ -68,7 +67,7 @@ export default function CategoryDetail() {
               <Card className="hover:shadow-glow transition-smooth h-full">
                 {subCat.image_url ? (
                   <img
-                    src={getOptimizedThumbnailUrl(subCat.image_url)}
+                    src={subCat.image_url}
                     alt={subCat.name}
                     loading="lazy"
                     decoding="async"
