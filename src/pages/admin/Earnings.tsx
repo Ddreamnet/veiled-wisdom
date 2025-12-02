@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -30,11 +30,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
+import { format, subDays } from 'date-fns';
 import { AdminBreadcrumb } from '@/components/AdminBreadcrumb';
+
+// Lazy load chart components
+const ChartContainer = lazy(() => import('@/components/ui/chart').then(m => ({ default: m.ChartContainer })));
+const ChartTooltip = lazy(() => import('@/components/ui/chart').then(m => ({ default: m.ChartTooltip })));
+const ChartTooltipContent = lazy(() => import('@/components/ui/chart').then(m => ({ default: m.ChartTooltipContent })));
+
+// Lazy load recharts
+const AreaChart = lazy(() => import('recharts').then(m => ({ default: m.AreaChart })));
+const Area = lazy(() => import('recharts').then(m => ({ default: m.Area })));
+const CartesianGrid = lazy(() => import('recharts').then(m => ({ default: m.CartesianGrid })));
+const XAxis = lazy(() => import('recharts').then(m => ({ default: m.XAxis })));
+const YAxis = lazy(() => import('recharts').then(m => ({ default: m.YAxis })));
+
+// Chart loading fallback
+const ChartSkeleton = () => (
+  <div className="h-[300px] w-full bg-muted/50 rounded animate-pulse flex items-center justify-center">
+    <span className="text-muted-foreground text-sm">Grafik yükleniyor...</span>
+  </div>
+);
 
 type TeacherEarning = {
   teacher_id: string;
@@ -381,28 +398,30 @@ export default function AdminEarnings() {
         </CardHeader>
         <CardContent>
           {earningTrends.length > 0 ? (
-            <ChartContainer
-              config={{
-                amount: {
-                  label: 'Gelir (₺)',
-                  color: 'hsl(var(--primary))',
-                },
-              }}
-              className="h-[300px]"
-            >
-              <AreaChart data={earningTrends}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Area
-                  type="monotone"
-                  dataKey="amount"
-                  stroke="hsl(var(--primary))"
-                  fill="hsl(var(--primary) / 0.2)"
-                />
-              </AreaChart>
-            </ChartContainer>
+            <Suspense fallback={<ChartSkeleton />}>
+              <ChartContainer
+                config={{
+                  amount: {
+                    label: 'Gelir (₺)',
+                    color: 'hsl(var(--primary))',
+                  },
+                }}
+                className="h-[300px]"
+              >
+                <AreaChart data={earningTrends}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Area
+                    type="monotone"
+                    dataKey="amount"
+                    stroke="hsl(var(--primary))"
+                    fill="hsl(var(--primary) / 0.2)"
+                  />
+                </AreaChart>
+              </ChartContainer>
+            </Suspense>
           ) : (
             <p className="text-sm text-muted-foreground text-center py-8">Henüz veri yok</p>
           )}

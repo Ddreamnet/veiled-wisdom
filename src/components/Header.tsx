@@ -55,6 +55,8 @@ const HeaderComponent = () => {
               <img
                 src={logo}
                 alt="Leyl"
+                loading="eager"
+                fetchPriority="high"
                 className={`transition-all duration-300 ease-out group-hover:scale-105 ${
                   isScrolled ? "h-8 w-8" : "h-10 w-10"
                 }`}
