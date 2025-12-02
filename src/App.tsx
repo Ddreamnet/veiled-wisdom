@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -89,8 +89,15 @@ function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode;
 
 function AppRoutes() {
   const { user, loading } = useAuth();
+  const hasRenderedRef = useRef(false);
 
-  if (loading) {
+  // Once routes have rendered once, never show loading screen again to prevent remounting
+  if (!loading) {
+    hasRenderedRef.current = true;
+  }
+
+  // Only show loading on initial load, not on subsequent auth state changes
+  if (loading && !hasRenderedRef.current) {
     return <div className="min-h-screen flex items-center justify-center">Yükleniyor...</div>;
   }
 
