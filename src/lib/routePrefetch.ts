@@ -6,23 +6,12 @@ const prefetchedRoutes = new Set<string>();
 const prefetchedImages = new Set<string>();
 
 /**
- * Prefetch a route's JavaScript bundle
+ * Prefetch a route - disabled as SPA routes don't need prefetching
+ * The lazy-loaded components are already handled by Vite's code splitting
  */
-export const prefetchRoute = (routePath: string): void => {
-  if (prefetchedRoutes.has(routePath)) {
-    return;
-  }
-
-  // Mark as prefetched
-  prefetchedRoutes.add(routePath);
-
-  // Create link element for prefetch
-  const link = document.createElement('link');
-  link.rel = 'prefetch';
-  link.href = routePath;
-  link.as = 'script';
-  
-  document.head.appendChild(link);
+export const prefetchRoute = (_routePath: string): void => {
+  // Route prefetching removed - causes 404 errors on deployed sites
+  // SPA routing is handled client-side, not by loading route paths as resources
 };
 
 /**
