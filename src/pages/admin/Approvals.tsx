@@ -160,61 +160,35 @@ export default function Approvals() {
     setRepairing(approval.id);
 
     try {
-      // Step 1: Create profile if missing
-      if (approval.hasProfileIssue) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert([{
-            id: approval.user_id,
-            username: approval.full_name || 'Kullanıcı',
-            is_teacher_approved: approval.status === 'approved',
-          }]);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
 
-        if (profileError) {
-          // Profile might already exist (race condition), try update instead
-          if (profileError.code === '23505') {
-            await supabase
-              .from('profiles')
-              .update({
-                username: approval.full_name || undefined,
-                is_teacher_approved: approval.status === 'approved',
-              })
-              .eq('id', approval.user_id);
-          } else {
-            console.error('Profile create error:', profileError);
-            throw new Error('Profil oluşturulamadı');
-          }
-        }
+      if (!accessToken) {
+        throw new Error('Oturum bulunamadı');
       }
 
-      // Step 2: Fix role if missing (only for approved teachers)
-      if (approval.hasRoleIssue && approval.status === 'approved') {
-        // Delete any existing role first
-        await supabase
-          .from('user_roles')
-          .delete()
-          .eq('user_id', approval.user_id);
+      const response = await supabase.functions.invoke('approve-teacher', {
+        body: {
+          userId: approval.user_id,
+          action: 'repair',
+          approvalData: {
+            full_name: approval.full_name,
+          },
+        },
+      });
 
-        // Insert teacher role
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .insert([{ user_id: approval.user_id, role: 'teacher' }]);
+      if (response.error) {
+        throw new Error(response.error.message || 'Onarım başarısız');
+      }
 
-        if (roleError) {
-          console.error('Role insert error:', roleError);
-          throw new Error('Rol atanamadı');
-        }
-
-        // Update profile is_teacher_approved
-        await supabase
-          .from('profiles')
-          .update({ is_teacher_approved: true })
-          .eq('id', approval.user_id);
+      const result = response.data;
+      if (!result.success) {
+        throw new Error(result.error || 'Onarım başarısız');
       }
 
       toast({
         title: 'Onarım Başarılı',
-        description: 'Kullanıcı profili ve rolü düzeltildi.',
+        description: result.message || 'Kullanıcı profili ve rolü düzeltildi.',
       });
 
       // Refresh data
@@ -234,102 +208,51 @@ export default function Approvals() {
   const handleApproval = async (approvalId: string, userId: string, approve: boolean) => {
     setLoading(true);
 
-    // Update approval status
-    const { error: approvalError } = await supabase
-      .from('teacher_approvals')
-      .update({
-        status: approve ? 'approved' : 'rejected',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', approvalId);
+    try {
+      // Get approval data for the Edge Function
+      const { data: approvalData } = await supabase
+        .from('teacher_approvals')
+        .select('full_name')
+        .eq('id', approvalId)
+        .single();
 
-    if (approvalError) {
+      const response = await supabase.functions.invoke('approve-teacher', {
+        body: {
+          userId: userId,
+          action: approve ? 'approve' : 'reject',
+          approvalData: {
+            full_name: approvalData?.full_name,
+          },
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || 'İşlem başarısız');
+      }
+
+      const result = response.data;
+      if (!result.success) {
+        throw new Error(result.error || 'İşlem başarısız');
+      }
+
+      toast({
+        title: approve ? 'Onaylandı' : 'Reddedildi',
+        description: result.message || (approve
+          ? 'Hoca başvurusu onaylandı.'
+          : 'Hoca başvurusu reddedildi.'),
+      });
+
+      fetchApprovals();
+    } catch (error: any) {
+      console.error('Approval error:', error);
       toast({
         title: 'Hata',
-        description: 'İşlem başarısız oldu.',
+        description: error.message || 'İşlem başarısız oldu.',
         variant: 'destructive',
       });
+    } finally {
       setLoading(false);
-      return;
     }
-
-    if (approve) {
-      // Ensure profile exists first
-      const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', userId)
-        .maybeSingle();
-
-      if (!existingProfile) {
-        // Get approval data to create profile
-        const { data: approvalData } = await supabase
-          .from('teacher_approvals')
-          .select('full_name')
-          .eq('id', approvalId)
-          .single();
-
-        const { error: profileCreateError } = await supabase
-          .from('profiles')
-          .insert([{
-            id: userId,
-            username: approvalData?.full_name || 'Kullanıcı',
-            is_teacher_approved: true,
-          }]);
-
-        if (profileCreateError && profileCreateError.code !== '23505') {
-          console.error('Profile create error:', profileCreateError);
-        }
-      }
-
-      // Delete any existing role
-      const { error: deleteError } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', userId);
-
-      if (deleteError) {
-        console.error('Role delete error:', deleteError);
-      }
-
-      // Insert teacher role
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert([{ user_id: userId, role: 'teacher' }]);
-
-      if (roleError) {
-        console.error('Role insert error:', roleError);
-        // Rollback approval status
-        await supabase
-          .from('teacher_approvals')
-          .update({ status: 'pending', updated_at: new Date().toISOString() })
-          .eq('id', approvalId);
-        
-        toast({
-          title: 'Hata',
-          description: 'Rol atanamadı. İşlem geri alındı.',
-          variant: 'destructive',
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Update profile
-      await supabase
-        .from('profiles')
-        .update({ is_teacher_approved: true })
-        .eq('id', userId);
-    }
-
-    toast({
-      title: approve ? 'Onaylandı' : 'Reddedildi',
-      description: approve
-        ? 'Hoca başvurusu onaylandı.'
-        : 'Hoca başvurusu reddedildi.',
-    });
-
-    fetchApprovals();
-    setLoading(false);
   };
 
   const renderApprovalCard = (approval: TeacherApproval, showActions: boolean = false) => {
