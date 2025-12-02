@@ -4,7 +4,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { User } from 'lucide-react';
 import { PageBreadcrumb } from '@/components/PageBreadcrumb';
 import { useSubCategoryListings } from '@/lib/queries';
-import { getOptimizedThumbnailUrl, getOptimizedAvatarUrl } from '@/lib/imageOptimizer';
 
 export default function SubCategoryDetail() {
   const { slug, subslug } = useParams<{ slug: string; subslug: string }>();
@@ -68,7 +67,7 @@ export default function SubCategoryDetail() {
               <Card className="hover:shadow-glow transition-smooth h-full">
                 {listing.cover_url ? (
                   <img
-                    src={getOptimizedThumbnailUrl(listing.cover_url)}
+                    src={listing.cover_url}
                     alt={listing.title}
                     loading="lazy"
                     decoding="async"
@@ -85,7 +84,7 @@ export default function SubCategoryDetail() {
                   >
                     {listing.profiles.avatar_url ? (
                       <img
-                        src={getOptimizedAvatarUrl(listing.profiles.avatar_url, 64)}
+                        src={listing.profiles.avatar_url}
                         alt={listing.profiles.username}
                         loading="lazy"
                         decoding="async"

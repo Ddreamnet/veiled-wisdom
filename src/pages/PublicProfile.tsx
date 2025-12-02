@@ -8,7 +8,6 @@ import { User, Star, MessageCircle, Briefcase, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import { PageBreadcrumb } from "@/components/PageBreadcrumb";
 import { usePublicProfile } from "@/lib/queries";
-import { getOptimizedAvatarUrl, getOptimizedThumbnailUrl } from "@/lib/imageOptimizer";
 
 export default function PublicProfile() {
   const { id } = useParams<{ id: string }>();
@@ -63,7 +62,7 @@ export default function PublicProfile() {
               <div className="relative group">
                 <div className="absolute -inset-1 bg-gradient-to-r from-primary via-primary/50 to-primary rounded-full blur-sm group-hover:blur-md transition-all duration-300 opacity-75" />
                 <Avatar className="relative h-28 w-28 sm:h-36 sm:w-36 lg:h-40 lg:w-40 border-4 border-background shadow-xl">
-                  <AvatarImage src={getOptimizedAvatarUrl(profile.avatar_url, 160)} alt={profile.username || "User"} />
+                  <AvatarImage src={profile.avatar_url || undefined} alt={profile.username || "User"} />
                   <AvatarFallback className="text-3xl sm:text-4xl lg:text-5xl bg-gradient-to-br from-primary/20 to-primary/10">
                     <User className="h-14 w-14 sm:h-20 sm:w-20 lg:h-24 lg:w-24 text-primary" />
                   </AvatarFallback>
@@ -160,7 +159,7 @@ export default function PublicProfile() {
                           {listing.cover_url && (
                             <div className="relative overflow-hidden rounded-xl flex-shrink-0 w-full sm:w-28 h-48 sm:h-28">
                               <img
-                                src={getOptimizedThumbnailUrl(listing.cover_url)}
+                                src={listing.cover_url}
                                 alt={listing.title}
                                 loading="lazy"
                                 decoding="async"
@@ -234,7 +233,7 @@ export default function PublicProfile() {
                     >
                       <div className="flex items-start gap-3">
                         <Avatar className="h-10 w-10 sm:h-12 sm:w-12 border-2 border-primary/20">
-                          <AvatarImage src={getOptimizedAvatarUrl(review.profiles?.avatar_url, 48)} />
+                          <AvatarImage src={review.profiles?.avatar_url || undefined} />
                           <AvatarFallback className="bg-primary/10">
                             <User className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                           </AvatarFallback>
