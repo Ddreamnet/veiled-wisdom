@@ -210,7 +210,7 @@ export default function Index() {
                       decoding="async"
                       className="w-full h-full object-cover card-image"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-card/50 to-transparent" />
                   </div>
                 )}
                 <CardContent className="p-4 sm:p-5 md:p-6">
