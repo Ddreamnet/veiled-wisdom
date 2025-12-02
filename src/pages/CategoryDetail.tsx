@@ -95,7 +95,7 @@ export default function CategoryDetail() {
           {subCategories.map(subCat => <Link key={subCat.id} to={`/categories/${slug}/${subCat.slug}`}>
               <Card className="hover:shadow-glow transition-smooth h-full">
                 {subCat.image_url ? <img src={subCat.image_url} alt={subCat.name} loading="lazy" decoding="async" className="w-full h-40 sm:h-44 md:h-48 object-cover rounded-t-lg" /> : <div className="w-full h-40 sm:h-44 md:h-48 bg-primary/20 rounded-t-lg" />}
-                <CardContent className="p-4 sm:p-5 md:p-6 flex items-center justify-between py-[240px] pb-[12px]">
+                <CardContent className="p-4 sm:p-5 md:p-6 flex items-center justify-between pb-[12px] py-[24px]">
                   <h3 className="font-semibold text-base sm:text-lg">{subCat.name}</h3>
                   <p className="text-xs sm:text-sm text-muted-foreground">{listingCounts[subCat.id] || 0} ilan</p>
                 </CardContent>
