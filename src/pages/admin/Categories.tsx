@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase, Category } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -241,11 +241,7 @@ export default function CategoriesManagement() {
   const { toast } = useToast();
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
+    useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -479,11 +475,7 @@ export default function CategoriesManagement() {
       </DndContext>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent 
-          className="glass-effect border-silver/20"
-          onPointerDownOutside={(e) => e.preventDefault()}
-          onInteractOutside={(e) => e.preventDefault()}
-        >
+        <DialogContent className="glass-effect border-silver/20">
           <DialogHeader>
             <DialogTitle>
               {editingId 
