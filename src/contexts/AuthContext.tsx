@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase, UserRole } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
@@ -29,15 +29,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  
+  // Use ref to track initialization state - persists across renders without causing re-renders
+  const hasInitializedRef = useRef(false);
 
   useEffect(() => {
-    // Track if we already have a user to prevent unnecessary re-renders on token refresh
-    let hasInitialized = false;
-    
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        // Skip TOKEN_REFRESHED events if user is already set - prevents tab switch re-renders
-        if (event === 'TOKEN_REFRESHED' && hasInitialized) {
+        console.log('[AuthContext] onAuthStateChange event:', event, 'hasInitialized:', hasInitializedRef.current);
+        
+        // Skip events that don't require full re-processing if already initialized
+        // This prevents tab switch from causing page re-renders
+        if (hasInitializedRef.current && (event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION')) {
+          console.log('[AuthContext] Skipping event to prevent re-render');
+          // Only update session, don't trigger loading or user state changes
           setSession(session);
           return;
         }
@@ -46,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          hasInitialized = true;
+          hasInitializedRef.current = true;
           
           // Email onayından sonra teacher ise otomatik girişi engelle
           if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
@@ -143,7 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        hasInitialized = true;
+        hasInitializedRef.current = true;
         runPostSignInChecks(session.user.id);
       } else {
         setLoading(false);
