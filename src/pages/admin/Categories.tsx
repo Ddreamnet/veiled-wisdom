@@ -475,11 +475,7 @@ export default function CategoriesManagement() {
       </DndContext>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent 
-          className="glass-effect border-silver/20"
-          onInteractOutside={(e) => e.preventDefault()}
-          onPointerDownOutside={(e) => e.preventDefault()}
-        >
+        <DialogContent className="glass-effect border-silver/20">
           <DialogHeader>
             <DialogTitle>
               {editingId 
