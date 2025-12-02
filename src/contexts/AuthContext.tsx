@@ -365,7 +365,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error };
       }
 
-      // Profil, rol ve (öğretmen ise) başvuru kaydı backend tetikleyicisi ile oluşturulacak
+      // Kullanıcı oluşturulduysa profil ve rol oluştur
+      if (data.user) {
+        // 1. Profil oluştur (kullanıcı kendi id'si için - RLS'e uygun)
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: data.user.id,
+            username: username,
+            is_teacher_approved: false,
+          });
+
+        if (profileError && profileError.code !== '23505') {
+          console.error('Profile creation error:', profileError);
+        }
+
+        // 2. Rol ata (teacher için customer, müşteri için customer)
+        const initialRole = selectedRole === 'teacher' ? 'customer' : 'customer';
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: data.user.id,
+            role: initialRole,
+          });
+
+        if (roleError && roleError.code !== '23505') {
+          console.error('Role assignment error:', roleError);
+        }
+
+        // 3. Hoca ise başvuru kaydı oluştur
+        if (selectedRole === 'teacher' && teacherData) {
+          const { error: approvalError } = await supabase
+            .from('teacher_approvals')
+            .insert({
+              user_id: data.user.id,
+              status: 'pending',
+              full_name: username,
+              date_of_birth: teacherData.dateOfBirth,
+              specialization: teacherData.specialization,
+              education: teacherData.education,
+              years_of_experience: teacherData.yearsOfExperience,
+              phone: teacherData.phone,
+            });
+
+          if (approvalError) {
+            console.error('Teacher approval creation error:', approvalError);
+          }
+        }
+      }
+
       if (selectedRole === 'teacher') {
         // Teacher kayıtlarında otomatik girişi engelle
         await supabase.auth.signOut();
