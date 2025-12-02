@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase, Listing, ListingPrice, Review, Category } from '@/lib/supabase';
+import { supabase, ListingPrice, Review, Category } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -35,6 +35,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { useListing } from '@/lib/queries';
 
 type TeacherDetails = {
   username: string;
@@ -52,133 +53,19 @@ type ReviewWithProfile = Review & {
   };
 };
 
-type ListingWithDetails = Listing & {
-  prices: ListingPrice[];
-  teacher: TeacherDetails;
-  reviews: ReviewWithProfile[];
-  averageRating: number;
-  category?: Category;
-  parentCategory?: Category;
-};
-
 export default function ListingDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [listing, setListing] = useState<ListingWithDetails | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: listing, isLoading: loading } = useListing(id);
   const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedTime, setSelectedTime] = useState('');
   const [bookingLoading, setBookingLoading] = useState(false);
-  const [reviews, setReviews] = useState<ReviewWithProfile[]>([]);
-  const [averageRating, setAverageRating] = useState(0);
 
-  useEffect(() => {
-    if (id) {
-      fetchListing();
-    }
-  }, [id]);
-
-  const fetchListing = async () => {
-    setLoading(true);
-
-    const { data: listingData, error: listingError } = await supabase
-      .from('listings')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
-
-    if (listingError) {
-      console.error('Listing fetch error:', listingError);
-      setLoading(false);
-      return;
-    }
-
-    if (!listingData) {
-      setLoading(false);
-      return;
-    }
-
-    // Fetch teacher profile separately
-    const { data: teacherProfile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', listingData.teacher_id)
-      .maybeSingle();
-
-    const { data: prices } = await supabase
-      .from('listing_prices')
-      .select('*')
-      .eq('listing_id', id)
-      .order('duration_minutes');
-
-    // Fetch category
-    const { data: categoryData } = await supabase
-      .from('categories')
-      .select('*')
-      .eq('id', listingData.category_id)
-      .maybeSingle();
-
-    // Fetch parent category if exists
-    let parentCategoryData = null;
-    if (categoryData?.parent_id) {
-      const { data } = await supabase
-        .from('categories')
-        .select('*')
-        .eq('id', categoryData.parent_id)
-        .maybeSingle();
-      parentCategoryData = data;
-    }
-
-    // Fetch teacher additional details from approved applications
-    const { data: teacherApproval } = await supabase
-      .from('teacher_approvals')
-      .select('specialization, education, years_of_experience')
-      .eq('user_id', listingData.teacher_id)
-      .eq('status', 'approved')
-      .maybeSingle();
-
-    const teacherDetails: TeacherDetails = {
-      username: teacherProfile?.username || 'Unknown',
-      avatar_url: teacherProfile?.avatar_url || null,
-      bio: teacherProfile?.bio || null,
-      specialization: teacherApproval?.specialization,
-      education: teacherApproval?.education,
-      years_of_experience: teacherApproval?.years_of_experience,
-    };
-
-    // Fetch reviews
-    const { data: reviewsData } = await supabase
-      .from('reviews')
-      .select('*, customer:profiles!reviews_customer_id_fkey(username, avatar_url)')
-      .eq('listing_id', id)
-      .order('created_at', { ascending: false });
-
-    const reviewsList = (reviewsData || []) as ReviewWithProfile[];
-    setReviews(reviewsList);
-    
-    // Calculate average rating
-    if (reviewsList.length > 0) {
-      const avg = reviewsList.reduce((sum, r) => sum + r.rating, 0) / reviewsList.length;
-      setAverageRating(Math.round(avg * 10) / 10);
-    }
-
-    setListing({
-      ...listingData,
-      prices: prices || [],
-      teacher: teacherDetails,
-      reviews: reviewsList,
-      averageRating: reviewsList.length > 0 
-        ? reviewsList.reduce((sum, r) => sum + r.rating, 0) / reviewsList.length 
-        : 0,
-      category: categoryData || undefined,
-      parentCategory: parentCategoryData || undefined,
-    } as any);
-
-    setLoading(false);
-  };
+  const reviews = listing?.reviews || [];
+  const averageRating = listing?.averageRating || 0;
 
   const handleBooking = async () => {
     if (!user) {
