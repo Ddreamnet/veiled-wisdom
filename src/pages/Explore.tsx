@@ -37,7 +37,7 @@ export default function Explore() {
                     decoding="async"
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-card/70 via-transparent to-transparent" />
                 </div>
               )}
               <CardContent className="p-4 sm:p-5 md:p-6">
