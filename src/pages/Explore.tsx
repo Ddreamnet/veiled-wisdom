@@ -15,7 +15,8 @@ export default function Explore() {
     const { data } = await supabase
       .from('categories')
       .select('*')
-      .is('parent_id', null);
+      .is('parent_id', null)
+      .order('display_order', { ascending: true });
     
     if (data) setCategories(data);
   };
