@@ -177,6 +177,20 @@ const HeaderComponent = () => {
                     <>
                       <DropdownMenuSeparator className="bg-silver/10" />
                       <DropdownMenuItem asChild>
+                        <Link to="/messages" className="flex items-center gap-2 cursor-pointer">
+                          <MessageSquare className="h-4 w-4" />
+                          Mesajlar
+                          {unreadCount > 0 && (
+                            <Badge 
+                              variant="destructive" 
+                              className="ml-auto h-5 min-w-5 flex items-center justify-center p-0 px-1 text-xs"
+                            >
+                              {unreadCount > 99 ? '99+' : unreadCount}
+                            </Badge>
+                          )}
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
                         <Link to="/appointments" className="flex items-center gap-2 cursor-pointer">
                           <Calendar className="h-4 w-4" />
                           Randevularım
