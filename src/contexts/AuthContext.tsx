@@ -17,7 +17,7 @@ type AuthContextType = {
   role: UserRole | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string, username: string, role: UserRole, teacherData?: TeacherApplicationData) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, username: string, role: UserRole, teacherData?: TeacherApplicationData) => Promise<{ error: any; isTeacher?: boolean }>;
   signOut: () => Promise<void>;
 };
 
@@ -252,17 +252,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error };
       }
 
-      // E-posta onayı kontrolü
-      if (data.user && !data.user.email_confirmed_at) {
-        await supabase.auth.signOut();
-        const confirmError = new Error("Lütfen e-posta adresinize gönderilen linke tıklayarak hesabınızı onaylayın.");
-        toast({
-          title: "E-posta Onayı Gerekli",
-          description: confirmError.message,
-          variant: "destructive",
-        });
-        return { error: confirmError };
-      }
+      // Mail onayı kaldırıldı - direkt devam et
 
       // Teacher başvurusu kontrolü - hem pending hem rejected durumları kontrol et
       if (data.user) {
@@ -379,20 +369,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (selectedRole === 'teacher') {
         // Teacher kayıtlarında otomatik girişi engelle
         await supabase.auth.signOut();
-        toast({
-          title: "Başvuru Alındı",
-          description: "E-posta adresinize gönderilen linke tıklayarak hesabınızı onaylayın. Başvurunuz admin onayına iletildi.",
-          duration: 7000,
-        });
+        return { error: null, isTeacher: true };
       } else {
         toast({
-          title: "Kayıt Başarılı",
-          description: "E-posta adresinize gönderilen linke tıklayarak hesabınızı onaylayın.",
+          title: "Hesabınız Oluşturuldu",
+          description: "Artık giriş yapabilirsiniz.",
           duration: 5000,
         });
       }
 
-      return { error };
+      return { error: null, isTeacher: false };
     } catch (error: any) {
       return { error };
     }
