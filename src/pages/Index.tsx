@@ -9,6 +9,7 @@ import { useScrollPosition } from "@/hooks/useScrollPosition";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHomeData } from "@/lib/queries";
 import logoImage from "@/assets/logo.png";
+import { getOptimizedThumbnailUrl } from "@/lib/imageOptimizer";
 
 // Lazy load ParticleBackground - it's heavy and not critical
 const ParticleBackground = lazy(() => 
@@ -150,7 +151,7 @@ export default function Index() {
                   {curiosity.cover_url && (
                     <div className="relative h-48 sm:h-52 md:h-56 overflow-hidden">
                       <img
-                        src={curiosity.cover_url}
+                        src={getOptimizedThumbnailUrl(curiosity.cover_url)}
                         alt={curiosity.title}
                         loading="lazy"
                         decoding="async"
@@ -205,7 +206,7 @@ export default function Index() {
                     {category.image_url && (
                       <div className="relative h-40 sm:h-44 md:h-48 overflow-hidden">
                         <img
-                          src={category.image_url}
+                          src={getOptimizedThumbnailUrl(category.image_url)}
                           alt={category.name}
                           loading="lazy"
                           decoding="async"

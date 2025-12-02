@@ -11,6 +11,50 @@ export type UploadResult = {
 };
 
 /**
+ * Convert image file to WebP format using Canvas API
+ * Returns the WebP blob if it's smaller, otherwise returns original
+ */
+async function convertToWebP(file: File, quality: number = 0.85): Promise<{ blob: Blob; extension: string }> {
+  // Skip if already WebP
+  if (file.type === 'image/webp') {
+    return { blob: file, extension: 'webp' };
+  }
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx?.drawImage(img, 0, 0);
+
+      canvas.toBlob(
+        (webpBlob) => {
+          if (webpBlob && webpBlob.size < file.size) {
+            // WebP is smaller, use it
+            resolve({ blob: webpBlob, extension: 'webp' });
+          } else {
+            // Original is smaller or conversion failed, use original
+            resolve({ blob: file, extension: file.name.split('.').pop() || 'jpg' });
+          }
+        },
+        'image/webp',
+        quality
+      );
+    };
+
+    img.onerror = () => {
+      // If image loading fails, use original
+      resolve({ blob: file, extension: file.name.split('.').pop() || 'jpg' });
+    };
+
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+/**
  * Upload avatar image to Supabase Storage
  */
 export async function uploadAvatar(file: File, userId: string): Promise<UploadResult> {
@@ -25,16 +69,17 @@ export async function uploadAvatar(file: File, userId: string): Promise<UploadRe
       return { url: null, error: new Error('Dosya boyutu maksimum 5MB olabilir') };
     }
 
-    // Generate unique filename
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${userId}-${Date.now()}.${fileExt}`;
+    // Convert to WebP for better compression
+    const { blob, extension } = await convertToWebP(file, 0.85);
+    const fileName = `${userId}-${Date.now()}.${extension}`;
 
     // Upload to Supabase Storage
     const { error: uploadError } = await supabase.storage
       .from(AVATAR_BUCKET)
-      .upload(fileName, file, {
+      .upload(fileName, blob, {
         cacheControl: '3600',
         upsert: true,
+        contentType: extension === 'webp' ? 'image/webp' : file.type,
       });
 
     if (uploadError) {
@@ -74,16 +119,17 @@ export async function uploadListingImage(file: File, listingId: string): Promise
       return { url: null, error: new Error('Dosya boyutu maksimum 10MB olabilir') };
     }
 
-    // Generate unique filename
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${listingId}-${Date.now()}.${fileExt}`;
+    // Convert to WebP for better compression
+    const { blob, extension } = await convertToWebP(file, 0.85);
+    const fileName = `${listingId}-${Date.now()}.${extension}`;
 
     // Upload to Supabase Storage
     const { error: uploadError } = await supabase.storage
       .from(LISTING_IMAGES_BUCKET)
-      .upload(fileName, file, {
+      .upload(fileName, blob, {
         cacheControl: '3600',
         upsert: true,
+        contentType: extension === 'webp' ? 'image/webp' : file.type,
       });
 
     if (uploadError) {
@@ -147,16 +193,17 @@ export async function uploadCategoryImage(file: File, categoryId: string): Promi
       return { url: null, error: new Error('Dosya boyutu maksimum 5MB olabilir') };
     }
 
-    // Generate unique filename
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${categoryId}-${Date.now()}.${fileExt}`;
+    // Convert to WebP for better compression
+    const { blob, extension } = await convertToWebP(file, 0.85);
+    const fileName = `${categoryId}-${Date.now()}.${extension}`;
 
     // Upload to Supabase Storage
     const { error: uploadError } = await supabase.storage
       .from(CATEGORY_IMAGES_BUCKET)
-      .upload(fileName, file, {
+      .upload(fileName, blob, {
         cacheControl: '3600',
         upsert: true,
+        contentType: extension === 'webp' ? 'image/webp' : file.type,
       });
 
     if (uploadError) {
