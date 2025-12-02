@@ -42,19 +42,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // All other events (TOKEN_REFRESHED, INITIAL_SESSION, USER_UPDATED, etc.) 
         // should only update session without triggering loading state or re-renders
         if (hasInitializedRef.current) {
-          // Always update session silently
-          setSession(session);
-          
-          // Only handle sign out - user state must change
+          // Handle sign out - reset everything so next sign in works
           if (event === 'SIGNED_OUT') {
+            console.log('[AuthContext] User signed out, resetting state');
+            hasInitializedRef.current = false;
+            setSession(null);
             setUser(null);
             setRole(null);
             setLoading(false);
+            return;
           }
           
-          // Skip all other events to prevent tab-switch re-renders
-          console.log('[AuthContext] Skipping event to prevent re-render:', event);
-          return;
+          // Handle new sign in after sign out
+          if (event === 'SIGNED_IN' && session?.user) {
+            console.log('[AuthContext] New sign in detected, processing...');
+            // Don't skip - let it fall through to the initialization flow below
+          } else {
+            // Skip all other events to prevent tab-switch re-renders
+            setSession(session);
+            console.log('[AuthContext] Skipping event to prevent re-render:', event);
+            return;
+          }
         }
         
         // First-time initialization flow
