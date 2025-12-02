@@ -45,7 +45,9 @@ const FooterComponent = () => {
             </div>
 
             <div>
-              <Link to="/explore" className="font-semibold text-silver mb-4 block hover:text-primary transition-colors">Kategoriler</Link>
+              <h3 className="font-semibold text-silver mb-4">
+                <Link to="/explore" className="hover:text-primary transition-colors">Kategoriler</Link>
+              </h3>
               <ul className="space-y-2 text-sm">
                 <li>
                   <Link to="/categories/bakimlar" className="text-silver-muted hover:text-silver transition-smooth">
