@@ -1,36 +1,12 @@
-import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabase, Curiosity } from '@/lib/supabase';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageBreadcrumb } from '@/components/PageBreadcrumb';
+import { useCuriosity } from '@/lib/queries';
 
 export default function CuriosityDetail() {
   const { slug } = useParams<{ slug: string }>();
-  const [curiosity, setCuriosity] = useState<Curiosity | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (slug) {
-      fetchCuriosity();
-    }
-  }, [slug]);
-
-  const fetchCuriosity = async () => {
-    setLoading(true);
-
-    const { data } = await supabase
-      .from('curiosities')
-      .select('*')
-      .eq('slug', slug)
-      .single();
-
-    if (data) {
-      setCuriosity(data);
-    }
-
-    setLoading(false);
-  };
+  const { data: curiosity, isLoading: loading } = useCuriosity(slug);
 
   if (loading) {
     return (

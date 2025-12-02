@@ -1,155 +1,25 @@
-import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase, Profile, UserRole, Listing, Review } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useToast } from "@/hooks/use-toast";
 import { User, Star, MessageCircle, Briefcase, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import { PageBreadcrumb } from "@/components/PageBreadcrumb";
-
-type ListingWithCategory = Listing & {
-  categories: {
-    name: string;
-    slug: string;
-  };
-  listing_prices: { price: number }[];
-};
-
-type ReviewWithDetails = Review & {
-  profiles: {
-    username: string;
-    avatar_url: string | null;
-  };
-  listings: {
-    title: string;
-  };
-};
+import { usePublicProfile } from "@/lib/queries";
 
 export default function PublicProfile() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [role, setRole] = useState<UserRole | null>(null);
-  const [listings, setListings] = useState<ListingWithCategory[]>([]);
-  const [reviews, setReviews] = useState<ReviewWithDetails[]>([]);
+  const { data, isLoading: loading } = usePublicProfile(id);
 
-  useEffect(() => {
-    if (id) {
-      fetchProfileData();
-    }
-  }, [id]);
-
-  const fetchProfileData = async () => {
-    if (!id) return;
-
-    setLoading(true);
-
-    // Fetch profile
-    const { data: profileData, error: profileError } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
-
-    if (profileError) {
-      console.error("Profile fetch error:", profileError);
-      toast({
-        title: "Hata",
-        description: "Profil bilgileri yüklenemedi.",
-        variant: "destructive",
-      });
-      setLoading(false);
-      return;
-    }
-
-    if (!profileData) {
-      toast({
-        title: "Hata",
-        description: "Kullanıcı bulunamadı.",
-        variant: "destructive",
-      });
-      navigate("/");
-      return;
-    }
-
-    setProfile(profileData);
-
-    // Fetch role
-    const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", id).maybeSingle();
-
-    const userRole = roleData?.role as UserRole | null;
-    setRole(userRole);
-
-    // If teacher, fetch listings
-    if (userRole === "teacher") {
-      const { data: listingsData } = await supabase
-        .from("listings")
-        .select(
-          `
-          *,
-          categories(name, slug),
-          listing_prices(price)
-        `,
-        )
-        .eq("teacher_id", id)
-        .eq("is_active", true)
-        .order("created_at", { ascending: false });
-
-      if (listingsData) {
-        setListings(listingsData as ListingWithCategory[]);
-
-        // Fetch reviews received on teacher's listings
-        const { data: reviewsData } = await supabase
-          .from("reviews")
-          .select(
-            `
-            *,
-            profiles!reviews_customer_id_fkey(username, avatar_url),
-            listings(title)
-          `,
-          )
-          .in(
-            "listing_id",
-            listingsData.map((l) => l.id),
-          )
-          .order("created_at", { ascending: false })
-          .limit(10);
-
-        if (reviewsData) {
-          setReviews(reviewsData as ReviewWithDetails[]);
-        }
-      }
-    } else {
-      // Reviews given by this user
-      const { data: reviewsData } = await supabase
-        .from("reviews")
-        .select(
-          `
-          *,
-          profiles!reviews_customer_id_fkey(username, avatar_url),
-          listings(title)
-        `,
-        )
-        .eq("customer_id", id)
-        .order("created_at", { ascending: false })
-        .limit(10);
-
-      if (reviewsData) {
-        setReviews(reviewsData as ReviewWithDetails[]);
-      }
-    }
-
-    setLoading(false);
-  };
+  const profile = data?.profile;
+  const role = data?.role;
+  const listings = data?.listings || [];
+  const reviews = data?.reviews || [];
 
   const handleContactClick = () => {
-    // Navigate to messages with userId parameter
     navigate(`/messages?userId=${id}`);
   };
 
@@ -274,9 +144,9 @@ export default function PublicProfile() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-5 sm:p-6 lg:p-8 space-y-4 sm:space-y-5">
-                  {listings.map((listing) => {
-                    const minPrice = listing.listing_prices.length
-                      ? Math.min(...listing.listing_prices.map((p) => p.price))
+                  {listings.map((listing: any) => {
+                    const minPrice = listing.listing_prices?.length
+                      ? Math.min(...listing.listing_prices.map((p: any) => p.price))
                       : null;
 
                     return (
@@ -291,6 +161,8 @@ export default function PublicProfile() {
                               <img
                                 src={listing.cover_url}
                                 alt={listing.title}
+                                loading="lazy"
+                                decoding="async"
                                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                               />
                               <div className="absolute inset-0 bg-gradient-to-t from-background/50 to-transparent" />
@@ -308,7 +180,7 @@ export default function PublicProfile() {
                                 variant="outline"
                                 className="text-xs sm:text-sm px-3 py-1 border-primary/30 bg-primary/5"
                               >
-                                {listing.categories.name}
+                                {listing.categories?.name}
                               </Badge>
                               {minPrice && (
                                 <span className="text-primary font-bold text-base sm:text-lg flex items-center gap-1">
@@ -354,20 +226,20 @@ export default function PublicProfile() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-5 sm:p-6 space-y-4 max-h-[600px] overflow-y-auto">
-                  {reviews.map((review) => (
+                  {reviews.map((review: any) => (
                     <div
                       key={review.id}
                       className="p-4 sm:p-5 border border-primary/10 rounded-xl space-y-3 bg-gradient-to-br from-background to-primary/5 hover:border-primary/30 transition-colors duration-300"
                     >
                       <div className="flex items-start gap-3">
                         <Avatar className="h-10 w-10 sm:h-12 sm:w-12 border-2 border-primary/20">
-                          <AvatarImage src={review.profiles.avatar_url || undefined} />
+                          <AvatarImage src={review.profiles?.avatar_url || undefined} />
                           <AvatarFallback className="bg-primary/10">
                             <User className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0 space-y-1">
-                          <p className="text-sm sm:text-base font-semibold truncate">{review.profiles.username}</p>
+                          <p className="text-sm sm:text-base font-semibold truncate">{review.profiles?.username}</p>
                           <div className="flex items-center gap-1">
                             {Array.from({ length: 5 }).map((_, i) => (
                               <Star
@@ -382,7 +254,7 @@ export default function PublicProfile() {
                         </div>
                       </div>
                       <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">{review.comment}</p>
-                      <p className="text-xs sm:text-sm text-primary/70 font-medium">{review.listings.title}</p>
+                      <p className="text-xs sm:text-sm text-primary/70 font-medium">{review.listings?.title}</p>
                     </div>
                   ))}
                 </CardContent>
