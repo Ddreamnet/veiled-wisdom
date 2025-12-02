@@ -41,7 +41,7 @@ export default function CategoryDetail() {
       .from('categories')
       .select('*')
       .eq('parent_id', categoryData.id)
-      .order('name');
+      .order('display_order', { ascending: true });
 
     if (subCategoriesData) {
       setSubCategories(subCategoriesData);
