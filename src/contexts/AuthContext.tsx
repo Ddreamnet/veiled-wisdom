@@ -32,20 +32,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   
   // Use ref to track initialization state - persists across renders without causing re-renders
   const hasInitializedRef = useRef(false);
+  // Track if user explicitly signed out - only then should we process new SIGNED_IN events
+  const wasSignedOutRef = useRef(false);
+  // Track current user ID to detect actual user changes
+  const currentUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log('[AuthContext] onAuthStateChange event:', event, 'hasInitialized:', hasInitializedRef.current);
+        console.log('[AuthContext] onAuthStateChange event:', event, 'hasInitialized:', hasInitializedRef.current, 'wasSignedOut:', wasSignedOutRef.current);
         
-        // After initial auth, ONLY process SIGNED_IN and SIGNED_OUT events fully
-        // All other events (TOKEN_REFRESHED, INITIAL_SESSION, USER_UPDATED, etc.) 
-        // should only update session without triggering loading state or re-renders
+        // After initial auth, be very selective about which events to process
         if (hasInitializedRef.current) {
           // Handle sign out - reset everything so next sign in works
           if (event === 'SIGNED_OUT') {
             console.log('[AuthContext] User signed out, resetting state');
-            hasInitializedRef.current = false;
+            wasSignedOutRef.current = true;
+            currentUserIdRef.current = null;
             setSession(null);
             setUser(null);
             setRole(null);
@@ -53,14 +56,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return;
           }
           
-          // Handle new sign in after sign out
-          if (event === 'SIGNED_IN' && session?.user) {
-            console.log('[AuthContext] New sign in detected, processing...');
-            // Don't skip - let it fall through to the initialization flow below
+          // Handle new sign in ONLY if user was explicitly signed out before
+          // This prevents tab-switch SIGNED_IN events from causing re-renders
+          if (event === 'SIGNED_IN' && session?.user && wasSignedOutRef.current) {
+            console.log('[AuthContext] New sign in after sign out, processing...');
+            wasSignedOutRef.current = false;
+            currentUserIdRef.current = session.user.id;
+            // Let it fall through to the initialization flow below
           } else {
-            // Skip all other events (TOKEN_REFRESHED, etc.) completely to prevent tab-switch re-renders
-            // Don't even update session state - the token is refreshed internally by Supabase
-            console.log('[AuthContext] Skipping event completely to prevent re-render:', event);
+            // Skip all other events completely to prevent tab-switch re-renders
+            console.log('[AuthContext] Skipping event to prevent re-render:', event);
             return;
           }
         }
@@ -71,6 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (session?.user) {
           hasInitializedRef.current = true;
+          currentUserIdRef.current = session.user.id;
           
           // Email onayından sonra teacher ise otomatik girişi engelle
           if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
@@ -168,6 +174,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       if (session?.user) {
         hasInitializedRef.current = true;
+        currentUserIdRef.current = session.user.id;
         runPostSignInChecks(session.user.id);
       } else {
         setLoading(false);
