@@ -161,7 +161,7 @@ export default function SignUp() {
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="customer" id="customer" />
                   <Label htmlFor="customer" className="font-normal cursor-pointer text-silver-muted">
-                    Müşteri
+                    Danışan
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">

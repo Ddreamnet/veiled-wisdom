@@ -1,15 +1,15 @@
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { supabase, Profile, UserRole, Listing, Review } from '@/lib/supabase';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useToast } from '@/hooks/use-toast';
-import { User, Star, MessageCircle, Briefcase, Calendar } from 'lucide-react';
-import { format } from 'date-fns';
-import { PageBreadcrumb } from '@/components/PageBreadcrumb';
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { supabase, Profile, UserRole, Listing, Review } from "@/lib/supabase";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useToast } from "@/hooks/use-toast";
+import { User, Star, MessageCircle, Briefcase, Calendar } from "lucide-react";
+import { format } from "date-fns";
+import { PageBreadcrumb } from "@/components/PageBreadcrumb";
 
 type ListingWithCategory = Listing & {
   categories: {
@@ -52,17 +52,17 @@ export default function PublicProfile() {
 
     // Fetch profile
     const { data: profileData, error: profileError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', id)
+      .from("profiles")
+      .select("*")
+      .eq("id", id)
       .maybeSingle();
 
     if (profileError) {
-      console.error('Profile fetch error:', profileError);
+      console.error("Profile fetch error:", profileError);
       toast({
-        title: 'Hata',
-        description: 'Profil bilgileri yüklenemedi.',
-        variant: 'destructive',
+        title: "Hata",
+        description: "Profil bilgileri yüklenemedi.",
+        variant: "destructive",
       });
       setLoading(false);
       return;
@@ -70,52 +70,55 @@ export default function PublicProfile() {
 
     if (!profileData) {
       toast({
-        title: 'Hata',
-        description: 'Kullanıcı bulunamadı.',
-        variant: 'destructive',
+        title: "Hata",
+        description: "Kullanıcı bulunamadı.",
+        variant: "destructive",
       });
-      navigate('/');
+      navigate("/");
       return;
     }
 
     setProfile(profileData);
 
     // Fetch role
-    const { data: roleData } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', id)
-      .maybeSingle();
+    const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", id).maybeSingle();
 
     const userRole = roleData?.role as UserRole | null;
     setRole(userRole);
 
     // If teacher, fetch listings
-    if (userRole === 'teacher') {
+    if (userRole === "teacher") {
       const { data: listingsData } = await supabase
-        .from('listings')
-        .select(`
+        .from("listings")
+        .select(
+          `
           *,
           categories(name, slug),
           listing_prices(price)
-        `)
-        .eq('teacher_id', id)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
+        `,
+        )
+        .eq("teacher_id", id)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
 
       if (listingsData) {
         setListings(listingsData as ListingWithCategory[]);
 
         // Fetch reviews received on teacher's listings
         const { data: reviewsData } = await supabase
-          .from('reviews')
-          .select(`
+          .from("reviews")
+          .select(
+            `
             *,
             profiles!reviews_customer_id_fkey(username, avatar_url),
             listings(title)
-          `)
-          .in('listing_id', listingsData.map((l) => l.id))
-          .order('created_at', { ascending: false })
+          `,
+          )
+          .in(
+            "listing_id",
+            listingsData.map((l) => l.id),
+          )
+          .order("created_at", { ascending: false })
           .limit(10);
 
         if (reviewsData) {
@@ -125,14 +128,16 @@ export default function PublicProfile() {
     } else {
       // Reviews given by this user
       const { data: reviewsData } = await supabase
-        .from('reviews')
-        .select(`
+        .from("reviews")
+        .select(
+          `
           *,
           profiles!reviews_customer_id_fkey(username, avatar_url),
           listings(title)
-        `)
-        .eq('customer_id', id)
-        .order('created_at', { ascending: false })
+        `,
+        )
+        .eq("customer_id", id)
+        .order("created_at", { ascending: false })
         .limit(10);
 
       if (reviewsData) {
@@ -171,24 +176,23 @@ export default function PublicProfile() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 max-w-7xl">
-        <PageBreadcrumb customItems={[
-          { label: 'Profil', href: '/profile' },
-          { label: profile.username || 'Kullanıcı' }
-        ]} />
-        
+        <PageBreadcrumb
+          customItems={[{ label: "Profil", href: "/profile" }, { label: profile.username || "Kullanıcı" }]}
+        />
+
         {/* Profile Header with gradient background */}
         <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-primary/10 via-primary/5 to-background border border-primary/20 shadow-glow mb-6 sm:mb-8">
           {/* Decorative background elements */}
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(120,119,198,0.1),transparent_50%)]" />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(120,119,198,0.08),transparent_50%)]" />
-          
+
           <div className="relative p-6 sm:p-8 lg:p-12">
             <div className="flex flex-col lg:flex-row items-center lg:items-start gap-6 lg:gap-8">
               {/* Avatar with decorative ring */}
               <div className="relative group">
                 <div className="absolute -inset-1 bg-gradient-to-r from-primary via-primary/50 to-primary rounded-full blur-sm group-hover:blur-md transition-all duration-300 opacity-75" />
                 <Avatar className="relative h-28 w-28 sm:h-36 sm:w-36 lg:h-40 lg:w-40 border-4 border-background shadow-xl">
-                  <AvatarImage src={profile.avatar_url || undefined} alt={profile.username || 'User'} />
+                  <AvatarImage src={profile.avatar_url || undefined} alt={profile.username || "User"} />
                   <AvatarFallback className="text-3xl sm:text-4xl lg:text-5xl bg-gradient-to-br from-primary/20 to-primary/10">
                     <User className="h-14 w-14 sm:h-20 sm:w-20 lg:h-24 lg:w-24 text-primary" />
                   </AvatarFallback>
@@ -200,18 +204,18 @@ export default function PublicProfile() {
                 <div className="space-y-2 sm:space-y-3">
                   <div className="flex flex-col lg:flex-row items-center lg:items-center gap-2 lg:gap-4">
                     <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
-                      {profile.username || 'Kullanıcı'}
+                      {profile.username || "Kullanıcı"}
                     </h1>
                     {role && (
-                      <Badge 
-                        variant={role === 'teacher' ? 'default' : 'secondary'} 
+                      <Badge
+                        variant={role === "teacher" ? "default" : "secondary"}
                         className="text-sm sm:text-base px-3 sm:px-4 py-1 sm:py-1.5"
                       >
-                        {role === 'teacher' ? '✨ Eğitmen' : '👤 Müşteri'}
+                        {role === "teacher" ? "✨ Eğitmen" : "👤 Danışan"}
                       </Badge>
                     )}
                   </div>
-                  
+
                   {profile.bio && (
                     <p className="text-base sm:text-lg text-muted-foreground max-w-2xl leading-relaxed">
                       {profile.bio}
@@ -222,18 +226,16 @@ export default function PublicProfile() {
                 <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 sm:gap-6 text-sm sm:text-base text-muted-foreground">
                   <div className="flex items-center gap-2 bg-background/50 backdrop-blur-sm px-3 sm:px-4 py-2 rounded-full border border-primary/10">
                     <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                    <span className="font-medium">
-                      {format(new Date(profile.created_at), 'MMMM yyyy')}
-                    </span>
+                    <span className="font-medium">{format(new Date(profile.created_at), "MMMM yyyy")}</span>
                   </div>
-                  
-                  {role === 'teacher' && listings.length > 0 && (
+
+                  {role === "teacher" && listings.length > 0 && (
                     <div className="flex items-center gap-2 bg-background/50 backdrop-blur-sm px-3 sm:px-4 py-2 rounded-full border border-primary/10">
                       <Briefcase className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                       <span className="font-medium">{listings.length} İlan</span>
                     </div>
                   )}
-                  
+
                   {reviews.length > 0 && (
                     <div className="flex items-center gap-2 bg-background/50 backdrop-blur-sm px-3 sm:px-4 py-2 rounded-full border border-primary/10">
                       <Star className="h-4 w-4 sm:h-5 sm:w-5 text-primary fill-primary" />
@@ -242,9 +244,9 @@ export default function PublicProfile() {
                   )}
                 </div>
 
-                {role === 'teacher' && (
-                  <Button 
-                    onClick={handleContactClick} 
+                {role === "teacher" && (
+                  <Button
+                    onClick={handleContactClick}
                     size="lg"
                     className="w-full sm:w-auto mt-2 text-base sm:text-lg px-6 sm:px-8 py-5 sm:py-6 rounded-xl shadow-lg hover:shadow-glow transition-all duration-300"
                   >
@@ -261,7 +263,7 @@ export default function PublicProfile() {
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 sm:gap-8">
           {/* Main Content - Listings */}
           <div className="xl:col-span-2 space-y-6 sm:space-y-8">
-            {role === 'teacher' && listings.length > 0 && (
+            {role === "teacher" && listings.length > 0 && (
               <Card className="border-primary/20 shadow-lg overflow-hidden">
                 <CardHeader className="bg-gradient-to-r from-primary/10 to-primary/5 border-b border-primary/10 p-5 sm:p-6 lg:p-8">
                   <CardTitle className="flex items-center gap-3 text-xl sm:text-2xl">
@@ -302,14 +304,19 @@ export default function PublicProfile() {
                               {listing.description}
                             </p>
                             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                              <Badge variant="outline" className="text-xs sm:text-sm px-3 py-1 border-primary/30 bg-primary/5">
+                              <Badge
+                                variant="outline"
+                                className="text-xs sm:text-sm px-3 py-1 border-primary/30 bg-primary/5"
+                              >
                                 {listing.categories.name}
                               </Badge>
                               {minPrice && (
                                 <span className="text-primary font-bold text-base sm:text-lg flex items-center gap-1">
                                   <span className="text-xs sm:text-sm text-muted-foreground">₺</span>
                                   {minPrice}
-                                  <span className="text-xs sm:text-sm text-muted-foreground font-normal">'den başlayan</span>
+                                  <span className="text-xs sm:text-sm text-muted-foreground font-normal">
+                                    'den başlayan
+                                  </span>
                                 </span>
                               )}
                             </div>
@@ -322,7 +329,7 @@ export default function PublicProfile() {
               </Card>
             )}
 
-            {role === 'teacher' && listings.length === 0 && (
+            {role === "teacher" && listings.length === 0 && (
               <Card className="border-primary/20 shadow-lg">
                 <CardContent className="p-12 sm:p-16 text-center space-y-4">
                   <div className="w-16 h-16 sm:w-20 sm:h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
@@ -343,13 +350,13 @@ export default function PublicProfile() {
                     <div className="p-2 bg-primary/20 rounded-xl">
                       <Star className="h-5 w-5 sm:h-6 sm:w-6 text-primary fill-primary" />
                     </div>
-                    <span>{role === 'teacher' ? 'Değerlendirmeler' : 'Yorumlar'}</span>
+                    <span>{role === "teacher" ? "Değerlendirmeler" : "Yorumlar"}</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-5 sm:p-6 space-y-4 max-h-[600px] overflow-y-auto">
                   {reviews.map((review) => (
-                    <div 
-                      key={review.id} 
+                    <div
+                      key={review.id}
                       className="p-4 sm:p-5 border border-primary/10 rounded-xl space-y-3 bg-gradient-to-br from-background to-primary/5 hover:border-primary/30 transition-colors duration-300"
                     >
                       <div className="flex items-start gap-3">
@@ -366,22 +373,16 @@ export default function PublicProfile() {
                               <Star
                                 key={i}
                                 className={`h-3.5 w-3.5 sm:h-4 sm:w-4 transition-colors ${
-                                  i < review.rating ? 'fill-primary text-primary' : 'text-muted-foreground'
+                                  i < review.rating ? "fill-primary text-primary" : "text-muted-foreground"
                                 }`}
                               />
                             ))}
-                            <span className="text-xs sm:text-sm text-muted-foreground ml-1">
-                              {review.rating}/5
-                            </span>
+                            <span className="text-xs sm:text-sm text-muted-foreground ml-1">{review.rating}/5</span>
                           </div>
                         </div>
                       </div>
-                      <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-                        {review.comment}
-                      </p>
-                      <p className="text-xs sm:text-sm text-primary/70 font-medium">
-                        {review.listings.title}
-                      </p>
+                      <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">{review.comment}</p>
+                      <p className="text-xs sm:text-sm text-primary/70 font-medium">{review.listings.title}</p>
                     </div>
                   ))}
                 </CardContent>
