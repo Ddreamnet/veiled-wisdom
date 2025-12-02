@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { supabase, Category } from '@/lib/supabase';
-import { Card, CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { PageBreadcrumb } from '@/components/PageBreadcrumb';
+import { useEffect, useState } from "react";
+import { useParams, Link } from "react-router-dom";
+import { supabase, Category } from "@/lib/supabase";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { PageBreadcrumb } from "@/components/PageBreadcrumb";
 
 export default function CategoryDetail() {
   const { slug } = useParams<{ slug: string }>();
@@ -23,10 +23,10 @@ export default function CategoryDetail() {
 
     // Get main category
     const { data: categoryData } = await supabase
-      .from('categories')
-      .select('*')
-      .eq('slug', slug)
-      .is('parent_id', null)
+      .from("categories")
+      .select("*")
+      .eq("slug", slug)
+      .is("parent_id", null)
       .single();
 
     if (!categoryData) {
@@ -38,10 +38,10 @@ export default function CategoryDetail() {
 
     // Get subcategories
     const { data: subCategoriesData } = await supabase
-      .from('categories')
-      .select('*')
-      .eq('parent_id', categoryData.id)
-      .order('display_order', { ascending: true });
+      .from("categories")
+      .select("*")
+      .eq("parent_id", categoryData.id)
+      .order("display_order", { ascending: true });
 
     if (subCategoriesData) {
       setSubCategories(subCategoriesData);
@@ -50,10 +50,10 @@ export default function CategoryDetail() {
       const counts: Record<string, number> = {};
       for (const subCat of subCategoriesData) {
         const { count } = await supabase
-          .from('listings')
-          .select('*', { count: 'exact', head: true })
-          .eq('category_id', subCat.id)
-          .eq('is_active', true);
+          .from("listings")
+          .select("*", { count: "exact", head: true })
+          .eq("category_id", subCat.id)
+          .eq("is_active", true);
 
         counts[subCat.id] = count || 0;
       }
@@ -92,15 +92,10 @@ export default function CategoryDetail() {
 
   return (
     <div className="container py-8 md:py-12 px-4">
-      <PageBreadcrumb customItems={[
-        { label: 'Kategorileri Keşfet', href: '/explore' },
-        { label: category.name }
-      ]} />
+      <PageBreadcrumb customItems={[{ label: "Kategorileri Keşfet", href: "/explore" }, { label: category.name }]} />
       <div className="mb-6 md:mb-8">
         <h1 className="text-3xl md:text-4xl font-bold mb-2">{category.name}</h1>
-        <p className="text-sm md:text-base text-muted-foreground">
-          {subCategories.length} alt kategori
-        </p>
+        <p className="text-sm md:text-base text-muted-foreground">{subCategories.length} alt kategori</p>
       </div>
 
       {subCategories.length === 0 ? (
@@ -127,9 +122,7 @@ export default function CategoryDetail() {
                 )}
                 <CardContent className="p-4 sm:p-5 md:p-6">
                   <h3 className="font-semibold text-base sm:text-lg mb-2">{subCat.name}</h3>
-                  <p className="text-xs sm:text-sm text-muted-foreground">
-                    {listingCounts[subCat.id] || 0} aktif ilan
-                  </p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">{listingCounts[subCat.id] || 0} ilan</p>
                 </CardContent>
               </Card>
             </Link>
