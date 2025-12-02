@@ -19,7 +19,7 @@ export default {
     extend: {
       fontFamily: {
         sans: ["Inter", "sans-serif"],
-        serif: ["Playfair Display", "Georgia", "serif"],
+        serif: ["Cinzel", "serif"],
       },
       colors: {
         // Silver accent colors
