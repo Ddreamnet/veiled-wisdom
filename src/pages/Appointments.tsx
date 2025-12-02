@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase, Appointment } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -18,84 +18,20 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { useAppointments } from '@/lib/queries';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function Appointments() {
   const { user, role } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [pending, setPending] = useState<Appointment[]>([]);
-  const [completed, setCompleted] = useState<Appointment[]>([]);
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState<string | null>(null);
-  const [dataLoading, setDataLoading] = useState(true);
-  const [reviewedAppointments, setReviewedAppointments] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    if (user) {
-      fetchAppointments();
-    }
-  }, [user, role]);
-
-  const fetchAppointments = async () => {
-    if (!user) return;
-    setDataLoading(true);
-
-    const column = role === 'teacher' ? 'teacher_id' : 'customer_id';
-    const now = new Date().toISOString();
-
-    const { data: pendingData } = await supabase
-      .from('appointments')
-      .select(`
-        *,
-        listing:listings(title, id),
-        customer:profiles!appointments_customer_id_fkey(username),
-        teacher:profiles!appointments_teacher_id_fkey(username)
-      `)
-      .eq(column, user.id)
-      .gte('start_ts', now)
-      .order('start_ts', { ascending: true });
-
-    const { data: completedData } = await supabase
-      .from('appointments')
-      .select(`
-        *,
-        listing:listings(title, id),
-        customer:profiles!appointments_customer_id_fkey(username),
-        teacher:profiles!appointments_teacher_id_fkey(username)
-      `)
-      .eq(column, user.id)
-      .lt('start_ts', now)
-      .order('start_ts', { ascending: false });
-
-    if (pendingData) setPending(pendingData as any);
-    if (completedData) {
-      setCompleted(completedData as any);
-      
-      // Check which appointments have been reviewed
-      if (role === 'customer') {
-        const appointmentIds = completedData.map((a: any) => a.id);
-        const { data: reviews } = await supabase
-          .from('reviews')
-          .select('id')
-          .in('listing_id', completedData.map((a: any) => a.listing?.id).filter(Boolean))
-          .eq('customer_id', user.id);
-        
-        if (reviews) {
-          const reviewedListings = new Set(
-            completedData
-              .filter((a: any) => 
-                reviews.some((r: any) => 
-                  completedData.find((ap: any) => ap.listing?.id === a.listing?.id && ap.customer_id === user.id)
-                )
-              )
-              .map((a: any) => a.id)
-          );
-          setReviewedAppointments(reviewedListings);
-        }
-      }
-    }
-    
-    setDataLoading(false);
-  };
+  const { data, isLoading: dataLoading } = useAppointments(user?.id, role);
+  const pending = data?.pending || [];
+  const completed = data?.completed || [];
+  const reviewedAppointments = data?.reviewedIds || new Set<string>();
 
   const handleStatusUpdate = async (appointment: any, newStatus: 'confirmed' | 'cancelled') => {
     setLoading(appointment.id);
@@ -128,8 +64,8 @@ export default function Appointments() {
         description: 'Kullanıcıya email bildirimi gönderildi.',
       });
 
-      // Refresh appointments
-      fetchAppointments();
+      // Invalidate cache to refresh data
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
     } catch (error: any) {
       toast({
         title: 'Hata',
@@ -139,6 +75,10 @@ export default function Appointments() {
     } finally {
       setLoading(null);
     }
+  };
+
+  const handleReviewSubmitted = () => {
+    queryClient.invalidateQueries({ queryKey: ['appointments'] });
   };
 
   const renderAppointment = (appointment: any, isCompletedTab = false) => {
@@ -199,7 +139,7 @@ export default function Appointments() {
                 appointmentId={appointment.id}
                 listingId={appointment.listing.id}
                 customerId={user!.id}
-                onReviewSubmitted={fetchAppointments}
+                onReviewSubmitted={handleReviewSubmitted}
               />
             </div>
           )}
@@ -249,20 +189,20 @@ export default function Appointments() {
 
       {dataLoading ? (
         <div className="space-y-4">
-          <Skeleton variant="wave" className="h-10 w-full max-w-md" />
+          <Skeleton className="h-10 w-full max-w-md" />
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
               <Card key={i}>
                 <CardHeader>
-                  <Skeleton variant="shimmer" className="h-6 w-48 mb-2" />
+                  <Skeleton className="h-6 w-48 mb-2" />
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <Skeleton variant="shimmer" className="h-4 w-full" />
-                  <Skeleton variant="shimmer" className="h-4 w-3/4" />
-                  <Skeleton variant="shimmer" className="h-4 w-2/3" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-2/3" />
                   <div className="flex gap-2 pt-2">
-                    <Skeleton variant="shimmer" className="h-9 w-24" />
-                    <Skeleton variant="shimmer" className="h-9 w-24" />
+                    <Skeleton className="h-9 w-24" />
+                    <Skeleton className="h-9 w-24" />
                   </div>
                 </CardContent>
               </Card>
@@ -281,7 +221,7 @@ export default function Appointments() {
                 Bekleyen randevunuz bulunmuyor.
               </p>
             ) : (
-              pending.map((apt) => renderAppointment(apt, false))
+              pending.map((apt: any) => renderAppointment(apt, false))
             )}
           </TabsContent>
           <TabsContent value="completed" className="mt-6">
@@ -290,7 +230,7 @@ export default function Appointments() {
                 Tamamlanmış randevunuz bulunmuyor.
               </p>
             ) : (
-              completed.map((apt) => renderAppointment(apt, true))
+              completed.map((apt: any) => renderAppointment(apt, true))
             )}
           </TabsContent>
         </Tabs>

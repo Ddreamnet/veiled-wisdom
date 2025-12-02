@@ -259,3 +259,170 @@ export function useHomeData() {
     staleTime: 5 * 60 * 1000,
   });
 }
+
+export function useCuriosity(slug: string | undefined) {
+  return useQuery({
+    queryKey: ['curiosity', slug],
+    queryFn: async () => {
+      if (!slug) return null;
+      const { data } = await supabase
+        .from('curiosities')
+        .select('*')
+        .eq('slug', slug)
+        .single();
+      return data;
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes - content doesn't change often
+    enabled: !!slug,
+  });
+}
+
+export function usePublicProfile(userId: string | undefined) {
+  return useQuery({
+    queryKey: ['public-profile', userId],
+    queryFn: async () => {
+      if (!userId) return null;
+
+      // Fetch profile, role, and listings in parallel
+      const [profileResult, roleResult] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
+        supabase.from('user_roles').select('role').eq('user_id', userId).maybeSingle(),
+      ]);
+
+      if (!profileResult.data) return null;
+
+      const profile = profileResult.data;
+      const role = roleResult.data?.role as string | null;
+
+      let listings: any[] = [];
+      let reviews: any[] = [];
+
+      if (role === 'teacher') {
+        // Fetch listings and reviews in parallel for teachers
+        const [listingsResult, reviewsResult] = await Promise.all([
+          supabase
+            .from('listings')
+            .select('*, categories(name, slug), listing_prices(price)')
+            .eq('teacher_id', userId)
+            .eq('is_active', true)
+            .order('created_at', { ascending: false }),
+          // We'll fetch reviews after getting listings
+          Promise.resolve({ data: [] }),
+        ]);
+
+        listings = listingsResult.data || [];
+
+        // Fetch reviews for teacher's listings
+        if (listings.length > 0) {
+          const { data: reviewsData } = await supabase
+            .from('reviews')
+            .select('*, profiles!reviews_customer_id_fkey(username, avatar_url), listings(title)')
+            .in('listing_id', listings.map(l => l.id))
+            .order('created_at', { ascending: false })
+            .limit(10);
+          reviews = reviewsData || [];
+        }
+      } else {
+        // Fetch reviews given by customer
+        const { data: reviewsData } = await supabase
+          .from('reviews')
+          .select('*, profiles!reviews_customer_id_fkey(username, avatar_url), listings(title)')
+          .eq('customer_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(10);
+        reviews = reviewsData || [];
+      }
+
+      return { profile, role, listings, reviews };
+    },
+    staleTime: 3 * 60 * 1000, // 3 minutes
+    enabled: !!userId,
+  });
+}
+
+export function useAppointments(userId: string | undefined, role: string | null) {
+  return useQuery({
+    queryKey: ['appointments', userId, role],
+    queryFn: async () => {
+      if (!userId) return { pending: [], completed: [] };
+
+      const column = role === 'teacher' ? 'teacher_id' : 'customer_id';
+      const now = new Date().toISOString();
+
+      // Fetch pending and completed appointments in parallel
+      const [pendingResult, completedResult] = await Promise.all([
+        supabase
+          .from('appointments')
+          .select(`
+            *,
+            listing:listings(title, id),
+            customer:profiles!appointments_customer_id_fkey(username),
+            teacher:profiles!appointments_teacher_id_fkey(username)
+          `)
+          .eq(column, userId)
+          .gte('start_ts', now)
+          .order('start_ts', { ascending: true }),
+        supabase
+          .from('appointments')
+          .select(`
+            *,
+            listing:listings(title, id),
+            customer:profiles!appointments_customer_id_fkey(username),
+            teacher:profiles!appointments_teacher_id_fkey(username)
+          `)
+          .eq(column, userId)
+          .lt('start_ts', now)
+          .order('start_ts', { ascending: false }),
+      ]);
+
+      const pending = pendingResult.data || [];
+      const completed = completedResult.data || [];
+
+      // Check reviewed appointments for customers
+      let reviewedIds = new Set<string>();
+      if (role === 'customer' && completed.length > 0) {
+        const listingIds = completed.map((a: any) => a.listing?.id).filter(Boolean);
+        if (listingIds.length > 0) {
+          const { data: reviews } = await supabase
+            .from('reviews')
+            .select('listing_id')
+            .in('listing_id', listingIds)
+            .eq('customer_id', userId);
+          
+          if (reviews) {
+            const reviewedListingIds = new Set(reviews.map(r => r.listing_id));
+            completed.forEach((a: any) => {
+              if (a.listing?.id && reviewedListingIds.has(a.listing.id)) {
+                reviewedIds.add(a.id);
+              }
+            });
+          }
+        }
+      }
+
+      return { pending, completed, reviewedIds };
+    },
+    staleTime: 1 * 60 * 1000, // 1 minute - appointments change frequently
+    enabled: !!userId,
+  });
+}
+
+export function useProfile(userId: string | undefined) {
+  return useQuery({
+    queryKey: ['profile', userId],
+    queryFn: async () => {
+      if (!userId) return null;
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled: !!userId,
+  });
+}

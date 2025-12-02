@@ -137,28 +137,39 @@ export default function MyListings() {
     setLoading(true);
 
     try {
+      // Fetch listings with category
       const { data } = await supabase
         .from('listings')
         .select('*, category:categories(*)')
         .eq('teacher_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (data) {
-        const listingsWithPrices = await Promise.all(
-          data.map(async (listing) => {
-            const { data: prices } = await supabase
-              .from('listing_prices')
-              .select('*')
-              .eq('listing_id', listing.id);
+      if (data && data.length > 0) {
+        // Batch fetch all prices in a single query
+        const listingIds = data.map(l => l.id);
+        const { data: allPrices } = await supabase
+          .from('listing_prices')
+          .select('*')
+          .in('listing_id', listingIds);
 
-            return {
-              ...listing,
-              prices: prices || [],
-            };
-          })
-        );
+        // Group prices by listing_id
+        const pricesMap: Record<string, any[]> = {};
+        (allPrices || []).forEach(price => {
+          if (!pricesMap[price.listing_id]) {
+            pricesMap[price.listing_id] = [];
+          }
+          pricesMap[price.listing_id].push(price);
+        });
+
+        // Merge prices into listings
+        const listingsWithPrices = data.map(listing => ({
+          ...listing,
+          prices: pricesMap[listing.id] || [],
+        }));
 
         setListings(listingsWithPrices as any);
+      } else {
+        setListings([]);
       }
     } catch (error) {
       toast({
