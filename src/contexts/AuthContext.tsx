@@ -58,9 +58,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.log('[AuthContext] New sign in detected, processing...');
             // Don't skip - let it fall through to the initialization flow below
           } else {
-            // Skip all other events to prevent tab-switch re-renders
-            setSession(session);
-            console.log('[AuthContext] Skipping event to prevent re-render:', event);
+            // Skip all other events (TOKEN_REFRESHED, etc.) completely to prevent tab-switch re-renders
+            // Don't even update session state - the token is refreshed internally by Supabase
+            console.log('[AuthContext] Skipping event completely to prevent re-render:', event);
             return;
           }
         }
