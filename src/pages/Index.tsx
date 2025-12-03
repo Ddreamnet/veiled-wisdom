@@ -8,6 +8,7 @@ import { useMousePosition } from "@/hooks/useMousePosition";
 import { useScrollPosition } from "@/hooks/useScrollPosition";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHomeData } from "@/lib/queries";
+import { getOptimizedThumbnailUrl, getOptimizedCoverUrl } from "@/lib/imageOptimizer";
 import logoImage from "@/assets/logo.png";
 
 // Lazy load ParticleBackground - it's heavy and not critical
@@ -145,12 +146,12 @@ export default function Index() {
                   </CardContent>
                 </Card>
               ))
-            : curiosities.map((curiosity) => (
+              : curiosities.map((curiosity) => (
                 <Card key={curiosity.id} className="group overflow-hidden card-hover">
                   {curiosity.cover_url && (
                     <div className="relative h-48 sm:h-52 md:h-56 overflow-hidden">
                       <img
-                        src={curiosity.cover_url}
+                        src={getOptimizedCoverUrl(curiosity.cover_url)}
                         alt={curiosity.title}
                         loading="lazy"
                         decoding="async"
@@ -199,13 +200,13 @@ export default function Index() {
                   </CardContent>
                 </Card>
               ))
-            : categories.map((category) => (
+              : categories.map((category) => (
                 <Link key={category.id} to={`/categories/${category.slug}`}>
                   <Card className="group overflow-hidden h-full card-hover">
                     {category.image_url && (
                       <div className="relative h-40 sm:h-44 md:h-48 overflow-hidden">
                         <img
-                          src={category.image_url}
+                          src={getOptimizedThumbnailUrl(category.image_url)}
                           alt={category.name}
                           loading="lazy"
                           decoding="async"

@@ -1,6 +1,7 @@
 /**
  * Image optimization utilities for Supabase Storage
- * Converts URLs to use Supabase Image Transformation for WebP delivery
+ * Note: Image Transformation temporarily disabled - returning original URLs
+ * Enable when Supabase Image Transformation is properly configured
  */
 
 type OptimizeOptions = {
@@ -11,18 +12,14 @@ type OptimizeOptions = {
 };
 
 /**
- * Convert a Supabase storage URL to an optimized URL with WebP format
- * Uses Supabase Image Transformation API
- * NOTE: Temporarily disabled - returning original URLs
+ * Get optimized image URL
+ * Currently returns original URL - transformation can be enabled later
  */
 export function getOptimizedImageUrl(
   originalUrl: string | null | undefined,
-  options: OptimizeOptions = {}
+  _options: OptimizeOptions = {}
 ): string {
   if (!originalUrl) return '';
-  
-  // Temporarily return original URL to fix display issue
-  // Image Transformation can be re-enabled after verifying bucket settings
   return originalUrl;
 }
 
