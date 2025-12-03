@@ -33,9 +33,9 @@ export function ImageUpload({
     };
     reader.readAsDataURL(file);
 
-    // Upload
+    // Upload (pass current image URL to delete old one)
     setUploading(true);
-    const { url, error } = await uploadListingImage(file, listingId);
+    const { url, error } = await uploadListingImage(file, listingId, currentImageUrl);
 
     if (error) {
       toast({

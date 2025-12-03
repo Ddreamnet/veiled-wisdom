@@ -31,9 +31,9 @@ export function AvatarUpload({ currentAvatarUrl, userId, onUploadComplete }: Ava
     };
     reader.readAsDataURL(file);
 
-    // Upload
+    // Upload (pass current avatar URL to delete old one)
     setUploading(true);
-    const { url, error } = await uploadAvatar(file, userId);
+    const { url, error } = await uploadAvatar(file, userId, currentAvatarUrl);
 
     if (error) {
       toast({

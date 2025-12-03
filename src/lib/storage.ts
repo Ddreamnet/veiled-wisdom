@@ -56,8 +56,9 @@ async function convertToWebP(file: File, quality: number = 0.85): Promise<{ blob
 
 /**
  * Upload avatar image to Supabase Storage
+ * If oldUrl is provided, deletes the old file after successful upload
  */
-export async function uploadAvatar(file: File, userId: string): Promise<UploadResult> {
+export async function uploadAvatar(file: File, userId: string, oldUrl?: string | null): Promise<UploadResult> {
   try {
     // Validate file type
     if (!file.type.startsWith('image/')) {
@@ -91,6 +92,11 @@ export async function uploadAvatar(file: File, userId: string): Promise<UploadRe
       .from(AVATAR_BUCKET)
       .getPublicUrl(fileName);
 
+    // Delete old file if exists
+    if (oldUrl) {
+      await deleteFile(AVATAR_BUCKET, oldUrl);
+    }
+
     // Preload the image for better performance
     try {
       await preloadImage(data.publicUrl);
@@ -106,8 +112,9 @@ export async function uploadAvatar(file: File, userId: string): Promise<UploadRe
 
 /**
  * Upload listing image to Supabase Storage
+ * If oldUrl is provided, deletes the old file after successful upload
  */
-export async function uploadListingImage(file: File, listingId: string): Promise<UploadResult> {
+export async function uploadListingImage(file: File, listingId: string, oldUrl?: string | null): Promise<UploadResult> {
   try {
     // Validate file type
     if (!file.type.startsWith('image/')) {
@@ -140,6 +147,11 @@ export async function uploadListingImage(file: File, listingId: string): Promise
     const { data } = supabase.storage
       .from(LISTING_IMAGES_BUCKET)
       .getPublicUrl(fileName);
+
+    // Delete old file if exists
+    if (oldUrl) {
+      await deleteFile(LISTING_IMAGES_BUCKET, oldUrl);
+    }
 
     // Preload the image for better performance
     try {
@@ -180,8 +192,9 @@ export async function deleteFile(bucket: string, filePath: string): Promise<{ er
 
 /**
  * Upload category image to Supabase Storage
+ * If oldUrl is provided, deletes the old file after successful upload
  */
-export async function uploadCategoryImage(file: File, categoryId: string): Promise<UploadResult> {
+export async function uploadCategoryImage(file: File, categoryId: string, oldUrl?: string | null): Promise<UploadResult> {
   try {
     // Validate file type
     if (!file.type.startsWith('image/')) {
@@ -214,6 +227,11 @@ export async function uploadCategoryImage(file: File, categoryId: string): Promi
     const { data } = supabase.storage
       .from(CATEGORY_IMAGES_BUCKET)
       .getPublicUrl(fileName);
+
+    // Delete old file if exists
+    if (oldUrl) {
+      await deleteFile(CATEGORY_IMAGES_BUCKET, oldUrl);
+    }
 
     // Preload the image for better performance
     try {
