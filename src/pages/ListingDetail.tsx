@@ -36,6 +36,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useListing } from '@/lib/queries';
+import { getOptimizedCoverUrl, getOptimizedAvatarUrl } from '@/lib/imageOptimizer';
 
 type TeacherDetails = {
   username: string;
@@ -256,7 +257,7 @@ export default function ListingDetail() {
               <div className="relative group overflow-hidden rounded-xl shadow-lg">
                 <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/20 to-transparent z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 <img
-                  src={listing.cover_url}
+                  src={getOptimizedCoverUrl(listing.cover_url)}
                   alt={listing.title}
                   loading="lazy"
                   decoding="async"
@@ -293,7 +294,7 @@ export default function ListingDetail() {
               <div className="flex items-start gap-3 md:gap-4 pb-3 md:pb-4 border-b">
                 {listing.teacher.avatar_url ? (
                   <img
-                    src={listing.teacher.avatar_url}
+                    src={getOptimizedAvatarUrl(listing.teacher.avatar_url)}
                     alt={listing.teacher.username}
                     className="w-12 h-12 md:w-16 md:h-16 rounded-full object-cover flex-shrink-0"
                   />
@@ -634,7 +635,7 @@ export default function ListingDetail() {
                 <div className="flex items-start gap-3 md:gap-4 pb-3 md:pb-4 border-b">
                   {listing.teacher.avatar_url ? (
                     <img
-                      src={listing.teacher.avatar_url}
+                      src={getOptimizedAvatarUrl(listing.teacher.avatar_url)}
                       alt={listing.teacher.username}
                       className="w-12 h-12 md:w-16 md:h-16 rounded-full object-cover flex-shrink-0"
                     />

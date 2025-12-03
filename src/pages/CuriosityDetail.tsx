@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageBreadcrumb } from '@/components/PageBreadcrumb';
 import { useCuriosity } from '@/lib/queries';
+import { getOptimizedCoverUrl } from '@/lib/imageOptimizer';
 
 export default function CuriosityDetail() {
   const { slug } = useParams<{ slug: string }>();
@@ -49,7 +50,7 @@ export default function CuriosityDetail() {
 
         {curiosity.cover_url && (
           <img
-            src={curiosity.cover_url}
+            src={getOptimizedCoverUrl(curiosity.cover_url)}
             alt={curiosity.title}
             loading="lazy"
             decoding="async"
