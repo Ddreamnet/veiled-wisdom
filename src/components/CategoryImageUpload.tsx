@@ -37,9 +37,9 @@ export function CategoryImageUpload({
     };
     reader.readAsDataURL(file);
 
-    // Upload
+    // Upload (pass current image URL to delete old one)
     setUploading(true);
-    const { url, error } = await uploadCategoryImage(file, categoryId);
+    const { url, error } = await uploadCategoryImage(file, categoryId, currentImageUrl);
 
     if (error) {
       toast({
