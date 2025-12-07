@@ -46,7 +46,7 @@ const FooterComponent = () => {
 
             <div>
               <h3 className="font-semibold text-silver mb-4">
-                <Link to="/explore" className="hover:text-primary transition-colors">Kategoriler</Link>
+                <Link to="/explore" className="hover:text-primary transition-colors">KATEGORİLER</Link>
               </h3>
               <ul className="space-y-2 text-sm">
                 <li>
@@ -73,7 +73,7 @@ const FooterComponent = () => {
             </div>
 
             <div>
-              <h3 className="font-semibold text-silver mb-4">Hakkımızda</h3>
+              <h3 className="font-semibold text-silver mb-4">HAKKIMIZDA</h3>
               <ul className="space-y-2 text-sm">
                 <li>
                   <Link to="/about" className="text-silver-muted hover:text-silver transition-smooth">
@@ -99,7 +99,7 @@ const FooterComponent = () => {
             </div>
 
             <div>
-              <h3 className="font-semibold text-silver mb-4">Destek</h3>
+              <h3 className="font-semibold text-silver mb-4">DESTEK</h3>
               <ul className="space-y-2 text-sm">
                 <li>
                   <Link to="/contact" className="text-silver-muted hover:text-silver transition-smooth">
