@@ -77,12 +77,12 @@ export default function FAQ() {
     <div className="container py-8 md:py-12 px-4 md:px-6 lg:px-8">
       <PageBreadcrumb />
       
-      <div className="flex items-center justify-center gap-3 mb-6 md:mb-8">
+      <div className="flex items-center gap-3 mb-6 md:mb-8">
         <HelpCircle className="w-6 h-6 md:w-7 md:h-7 text-primary" />
         <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold">{title}</h1>
       </div>
       
-      <Card className="border-border/50 bg-card/50 backdrop-blur-sm max-w-3xl mx-auto">
+      <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
         <CardContent className="p-4 md:p-6">
           <Accordion type="single" collapsible className="w-full">
             {faqs.map((faq, index) => (
