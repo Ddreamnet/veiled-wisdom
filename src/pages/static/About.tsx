@@ -18,15 +18,12 @@ export default function About() {
     <div className="container py-8 md:py-12 px-4 md:px-6 lg:px-8">
       <PageBreadcrumb />
       
-      <div className="flex items-center justify-center gap-3 mb-6 md:mb-8">
+      <div className="flex items-center gap-3 mb-6 md:mb-8">
         <Sparkles className="w-6 h-6 md:w-8 md:h-8 text-primary" />
-        <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-center">{title}</h1>
-        <Sparkles className="w-6 h-6 md:w-8 md:h-8 text-primary" />
+        <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold">{title}</h1>
       </div>
       
-      <div className="max-w-3xl mx-auto">
-        <DynamicPageContent content={content} isLoading={isLoading} />
-      </div>
+      <DynamicPageContent content={content} isLoading={isLoading} />
     </div>
   );
 }

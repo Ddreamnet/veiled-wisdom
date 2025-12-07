@@ -21,14 +21,12 @@ export default function Terms() {
     <div className="container py-8 md:py-12 px-4 md:px-6 lg:px-8">
       <PageBreadcrumb />
       
-      <div className="flex items-center justify-center gap-3 mb-6 md:mb-8">
+      <div className="flex items-center gap-3 mb-6 md:mb-8">
         <FileText className="w-6 h-6 md:w-7 md:h-7 text-primary" />
         <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold">{title}</h1>
       </div>
       
-      <div className="max-w-3xl mx-auto">
-        <DynamicPageContent content={content} isLoading={isLoading} />
-      </div>
+      <DynamicPageContent content={content} isLoading={isLoading} />
     </div>
   );
 }
