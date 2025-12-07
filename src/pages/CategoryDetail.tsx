@@ -47,7 +47,7 @@ export default function CategoryDetail() {
         ]}
       />
       <div className="mb-6 md:mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold mb-2">{category.name}</h1>
+        <h1 className="text-3xl md:text-4xl font-bold mb-2 font-serif uppercase">{category.name}</h1>
         <p className="text-sm md:text-base text-muted-foreground">
           {subCategories.length} alt kategori
         </p>
@@ -78,7 +78,7 @@ export default function CategoryDetail() {
                   <div className="w-full h-40 sm:h-44 md:h-48 bg-primary/20 rounded-t-lg" />
                 )}
                 <CardContent className="p-4 sm:p-5 md:p-6 flex items-center justify-between pb-[12px] py-[24px]">
-                  <h3 className="font-semibold text-base sm:text-lg">{subCat.name}</h3>
+                  <h3 className="font-semibold text-base sm:text-lg font-serif uppercase">{subCat.name}</h3>
                   <p className="text-xs sm:text-sm text-muted-foreground">
                     {listingCounts[subCat.id] || 0} ilan
                   </p>

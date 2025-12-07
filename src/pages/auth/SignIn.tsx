@@ -37,7 +37,7 @@ export default function SignIn() {
               <div className="absolute inset-0 bg-primary/30 blur-xl" />
             </div>
           </div>
-          <CardTitle className="text-3xl font-serif text-center text-gradient-silver">Giriş Yap</CardTitle>
+          <CardTitle className="text-3xl font-serif text-center text-gradient-silver uppercase">GİRİŞ YAP</CardTitle>
           <CardDescription className="text-center text-silver-muted">
             Hesabınıza giriş yapın
           </CardDescription>
