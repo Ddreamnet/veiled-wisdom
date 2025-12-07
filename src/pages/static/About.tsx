@@ -1,6 +1,7 @@
 import { PageBreadcrumb } from "@/components/PageBreadcrumb";
 import { DynamicPageContent } from "@/components/DynamicPageContent";
 import { useStaticPage } from "@/hooks/useStaticPages";
+import { Sparkles } from "lucide-react";
 
 const defaultContent = `Leyl, gizli ilimler ve antik bilgelik alanında uzmanlaşmış uzmanlar ile danışanları bir araya getiren modern bir platformdur.
 
@@ -16,8 +17,16 @@ export default function About() {
   return (
     <div className="container py-8 md:py-12 px-4 md:px-6 lg:px-8">
       <PageBreadcrumb />
-      <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-6 md:mb-8">{title}</h1>
-      <DynamicPageContent content={content} isLoading={isLoading} />
+      
+      <div className="flex items-center justify-center gap-3 mb-6 md:mb-8">
+        <Sparkles className="w-6 h-6 md:w-8 md:h-8 text-primary" />
+        <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-center">{title}</h1>
+        <Sparkles className="w-6 h-6 md:w-8 md:h-8 text-primary" />
+      </div>
+      
+      <div className="max-w-3xl mx-auto">
+        <DynamicPageContent content={content} isLoading={isLoading} />
+      </div>
     </div>
   );
 }
