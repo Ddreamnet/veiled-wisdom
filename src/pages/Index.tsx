@@ -66,7 +66,7 @@ export default function Index() {
             </div>
 
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-serif font-bold text-smoky leading-tight">Leyl</h1>
-            <p className="text-2xl md:text-3xl lg:text-4xl font-serif text-gradient-silver">Gizli İlimler Platformu</p>
+            <p className="text-2xl md:text-3xl lg:text-4xl font-serif text-gradient-silver">GİZLİ İLİMLER PLATFORMU</p>
 
             <p className="text-base md:text-lg lg:text-xl text-silver-muted leading-relaxed max-w-3xl mx-auto">
               Antik bilgelik ve modern yaklaşımın buluştuğu platform. Uzmanlarımızla tanışın ve bilgelik yolculuğunuza
@@ -175,7 +175,7 @@ export default function Index() {
       <section className="container py-12 md:py-16 lg:py-24 px-4">
         <div className="text-center mb-8 md:mb-12">
           <h2 className="text-3xl md:text-4xl font-serif font-bold text-gradient-silver mb-2">Kategoriler</h2>
-          <p className="text-sm md:text-base text-silver-muted">Uzmanlık alanlarını keşfedin</p>
+          <p className="text-sm md:text-base text-silver-muted">Uzmanlık Alanlarını Keşfedin! 🌼🤍🌕</p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
