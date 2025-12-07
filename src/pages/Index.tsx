@@ -119,7 +119,7 @@ export default function Index() {
       <section className="container py-12 md:py-16 lg:py-24 px-4 -mt-32">
         <div className="text-center mb-8 md:mb-12">
           <h2 className="text-3xl md:text-4xl font-serif font-bold text-gradient-silver mb-2">Merak Konuları</h2>
-          <p className="text-sm md:text-base text-silver-muted">Gizemli konuları keşfedin</p>
+          <p className="text-sm md:text-base text-silver-muted">Gizemli konuları keşfedin!🌼🤍🌕</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
