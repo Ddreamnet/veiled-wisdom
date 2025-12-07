@@ -112,7 +112,7 @@ export default function SignUp() {
               <div className="absolute inset-0 bg-primary/30 blur-xl" />
             </div>
           </div>
-          <CardTitle className="text-3xl font-serif text-center text-gradient-silver">Kayıt Ol</CardTitle>
+          <CardTitle className="text-3xl font-serif text-center text-gradient-silver uppercase">KAYIT OL</CardTitle>
           <CardDescription className="text-center text-silver-muted">Yeni hesap oluşturun</CardDescription>
         </CardHeader>
         <CardContent>
