@@ -1,24 +1,26 @@
-import { Link } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Users, FolderTree, FileText, Sparkles, TrendingUp, Calendar, DollarSign, UserCheck } from 'lucide-react';
-import { useEffect, useState, lazy, Suspense } from 'react';
-import { supabase } from '@/lib/supabase';
-import { AdminBreadcrumb } from '@/components/AdminBreadcrumb';
+import { Link } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Users, FolderTree, FileText, Sparkles, TrendingUp, Calendar, DollarSign, UserCheck } from "lucide-react";
+import { useEffect, useState, lazy, Suspense } from "react";
+import { supabase } from "@/lib/supabase";
+import { AdminBreadcrumb } from "@/components/AdminBreadcrumb";
 
 // Lazy load chart components
-const ChartContainer = lazy(() => import('@/components/ui/chart').then(m => ({ default: m.ChartContainer })));
-const ChartTooltip = lazy(() => import('@/components/ui/chart').then(m => ({ default: m.ChartTooltip })));
-const ChartTooltipContent = lazy(() => import('@/components/ui/chart').then(m => ({ default: m.ChartTooltipContent })));
+const ChartContainer = lazy(() => import("@/components/ui/chart").then((m) => ({ default: m.ChartContainer })));
+const ChartTooltip = lazy(() => import("@/components/ui/chart").then((m) => ({ default: m.ChartTooltip })));
+const ChartTooltipContent = lazy(() =>
+  import("@/components/ui/chart").then((m) => ({ default: m.ChartTooltipContent })),
+);
 
 // Lazy load recharts
-const AreaChart = lazy(() => import('recharts').then(m => ({ default: m.AreaChart })));
-const Area = lazy(() => import('recharts').then(m => ({ default: m.Area })));
-const BarChart = lazy(() => import('recharts').then(m => ({ default: m.BarChart })));
-const Bar = lazy(() => import('recharts').then(m => ({ default: m.Bar })));
-const CartesianGrid = lazy(() => import('recharts').then(m => ({ default: m.CartesianGrid })));
-const XAxis = lazy(() => import('recharts').then(m => ({ default: m.XAxis })));
-const YAxis = lazy(() => import('recharts').then(m => ({ default: m.YAxis })));
+const AreaChart = lazy(() => import("recharts").then((m) => ({ default: m.AreaChart })));
+const Area = lazy(() => import("recharts").then((m) => ({ default: m.Area })));
+const BarChart = lazy(() => import("recharts").then((m) => ({ default: m.BarChart })));
+const Bar = lazy(() => import("recharts").then((m) => ({ default: m.Bar })));
+const CartesianGrid = lazy(() => import("recharts").then((m) => ({ default: m.CartesianGrid })));
+const XAxis = lazy(() => import("recharts").then((m) => ({ default: m.XAxis })));
+const YAxis = lazy(() => import("recharts").then((m) => ({ default: m.YAxis })));
 
 type DashboardStats = {
   totalTeachers: number;
@@ -69,29 +71,29 @@ export default function AdminDashboard() {
         revenueResult,
         trendsResult,
       ] = await Promise.all([
-        supabase.from('user_roles').select('*', { count: 'exact', head: true }).eq('role', 'teacher'),
-        supabase.from('teacher_approvals').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-        supabase.from('categories').select('*', { count: 'exact', head: true }),
-        supabase.from('appointments').select('*', { count: 'exact', head: true }),
-        supabase.from('appointments').select('*', { count: 'exact', head: true }).eq('status', 'completed'),
+        supabase.from("user_roles").select("*", { count: "exact", head: true }).eq("role", "teacher"),
+        supabase.from("teacher_approvals").select("*", { count: "exact", head: true }).eq("status", "pending"),
+        supabase.from("categories").select("*", { count: "exact", head: true }),
+        supabase.from("appointments").select("*", { count: "exact", head: true }),
+        supabase.from("appointments").select("*", { count: "exact", head: true }).eq("status", "completed"),
         supabase
-          .from('appointments')
-          .select('price_at_booking')
-          .eq('status', 'completed')
-          .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
+          .from("appointments")
+          .select("price_at_booking")
+          .eq("status", "completed")
+          .gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
         supabase
-          .from('appointments')
-          .select('created_at')
-          .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-          .order('created_at', { ascending: true }),
+          .from("appointments")
+          .select("created_at")
+          .gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+          .order("created_at", { ascending: true }),
       ]);
 
-      const monthlyRevenue = revenueResult.data?.reduce((sum, apt) => sum + (apt.price_at_booking * 0.15), 0) || 0;
+      const monthlyRevenue = revenueResult.data?.reduce((sum, apt) => sum + apt.price_at_booking * 0.15, 0) || 0;
 
       // Group trends by date
       const trendMap = new Map<string, number>();
       trendsResult.data?.forEach((apt) => {
-        const date = new Date(apt.created_at).toLocaleDateString('tr-TR', { month: 'short', day: 'numeric' });
+        const date = new Date(apt.created_at).toLocaleDateString("tr-TR", { month: "short", day: "numeric" });
         trendMap.set(date, (trendMap.get(date) || 0) + 1);
       });
 
@@ -108,7 +110,7 @@ export default function AdminDashboard() {
 
       setAppointmentTrends(trends);
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+      console.error("Error fetching dashboard data:", error);
     } finally {
       setLoading(false);
     }
@@ -116,65 +118,65 @@ export default function AdminDashboard() {
 
   const adminCards = [
     {
-      title: 'Kullanıcı Yönetimi',
-      description: 'Tüm kullanıcıları görüntüle ve rolleri yönet',
+      title: "Kullanıcı Yönetimi",
+      description: "Tüm kullanıcıları görüntüle ve rolleri yönet",
       icon: Users,
-      href: '/admin/users',
+      href: "/admin/users",
     },
     {
-      title: 'Hocaları Düzenle',
-      description: 'Onaylı hocaları yönet ve düzenle',
+      title: "Uzmanları Düzenle",
+      description: "Onaylı uzmanları yönet ve düzenle",
       icon: UserCheck,
-      href: '/admin/teachers',
+      href: "/admin/teachers",
     },
     {
-      title: 'Kategorileri Düzenle',
-      description: 'Ana ve alt kategorileri yönet',
+      title: "Kategorileri Düzenle",
+      description: "Ana ve alt kategorileri yönet",
       icon: FolderTree,
-      href: '/admin/categories',
+      href: "/admin/categories",
     },
     {
-      title: 'Sayfaları Düzenle',
-      description: 'Statik sayfaları düzenle',
+      title: "Sayfaları Düzenle",
+      description: "Statik sayfaları düzenle",
       icon: FileText,
-      href: '/admin/pages',
+      href: "/admin/pages",
     },
     {
-      title: 'Merak Konuları',
-      description: 'Blog yazılarını yönet',
+      title: "Merak Konuları",
+      description: "Blog yazılarını yönet",
       icon: Sparkles,
-      href: '/admin/curiosities',
+      href: "/admin/curiosities",
     },
   ];
 
   const statCards = [
     {
-      title: 'Toplam Hoca',
+      title: "Toplam Uzman",
       value: stats.totalTeachers,
       icon: Users,
-      description: 'Onaylanmış hocalar',
-      color: 'text-primary',
+      description: "Onaylanmış uzmanlar",
+      color: "text-primary",
     },
     {
-      title: 'Bekleyen Onay',
+      title: "Bekleyen Onay",
       value: stats.pendingApprovals,
       icon: UserCheck,
-      description: 'Onay bekleyen başvurular',
-      color: 'text-orange-500',
+      description: "Onay bekleyen başvurular",
+      color: "text-orange-500",
     },
     {
-      title: 'Toplam Randevu',
+      title: "Toplam Randevu",
       value: stats.totalAppointments,
       icon: Calendar,
       description: `${stats.completedAppointments} tamamlandı`,
-      color: 'text-blue-500',
+      color: "text-blue-500",
     },
     {
-      title: 'Aylık Gelir',
+      title: "Aylık Gelir",
       value: `₺${stats.monthlyRevenue.toFixed(2)}`,
       icon: DollarSign,
-      description: 'Son 30 gün komisyon',
-      color: 'text-green-500',
+      description: "Son 30 gün komisyon",
+      color: "text-green-500",
     },
   ];
 
@@ -256,8 +258,8 @@ export default function AdminDashboard() {
                 <ChartContainer
                   config={{
                     count: {
-                      label: 'Randevu',
-                      color: 'hsl(var(--primary))',
+                      label: "Randevu",
+                      color: "hsl(var(--primary))",
                     },
                   }}
                   className="h-[200px]"
@@ -292,17 +294,17 @@ export default function AdminDashboard() {
               <ChartContainer
                 config={{
                   value: {
-                    label: 'Sayı',
-                    color: 'hsl(var(--primary))',
+                    label: "Sayı",
+                    color: "hsl(var(--primary))",
                   },
                 }}
                 className="h-[200px]"
               >
                 <BarChart
                   data={[
-                    { name: 'Hocalar', value: stats.totalTeachers },
-                    { name: 'Kategoriler', value: stats.totalCategories },
-                    { name: 'Randevular', value: stats.totalAppointments },
+                    { name: "Uzmanlar", value: stats.totalTeachers },
+                    { name: "Kategoriler", value: stats.totalCategories },
+                    { name: "Randevular", value: stats.totalAppointments },
                   ]}
                 >
                   <CartesianGrid strokeDasharray="3 3" />

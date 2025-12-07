@@ -1,26 +1,13 @@
-import { useEffect, useState } from 'react';
-import { supabase, UserRole } from '@/lib/supabase';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { AdminBreadcrumb } from '@/components/AdminBreadcrumb';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { useEffect, useState } from "react";
+import { supabase, UserRole } from "@/lib/supabase";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { AdminBreadcrumb } from "@/components/AdminBreadcrumb";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,9 +17,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Users as UsersIcon, Shield, GraduationCap, User, CheckCircle, XCircle, Clock } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+} from "@/components/ui/alert-dialog";
+import { Users as UsersIcon, Shield, GraduationCap, User, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type UserData = {
   id: string;
@@ -40,7 +27,7 @@ type UserData = {
   avatar_url: string | null;
   role: UserRole | null;
   created_at: string;
-  teacher_status?: 'pending' | 'approved' | 'rejected' | null;
+  teacher_status?: "pending" | "approved" | "rejected" | null;
 };
 
 export default function UsersManagement() {
@@ -60,23 +47,21 @@ export default function UsersManagement() {
     try {
       // Fetch all profiles with user roles
       const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .from("profiles")
+        .select("*")
+        .order("created_at", { ascending: false });
 
       if (profilesError) throw profilesError;
 
       // Fetch user roles
-      const { data: roles, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('*');
+      const { data: roles, error: rolesError } = await supabase.from("user_roles").select("*");
 
       if (rolesError) throw rolesError;
 
       // Fetch teacher approvals
       const { data: approvals, error: approvalsError } = await supabase
-        .from('teacher_approvals')
-        .select('user_id, status');
+        .from("teacher_approvals")
+        .select("user_id, status");
 
       if (approvalsError) throw approvalsError;
 
@@ -97,11 +82,11 @@ export default function UsersManagement() {
 
       setUsers(usersData);
     } catch (error: any) {
-      console.error('Error fetching users:', error);
+      console.error("Error fetching users:", error);
       toast({
-        title: 'Hata',
-        description: 'Kullanıcılar yüklenemedi.',
-        variant: 'destructive',
+        title: "Hata",
+        description: "Kullanıcılar yüklenemedi.",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -119,93 +104,85 @@ export default function UsersManagement() {
 
     try {
       // Delete existing role
-      await supabase.from('user_roles').delete().eq('user_id', selectedUser.id);
+      await supabase.from("user_roles").delete().eq("user_id", selectedUser.id);
 
       // Insert new role
-      const { error } = await supabase
-        .from('user_roles')
-        .insert([{ user_id: selectedUser.id, role: newRole }]);
+      const { error } = await supabase.from("user_roles").insert([{ user_id: selectedUser.id, role: newRole }]);
 
       if (error) throw error;
 
       // If changing to teacher, ensure they have an approved status
-      if (newRole === 'teacher') {
+      if (newRole === "teacher") {
         const { data: existingApproval } = await supabase
-          .from('teacher_approvals')
-          .select('id')
-          .eq('user_id', selectedUser.id)
+          .from("teacher_approvals")
+          .select("id")
+          .eq("user_id", selectedUser.id)
           .maybeSingle();
 
         if (!existingApproval) {
-          await supabase.from('teacher_approvals').insert([
+          await supabase.from("teacher_approvals").insert([
             {
               user_id: selectedUser.id,
-              status: 'approved',
+              status: "approved",
             },
           ]);
         } else {
-          await supabase
-            .from('teacher_approvals')
-            .update({ status: 'approved' })
-            .eq('user_id', selectedUser.id);
+          await supabase.from("teacher_approvals").update({ status: "approved" }).eq("user_id", selectedUser.id);
         }
 
-        await supabase
-          .from('profiles')
-          .update({ is_teacher_approved: true })
-          .eq('id', selectedUser.id);
+        await supabase.from("profiles").update({ is_teacher_approved: true }).eq("id", selectedUser.id);
       }
 
       toast({
-        title: 'Başarılı',
+        title: "Başarılı",
         description: `Kullanıcı rolü ${getRoleLabel(newRole)} olarak güncellendi.`,
       });
 
       setShowRoleDialog(false);
       fetchUsers();
     } catch (error: any) {
-      console.error('Error updating role:', error);
+      console.error("Error updating role:", error);
       toast({
-        title: 'Hata',
-        description: 'Rol güncellenemedi.',
-        variant: 'destructive',
+        title: "Hata",
+        description: "Rol güncellenemedi.",
+        variant: "destructive",
       });
     }
   };
 
   const getRoleLabel = (role: UserRole | null) => {
     switch (role) {
-      case 'admin':
-        return 'Admin';
-      case 'teacher':
-        return 'Hoca';
-      case 'customer':
-        return 'Öğrenci';
+      case "admin":
+        return "Admin";
+      case "teacher":
+        return "Uzman";
+      case "customer":
+        return "Öğrenci";
       default:
-        return 'Rol Yok';
+        return "Rol Yok";
     }
   };
 
   const getRoleBadgeVariant = (role: UserRole | null) => {
     switch (role) {
-      case 'admin':
-        return 'default';
-      case 'teacher':
-        return 'secondary';
-      case 'customer':
-        return 'outline';
+      case "admin":
+        return "default";
+      case "teacher":
+        return "secondary";
+      case "customer":
+        return "outline";
       default:
-        return 'outline';
+        return "outline";
     }
   };
 
   const getRoleIcon = (role: UserRole | null) => {
     switch (role) {
-      case 'admin':
+      case "admin":
         return <Shield className="w-4 h-4" />;
-      case 'teacher':
+      case "teacher":
         return <GraduationCap className="w-4 h-4" />;
-      case 'customer':
+      case "customer":
         return <User className="w-4 h-4" />;
       default:
         return <User className="w-4 h-4" />;
@@ -214,23 +191,23 @@ export default function UsersManagement() {
 
   const getTeacherStatusBadge = (status: string | null | undefined) => {
     if (!status) return null;
-    
+
     switch (status) {
-      case 'approved':
+      case "approved":
         return (
           <Badge variant="default" className="bg-green-500">
             <CheckCircle className="w-3 h-3 mr-1" />
             Onaylı
           </Badge>
         );
-      case 'pending':
+      case "pending":
         return (
           <Badge variant="secondary">
             <Clock className="w-3 h-3 mr-1" />
             Bekliyor
           </Badge>
         );
-      case 'rejected':
+      case "rejected":
         return (
           <Badge variant="destructive">
             <XCircle className="w-3 h-3 mr-1" />
@@ -242,8 +219,8 @@ export default function UsersManagement() {
     }
   };
 
-  const filterUsersByRole = (role: UserRole | 'all') => {
-    if (role === 'all') return users;
+  const filterUsersByRole = (role: UserRole | "all") => {
+    if (role === "all") return users;
     return users.filter((u) => u.role === role);
   };
 
@@ -253,7 +230,7 @@ export default function UsersManagement() {
         <TableRow>
           <TableHead>Kullanıcı</TableHead>
           <TableHead>Rol</TableHead>
-          <TableHead>Hoca Durumu</TableHead>
+          <TableHead>Uzman Durumu</TableHead>
           <TableHead>Kayıt Tarihi</TableHead>
           <TableHead>İşlemler</TableHead>
         </TableRow>
@@ -272,11 +249,9 @@ export default function UsersManagement() {
                 <div className="flex items-center gap-3">
                   <Avatar>
                     <AvatarImage src={user.avatar_url || undefined} />
-                    <AvatarFallback>
-                      {user.username?.[0]?.toUpperCase() || 'U'}
-                    </AvatarFallback>
+                    <AvatarFallback>{user.username?.[0]?.toUpperCase() || "U"}</AvatarFallback>
                   </Avatar>
-                  <span className="font-medium">{user.username || 'İsimsiz'}</span>
+                  <span className="font-medium">{user.username || "İsimsiz"}</span>
                 </div>
               </TableCell>
               <TableCell>
@@ -286,15 +261,9 @@ export default function UsersManagement() {
                 </Badge>
               </TableCell>
               <TableCell>{getTeacherStatusBadge(user.teacher_status)}</TableCell>
+              <TableCell>{new Date(user.created_at).toLocaleDateString("tr-TR")}</TableCell>
               <TableCell>
-                {new Date(user.created_at).toLocaleDateString('tr-TR')}
-              </TableCell>
-              <TableCell>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleRoleChange(user)}
-                >
+                <Button variant="outline" size="sm" onClick={() => handleRoleChange(user)}>
                   Rol Değiştir
                 </Button>
               </TableCell>
@@ -326,9 +295,7 @@ export default function UsersManagement() {
               <UsersIcon className="w-8 h-8" />
               Kullanıcı Yönetimi
             </h1>
-            <p className="text-muted-foreground mt-2">
-              Tüm kullanıcıları görüntüle ve yönet
-            </p>
+            <p className="text-muted-foreground mt-2">Tüm kullanıcıları görüntüle ve yönet</p>
           </div>
           <Card className="p-4">
             <div className="text-center">
@@ -341,18 +308,10 @@ export default function UsersManagement() {
 
       <Tabs defaultValue="all" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="all">
-            Tümü ({users.length})
-          </TabsTrigger>
-          <TabsTrigger value="admin">
-            Admin ({filterUsersByRole('admin').length})
-          </TabsTrigger>
-          <TabsTrigger value="teacher">
-            Hoca ({filterUsersByRole('teacher').length})
-          </TabsTrigger>
-          <TabsTrigger value="customer">
-            Öğrenci ({filterUsersByRole('customer').length})
-          </TabsTrigger>
+          <TabsTrigger value="all">Tümü ({users.length})</TabsTrigger>
+          <TabsTrigger value="admin">Admin ({filterUsersByRole("admin").length})</TabsTrigger>
+          <TabsTrigger value="teacher">Uzman ({filterUsersByRole("teacher").length})</TabsTrigger>
+          <TabsTrigger value="customer">Öğrenci ({filterUsersByRole("customer").length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="all" className="mt-6">
@@ -360,9 +319,7 @@ export default function UsersManagement() {
             <CardHeader>
               <CardTitle>Tüm Kullanıcılar</CardTitle>
             </CardHeader>
-            <CardContent>
-              {renderUsersTable(users)}
-            </CardContent>
+            <CardContent>{renderUsersTable(users)}</CardContent>
           </Card>
         </TabsContent>
 
@@ -371,20 +328,16 @@ export default function UsersManagement() {
             <CardHeader>
               <CardTitle>Admin Kullanıcılar</CardTitle>
             </CardHeader>
-            <CardContent>
-              {renderUsersTable(filterUsersByRole('admin'))}
-            </CardContent>
+            <CardContent>{renderUsersTable(filterUsersByRole("admin"))}</CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="teacher" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Hoca Kullanıcılar</CardTitle>
+              <CardTitle>Uzman Kullanıcılar</CardTitle>
             </CardHeader>
-            <CardContent>
-              {renderUsersTable(filterUsersByRole('teacher'))}
-            </CardContent>
+            <CardContent>{renderUsersTable(filterUsersByRole("teacher"))}</CardContent>
           </Card>
         </TabsContent>
 
@@ -393,9 +346,7 @@ export default function UsersManagement() {
             <CardHeader>
               <CardTitle>Öğrenci Kullanıcılar</CardTitle>
             </CardHeader>
-            <CardContent>
-              {renderUsersTable(filterUsersByRole('customer'))}
-            </CardContent>
+            <CardContent>{renderUsersTable(filterUsersByRole("customer"))}</CardContent>
           </Card>
         </TabsContent>
       </Tabs>
@@ -406,15 +357,12 @@ export default function UsersManagement() {
           <AlertDialogHeader>
             <AlertDialogTitle>Kullanıcı Rolünü Değiştir</AlertDialogTitle>
             <AlertDialogDescription>
-              <strong>{selectedUser?.username || 'İsimsiz'}</strong> kullanıcısının rolünü değiştirmek üzeresiniz.
+              <strong>{selectedUser?.username || "İsimsiz"}</strong> kullanıcısının rolünü değiştirmek üzeresiniz.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-4">
             <label className="text-sm font-medium mb-2 block">Yeni Rol</label>
-            <Select
-              value={newRole || undefined}
-              onValueChange={(value) => setNewRole(value as UserRole)}
-            >
+            <Select value={newRole || undefined} onValueChange={(value) => setNewRole(value as UserRole)}>
               <SelectTrigger>
                 <SelectValue placeholder="Rol seçin" />
               </SelectTrigger>
@@ -428,7 +376,7 @@ export default function UsersManagement() {
                 <SelectItem value="teacher">
                   <div className="flex items-center gap-2">
                     <GraduationCap className="w-4 h-4" />
-                    Hoca
+                    Uzman
                   </div>
                 </SelectItem>
                 <SelectItem value="customer">
@@ -442,9 +390,7 @@ export default function UsersManagement() {
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>İptal</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmRoleChange}>
-              Güncelle
-            </AlertDialogAction>
+            <AlertDialogAction onClick={confirmRoleChange}>Güncelle</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

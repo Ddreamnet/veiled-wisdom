@@ -1,17 +1,10 @@
-import { useEffect, useState, lazy, Suspense } from 'react';
-import { supabase } from '@/lib/supabase';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { useToast } from '@/hooks/use-toast';
-import { DollarSign, TrendingUp, Calendar, Filter } from 'lucide-react';
+import { useEffect, useState, lazy, Suspense } from "react";
+import { supabase } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useToast } from "@/hooks/use-toast";
+import { DollarSign, TrendingUp, Calendar, Filter } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,29 +15,25 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { format, subDays } from 'date-fns';
-import { AdminBreadcrumb } from '@/components/AdminBreadcrumb';
+} from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { format, subDays } from "date-fns";
+import { AdminBreadcrumb } from "@/components/AdminBreadcrumb";
 
 // Lazy load chart components
-const ChartContainer = lazy(() => import('@/components/ui/chart').then(m => ({ default: m.ChartContainer })));
-const ChartTooltip = lazy(() => import('@/components/ui/chart').then(m => ({ default: m.ChartTooltip })));
-const ChartTooltipContent = lazy(() => import('@/components/ui/chart').then(m => ({ default: m.ChartTooltipContent })));
+const ChartContainer = lazy(() => import("@/components/ui/chart").then((m) => ({ default: m.ChartContainer })));
+const ChartTooltip = lazy(() => import("@/components/ui/chart").then((m) => ({ default: m.ChartTooltip })));
+const ChartTooltipContent = lazy(() =>
+  import("@/components/ui/chart").then((m) => ({ default: m.ChartTooltipContent })),
+);
 
 // Lazy load recharts
-const AreaChart = lazy(() => import('recharts').then(m => ({ default: m.AreaChart })));
-const Area = lazy(() => import('recharts').then(m => ({ default: m.Area })));
-const CartesianGrid = lazy(() => import('recharts').then(m => ({ default: m.CartesianGrid })));
-const XAxis = lazy(() => import('recharts').then(m => ({ default: m.XAxis })));
-const YAxis = lazy(() => import('recharts').then(m => ({ default: m.YAxis })));
+const AreaChart = lazy(() => import("recharts").then((m) => ({ default: m.AreaChart })));
+const Area = lazy(() => import("recharts").then((m) => ({ default: m.Area })));
+const CartesianGrid = lazy(() => import("recharts").then((m) => ({ default: m.CartesianGrid })));
+const XAxis = lazy(() => import("recharts").then((m) => ({ default: m.XAxis })));
+const YAxis = lazy(() => import("recharts").then((m) => ({ default: m.YAxis })));
 
 // Chart loading fallback
 const ChartSkeleton = () => (
@@ -84,8 +73,8 @@ export default function AdminEarnings() {
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [payoutHistory, setPayoutHistory] = useState<PayoutHistory[]>([]);
   const [earningTrends, setEarningTrends] = useState<EarningTrend[]>([]);
-  const [selectedTeacher, setSelectedTeacher] = useState<string>('all');
-  const [dateRange, setDateRange] = useState<string>('30');
+  const [selectedTeacher, setSelectedTeacher] = useState<string>("all");
+  const [dateRange, setDateRange] = useState<string>("30");
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -100,9 +89,9 @@ export default function AdminEarnings() {
     try {
       // Get all teachers
       let teachersQuery = supabase
-        .from('user_roles')
-        .select('user_id, profiles(username, avatar_url)')
-        .eq('role', 'teacher');
+        .from("user_roles")
+        .select("user_id, profiles(username, avatar_url)")
+        .eq("role", "teacher");
 
       const { data: teachers } = await teachersQuery;
 
@@ -112,22 +101,22 @@ export default function AdminEarnings() {
 
       for (const teacher of teachers) {
         // Skip if filtering by specific teacher
-        if (selectedTeacher !== 'all' && teacher.user_id !== selectedTeacher) {
+        if (selectedTeacher !== "all" && teacher.user_id !== selectedTeacher) {
           continue;
         }
 
         // Get completed appointments
         let appointmentsQuery = supabase
-          .from('appointments')
-          .select('price_at_booking, created_at')
-          .eq('teacher_id', teacher.user_id)
-          .eq('status', 'completed');
+          .from("appointments")
+          .select("price_at_booking, created_at")
+          .eq("teacher_id", teacher.user_id)
+          .eq("status", "completed");
 
         // Apply date filter
-        if (dateRange !== 'all') {
+        if (dateRange !== "all") {
           const daysAgo = parseInt(dateRange);
           const startDate = subDays(new Date(), daysAgo);
-          appointmentsQuery = appointmentsQuery.gte('created_at', startDate.toISOString());
+          appointmentsQuery = appointmentsQuery.gte("created_at", startDate.toISOString());
         }
 
         const { data: completed } = await appointmentsQuery;
@@ -137,23 +126,23 @@ export default function AdminEarnings() {
 
         // Get pending appointments (completed but not paid)
         const { data: pending } = await supabase
-          .from('appointments')
-          .select('id, price_at_booking')
-          .eq('teacher_id', teacher.user_id)
-          .eq('status', 'completed');
+          .from("appointments")
+          .select("id, price_at_booking")
+          .eq("teacher_id", teacher.user_id)
+          .eq("status", "completed");
 
         // Get last payout
         const { data: lastPayout } = await supabase
-          .from('teacher_payouts')
-          .select('paid_at')
-          .eq('teacher_id', teacher.user_id)
-          .order('paid_at', { ascending: false })
+          .from("teacher_payouts")
+          .select("paid_at")
+          .eq("teacher_id", teacher.user_id)
+          .order("paid_at", { ascending: false })
           .limit(1)
           .maybeSingle();
 
         earningsData.push({
           teacher_id: teacher.user_id,
-          username: (teacher.profiles as any)?.username || 'Bilinmeyen',
+          username: (teacher.profiles as any)?.username || "Bilinmeyen",
           avatar_url: (teacher.profiles as any)?.avatar_url || null,
           completed_count: completedCount,
           total_earnings: totalEarnings,
@@ -169,7 +158,7 @@ export default function AdminEarnings() {
       const total = earningsData.reduce((sum, e) => sum + e.total_earnings, 0);
       setTotalRevenue(total * 0.15); // 15% commission
     } catch (error) {
-      console.error('Error fetching earnings:', error);
+      console.error("Error fetching earnings:", error);
     } finally {
       setLoading(false);
     }
@@ -178,20 +167,22 @@ export default function AdminEarnings() {
   const fetchPayoutHistory = async () => {
     try {
       let query = supabase
-        .from('teacher_payouts')
-        .select('id, teacher_id, amount, appointment_count, paid_at, profiles!teacher_payouts_teacher_id_fkey(username)')
-        .order('paid_at', { ascending: false });
+        .from("teacher_payouts")
+        .select(
+          "id, teacher_id, amount, appointment_count, paid_at, profiles!teacher_payouts_teacher_id_fkey(username)",
+        )
+        .order("paid_at", { ascending: false });
 
       // Apply date filter
-      if (dateRange !== 'all') {
+      if (dateRange !== "all") {
         const daysAgo = parseInt(dateRange);
         const startDate = subDays(new Date(), daysAgo);
-        query = query.gte('paid_at', startDate.toISOString());
+        query = query.gte("paid_at", startDate.toISOString());
       }
 
       // Apply teacher filter
-      if (selectedTeacher !== 'all') {
-        query = query.eq('teacher_id', selectedTeacher);
+      if (selectedTeacher !== "all") {
+        query = query.eq("teacher_id", selectedTeacher);
       }
 
       const { data } = await query;
@@ -201,33 +192,33 @@ export default function AdminEarnings() {
           data.map((payout) => ({
             id: payout.id,
             teacher_id: payout.teacher_id,
-            teacher_name: (payout.profiles as any)?.username || 'Bilinmeyen',
+            teacher_name: (payout.profiles as any)?.username || "Bilinmeyen",
             amount: payout.amount,
             appointment_count: payout.appointment_count,
             paid_at: payout.paid_at,
-          }))
+          })),
         );
       }
     } catch (error) {
-      console.error('Error fetching payout history:', error);
+      console.error("Error fetching payout history:", error);
     }
   };
 
   const fetchEarningTrends = async () => {
     try {
-      const daysAgo = dateRange === 'all' ? 30 : parseInt(dateRange);
+      const daysAgo = dateRange === "all" ? 30 : parseInt(dateRange);
       const startDate = subDays(new Date(), daysAgo);
 
       let query = supabase
-        .from('appointments')
-        .select('price_at_booking, created_at, teacher_id')
-        .eq('status', 'completed')
-        .gte('created_at', startDate.toISOString())
-        .order('created_at', { ascending: true });
+        .from("appointments")
+        .select("price_at_booking, created_at, teacher_id")
+        .eq("status", "completed")
+        .gte("created_at", startDate.toISOString())
+        .order("created_at", { ascending: true });
 
       // Apply teacher filter
-      if (selectedTeacher !== 'all') {
-        query = query.eq('teacher_id', selectedTeacher);
+      if (selectedTeacher !== "all") {
+        query = query.eq("teacher_id", selectedTeacher);
       }
 
       const { data } = await query;
@@ -236,7 +227,7 @@ export default function AdminEarnings() {
         // Group by date
         const trendMap = new Map<string, { amount: number; count: number }>();
         data.forEach((apt) => {
-          const date = format(new Date(apt.created_at), 'dd MMM');
+          const date = format(new Date(apt.created_at), "dd MMM");
           const existing = trendMap.get(date) || { amount: 0, count: 0 };
           trendMap.set(date, {
             amount: existing.amount + Number(apt.price_at_booking) * 0.15,
@@ -253,12 +244,12 @@ export default function AdminEarnings() {
         setEarningTrends(trends);
       }
     } catch (error) {
-      console.error('Error fetching earning trends:', error);
+      console.error("Error fetching earning trends:", error);
     }
   };
 
   const handlePayout = async (teacherId: string, amount: number, appointmentCount: number) => {
-    const { error } = await supabase.from('teacher_payouts').insert({
+    const { error } = await supabase.from("teacher_payouts").insert({
       teacher_id: teacherId,
       appointment_count: appointmentCount,
       amount,
@@ -266,15 +257,15 @@ export default function AdminEarnings() {
 
     if (error) {
       toast({
-        title: 'Hata',
-        description: 'Ödeme kaydedilemedi.',
-        variant: 'destructive',
+        title: "Hata",
+        description: "Ödeme kaydedilemedi.",
+        variant: "destructive",
       });
       return;
     }
 
     toast({
-      title: 'Ödeme Yapıldı',
+      title: "Ödeme Yapıldı",
       description: `${amount} TL ödeme kaydedildi.`,
     });
 
@@ -306,7 +297,7 @@ export default function AdminEarnings() {
         <AdminBreadcrumb />
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Platform Gelirleri</h1>
-          <p className="text-muted-foreground mt-2">Hoca kazançları ve ödeme yönetimi</p>
+          <p className="text-muted-foreground mt-2">Uzman kazançları ve ödeme yönetimi</p>
         </div>
       </div>
 
@@ -320,13 +311,13 @@ export default function AdminEarnings() {
         </CardHeader>
         <CardContent className="flex flex-wrap gap-4">
           <div className="flex-1 min-w-[200px]">
-            <label className="text-sm font-medium mb-2 block">Hoca</label>
+            <label className="text-sm font-medium mb-2 block">Uzman</label>
             <Select value={selectedTeacher} onValueChange={setSelectedTeacher}>
               <SelectTrigger>
-                <SelectValue placeholder="Tüm Hocalar" />
+                <SelectValue placeholder="Tüm Uzmanlar" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tüm Hocalar</SelectItem>
+                <SelectItem value="all">Tüm Uzmanlar</SelectItem>
                 {teacherOptions.map((teacher) => (
                   <SelectItem key={teacher.id} value={teacher.id}>
                     {teacher.name}
@@ -370,9 +361,7 @@ export default function AdminEarnings() {
             <Calendar className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {earnings.reduce((sum, e) => sum + e.completed_count, 0)}
-            </div>
+            <div className="text-2xl font-bold">{earnings.reduce((sum, e) => sum + e.completed_count, 0)}</div>
             <p className="text-xs text-muted-foreground mt-1">Tamamlanan randevular</p>
           </CardContent>
         </Card>
@@ -402,8 +391,8 @@ export default function AdminEarnings() {
               <ChartContainer
                 config={{
                   amount: {
-                    label: 'Gelir (₺)',
-                    color: 'hsl(var(--primary))',
+                    label: "Gelir (₺)",
+                    color: "hsl(var(--primary))",
                   },
                 }}
                 className="h-[300px]"
@@ -438,14 +427,14 @@ export default function AdminEarnings() {
         <TabsContent value="current" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Hoca Ödemeleri</CardTitle>
+              <CardTitle>Uzman Ödemeleri</CardTitle>
               <CardDescription>Bekleyen ve tamamlanan ödemeler</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Hoca</TableHead>
+                    <TableHead>Uzman</TableHead>
                     <TableHead>Tamamlanan</TableHead>
                     <TableHead>Toplam Gelir</TableHead>
                     <TableHead>Son Ödeme</TableHead>
@@ -460,11 +449,7 @@ export default function AdminEarnings() {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           {earning.avatar_url ? (
-                            <img
-                              src={earning.avatar_url}
-                              alt={earning.username}
-                              className="w-8 h-8 rounded-full"
-                            />
+                            <img src={earning.avatar_url} alt={earning.username} className="w-8 h-8 rounded-full" />
                           ) : (
                             <div className="w-8 h-8 rounded-full bg-primary/20" />
                           )}
@@ -474,9 +459,7 @@ export default function AdminEarnings() {
                       <TableCell>{earning.completed_count}</TableCell>
                       <TableCell>₺{earning.total_earnings.toFixed(2)}</TableCell>
                       <TableCell>
-                        {earning.last_payout_date
-                          ? format(new Date(earning.last_payout_date), 'dd MMM yyyy')
-                          : '-'}
+                        {earning.last_payout_date ? format(new Date(earning.last_payout_date), "dd MMM yyyy") : "-"}
                       </TableCell>
                       <TableCell>{earning.pending_count}</TableCell>
                       <TableCell>₺{earning.pending_amount.toFixed(2)}</TableCell>
@@ -490,19 +473,15 @@ export default function AdminEarnings() {
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Ödeme Onayla</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  {earning.username} için ₺{earning.pending_amount.toFixed(2)} ödeme
-                                  yapıldı olarak işaretlenecek.
+                                  {earning.username} için ₺{earning.pending_amount.toFixed(2)} ödeme yapıldı olarak
+                                  işaretlenecek.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>İptal</AlertDialogCancel>
                                 <AlertDialogAction
                                   onClick={() =>
-                                    handlePayout(
-                                      earning.teacher_id,
-                                      earning.pending_amount,
-                                      earning.pending_count
-                                    )
+                                    handlePayout(earning.teacher_id, earning.pending_amount, earning.pending_count)
                                   }
                                 >
                                   Onayla
@@ -534,7 +513,7 @@ export default function AdminEarnings() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Tarih</TableHead>
-                      <TableHead>Hoca</TableHead>
+                      <TableHead>Uzman</TableHead>
                       <TableHead>Randevu Sayısı</TableHead>
                       <TableHead>Tutar</TableHead>
                     </TableRow>
@@ -542,7 +521,7 @@ export default function AdminEarnings() {
                   <TableBody>
                     {payoutHistory.map((payout) => (
                       <TableRow key={payout.id}>
-                        <TableCell>{format(new Date(payout.paid_at), 'dd MMM yyyy HH:mm')}</TableCell>
+                        <TableCell>{format(new Date(payout.paid_at), "dd MMM yyyy HH:mm")}</TableCell>
                         <TableCell>{payout.teacher_name}</TableCell>
                         <TableCell>{payout.appointment_count}</TableCell>
                         <TableCell className="font-medium">₺{payout.amount.toFixed(2)}</TableCell>

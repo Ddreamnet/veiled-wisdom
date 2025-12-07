@@ -1,28 +1,28 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { UserPlus, Search, Calendar, MessageSquare } from 'lucide-react';
-import { PageBreadcrumb } from '@/components/PageBreadcrumb';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { UserPlus, Search, Calendar, MessageSquare } from "lucide-react";
+import { PageBreadcrumb } from "@/components/PageBreadcrumb";
 
 export default function HowItWorks() {
   const steps = [
     {
       icon: UserPlus,
-      title: 'Kayıt Olun',
-      description: 'Ücretsiz hesap oluşturun ve platformumuza katılın.',
+      title: "Kayıt Olun",
+      description: "Ücretsiz hesap oluşturun ve platformumuza katılın.",
     },
     {
       icon: Search,
-      title: 'Hoca Seçin',
-      description: 'İhtiyacınıza uygun kategoride uzman hocaları keşfedin.',
+      title: "Uzman Seçin",
+      description: "İhtiyacınıza uygun kategoride uzmanları keşfedin.",
     },
     {
       icon: MessageSquare,
-      title: 'İletişime Geçin',
-      description: 'Hocayla mesajlaşarak tarih ve saat belirleyin.',
+      title: "İletişime Geçin",
+      description: "Uzmanla mesajlaşarak tarih ve saat belirleyin.",
     },
     {
       icon: Calendar,
-      title: 'Randevu Alın',
-      description: 'Ödeme yapın ve randevunuzu tamamlayın.',
+      title: "Randevu Alın",
+      description: "Ödeme yapın ve randevunuzu tamamlayın.",
     },
   ];
 

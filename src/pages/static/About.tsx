@@ -1,5 +1,5 @@
-import { Card, CardContent } from '@/components/ui/card';
-import { PageBreadcrumb } from '@/components/PageBreadcrumb';
+import { Card, CardContent } from "@/components/ui/card";
+import { PageBreadcrumb } from "@/components/PageBreadcrumb";
 
 export default function About() {
   return (
@@ -9,17 +9,15 @@ export default function About() {
       <Card>
         <CardContent className="p-6 md:p-8 space-y-4 md:space-y-6">
           <p className="text-sm md:text-base text-muted-foreground">
-            Leyl, gizli ilimler ve antik bilgelik alanında uzmanlaşmış hocalar ile
-            danışanları bir araya getiren modern bir platformdur.
+            Leyl, gizli ilimler ve antik bilgelik alanında uzmanlar ile danışanları bir araya getiren modern bir
+            platformdur.
           </p>
           <p className="text-sm md:text-base text-muted-foreground">
-            Misyonumuz, kadim bilgelik ve modern teknolojinin buluştuğu bir köprü
-            oluşturarak, insanların yaşamlarında anlam ve yön bulmalarına yardımcı
-            olmaktır.
+            Misyonumuz, kadim bilgelik ve modern teknolojinin buluştuğu bir köprü oluşturarak, insanların yaşamlarında
+            anlam ve yön bulmalarına yardımcı olmaktır.
           </p>
           <p className="text-sm md:text-base text-muted-foreground">
-            Uzman hocalarımız, bakım, temizleme, analiz ve astroloji gibi çeşitli
-            alanlarda hizmet sunmaktadır.
+            Uzmanlarımız, bakım, temizleme, analiz ve astroloji gibi çeşitli alanlarda hizmet sunmaktadır.
           </p>
         </CardContent>
       </Card>

@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation } from "react-router-dom";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -6,37 +6,37 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb';
-import { ChevronRight, Home } from 'lucide-react';
+} from "@/components/ui/breadcrumb";
+import { ChevronRight, Home } from "lucide-react";
 
 const routeLabels: Record<string, string> = {
-  '/admin': 'Admin Paneli',
-  '/admin/dashboard': 'Dashboard',
-  '/admin/approvals': 'Onaylamalar',
-  '/admin/earnings': 'Gelirler',
-  '/admin/teachers': 'Hocaları Düzenle',
-  '/admin/categories': 'Kategoriler',
-  '/admin/pages': 'Sayfalar',
-  '/admin/curiosities': 'Merak Konuları',
-  '/admin/users': 'Kullanıcı Yönetimi',
+  "/admin": "Admin Paneli",
+  "/admin/dashboard": "Dashboard",
+  "/admin/approvals": "Onaylamalar",
+  "/admin/earnings": "Gelirler",
+  "/admin/teachers": "Uzmanları Düzenle",
+  "/admin/categories": "Kategoriler",
+  "/admin/pages": "Sayfalar",
+  "/admin/curiosities": "Merak Konuları",
+  "/admin/users": "Kullanıcı Yönetimi",
 };
 
 export function AdminBreadcrumb() {
   const location = useLocation();
-  const pathSegments = location.pathname.split('/').filter(Boolean);
-  
+  const pathSegments = location.pathname.split("/").filter(Boolean);
+
   const breadcrumbItems = pathSegments.map((segment, index) => {
-    const path = '/' + pathSegments.slice(0, index + 1).join('/');
+    const path = "/" + pathSegments.slice(0, index + 1).join("/");
     // For dynamic routes, use a more friendly label
     let label = routeLabels[path] || segment;
-    
-    // If this is a UUID (teacher edit page), show "Hoca Düzenle"
+
+    // If this is a UUID (teacher edit page), show "Uzman Düzenle"
     if (segment.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-      label = 'Hoca Düzenle';
+      label = "Uzman Düzenle";
     }
-    
+
     const isLast = index === pathSegments.length - 1;
-    
+
     return { path, label, isLast };
   });
 
@@ -45,13 +45,16 @@ export function AdminBreadcrumb() {
       <BreadcrumbList>
         <BreadcrumbItem>
           <BreadcrumbLink asChild>
-            <Link to="/" className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-smooth">
+            <Link
+              to="/"
+              className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-smooth"
+            >
               <Home className="h-4 w-4" />
               <span>Ana Sayfa</span>
             </Link>
           </BreadcrumbLink>
         </BreadcrumbItem>
-        
+
         {breadcrumbItems.map((item, index) => (
           <div key={item.path} className="flex items-center gap-2">
             <BreadcrumbSeparator>
@@ -59,9 +62,7 @@ export function AdminBreadcrumb() {
             </BreadcrumbSeparator>
             <BreadcrumbItem>
               {item.isLast ? (
-                <BreadcrumbPage className="text-foreground font-medium">
-                  {item.label}
-                </BreadcrumbPage>
+                <BreadcrumbPage className="text-foreground font-medium">{item.label}</BreadcrumbPage>
               ) : (
                 <BreadcrumbLink asChild>
                   <Link to={item.path} className="text-muted-foreground hover:text-foreground transition-smooth">

@@ -1,21 +1,31 @@
-import { useEffect, useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase, Profile } from '@/lib/supabase';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Skeleton } from '@/components/ui/skeleton';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { useToast } from '@/hooks/use-toast';
-import { AvatarUpload } from '@/components/AvatarUpload';
-import { User, Shield, Trash2, Calendar, GraduationCap } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
-import { Badge } from '@/components/ui/badge';
-import { PageBreadcrumb } from '@/components/PageBreadcrumb';
+import { useEffect, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase, Profile } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import { AvatarUpload } from "@/components/AvatarUpload";
+import { User, Shield, Trash2, Calendar, GraduationCap } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { format } from "date-fns";
+import { Badge } from "@/components/ui/badge";
+import { PageBreadcrumb } from "@/components/PageBreadcrumb";
 
 export default function ProfilePage() {
   const { user, signOut, role } = useAuth();
@@ -24,14 +34,14 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [username, setUsername] = useState('');
-  const [bio, setBio] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState<string>('');
-  
+  const [username, setUsername] = useState("");
+  const [bio, setBio] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string>("");
+
   // Password change states
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
 
   useEffect(() => {
@@ -44,18 +54,14 @@ export default function ProfilePage() {
     if (!user) return;
     setDataLoading(true);
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .maybeSingle();
+    const { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
 
     if (error) {
-      console.error('Profile fetch error:', error);
+      console.error("Profile fetch error:", error);
       toast({
-        title: 'Hata',
-        description: 'Profil bilgileri yüklenemedi.',
-        variant: 'destructive',
+        title: "Hata",
+        description: "Profil bilgileri yüklenemedi.",
+        variant: "destructive",
       });
       setDataLoading(false);
       return;
@@ -65,20 +71,20 @@ export default function ProfilePage() {
       // Create a profile row if missing
       const fallbackUsername =
         (user.user_metadata && (user.user_metadata.username || user.user_metadata.full_name)) ||
-        user.email?.split('@')[0] ||
-        '';
+        user.email?.split("@")[0] ||
+        "";
       const { data: created, error: upsertErr } = await supabase
-        .from('profiles')
-        .upsert({ id: user.id, username: fallbackUsername, bio: '', avatar_url: null }, { onConflict: 'id' })
-        .select('*')
+        .from("profiles")
+        .upsert({ id: user.id, username: fallbackUsername, bio: "", avatar_url: null }, { onConflict: "id" })
+        .select("*")
         .maybeSingle();
 
       if (upsertErr) {
-        console.error('Profile auto-create error:', upsertErr);
+        console.error("Profile auto-create error:", upsertErr);
         toast({
-          title: 'Hata',
-          description: 'Profil kaydı oluşturulamadı.',
-          variant: 'destructive',
+          title: "Hata",
+          description: "Profil kaydı oluşturulamadı.",
+          variant: "destructive",
         });
         setDataLoading(false);
         return;
@@ -86,9 +92,9 @@ export default function ProfilePage() {
 
       if (created) {
         setProfile(created);
-        setUsername(created.username || '');
-        setBio(created.bio || '');
-        setAvatarUrl(created.avatar_url || '');
+        setUsername(created.username || "");
+        setBio(created.bio || "");
+        setAvatarUrl(created.avatar_url || "");
       }
 
       setDataLoading(false);
@@ -97,31 +103,29 @@ export default function ProfilePage() {
 
     // Existing data
     setProfile(data);
-    setUsername(data.username || '');
-    setBio(data.bio || '');
-    setAvatarUrl(data.avatar_url || '');
-    
+    setUsername(data.username || "");
+    setBio(data.bio || "");
+    setAvatarUrl(data.avatar_url || "");
+
     setDataLoading(false);
   };
 
   const handleAvatarUpload = async (url: string) => {
     if (!user) return;
 
-    const { error } = await supabase
-      .from('profiles')
-      .upsert({ id: user.id, avatar_url: url }, { onConflict: 'id' });
+    const { error } = await supabase.from("profiles").upsert({ id: user.id, avatar_url: url }, { onConflict: "id" });
 
     if (error) {
-      console.error('Avatar update error:', error);
+      console.error("Avatar update error:", error);
       toast({
-        title: 'Hata',
+        title: "Hata",
         description: `Avatar güncellenemedi: ${error.message}`,
-        variant: 'destructive',
+        variant: "destructive",
       });
     } else {
       toast({
-        title: 'Başarılı',
-        description: 'Avatar güncellendi.',
+        title: "Başarılı",
+        description: "Avatar güncellendi.",
       });
       await fetchProfile();
     }
@@ -131,21 +135,19 @@ export default function ProfilePage() {
     if (!user) return;
 
     setLoading(true);
-    const { error } = await supabase
-      .from('profiles')
-      .upsert({ id: user.id, username, bio }, { onConflict: 'id' });
+    const { error } = await supabase.from("profiles").upsert({ id: user.id, username, bio }, { onConflict: "id" });
 
     if (error) {
-      console.error('Profile update error:', error);
+      console.error("Profile update error:", error);
       toast({
-        title: 'Hata',
+        title: "Hata",
         description: `Profil güncellenemedi: ${error.message}`,
-        variant: 'destructive',
+        variant: "destructive",
       });
     } else {
       toast({
-        title: 'Başarılı',
-        description: 'Profiliniz güncellendi.',
+        title: "Başarılı",
+        description: "Profiliniz güncellendi.",
       });
       await fetchProfile();
     }
@@ -155,27 +157,27 @@ export default function ProfilePage() {
   const handlePasswordChange = async () => {
     if (!newPassword || !confirmPassword) {
       toast({
-        title: 'Hata',
-        description: 'Lütfen tüm alanları doldurun.',
-        variant: 'destructive',
+        title: "Hata",
+        description: "Lütfen tüm alanları doldurun.",
+        variant: "destructive",
       });
       return;
     }
 
     if (newPassword !== confirmPassword) {
       toast({
-        title: 'Hata',
-        description: 'Şifreler eşleşmiyor.',
-        variant: 'destructive',
+        title: "Hata",
+        description: "Şifreler eşleşmiyor.",
+        variant: "destructive",
       });
       return;
     }
 
     if (newPassword.length < 6) {
       toast({
-        title: 'Hata',
-        description: 'Şifre en az 6 karakter olmalıdır.',
-        variant: 'destructive',
+        title: "Hata",
+        description: "Şifre en az 6 karakter olmalıdır.",
+        variant: "destructive",
       });
       return;
     }
@@ -187,18 +189,18 @@ export default function ProfilePage() {
 
     if (error) {
       toast({
-        title: 'Hata',
-        description: 'Şifre güncellenemedi.',
-        variant: 'destructive',
+        title: "Hata",
+        description: "Şifre güncellenemedi.",
+        variant: "destructive",
       });
     } else {
       toast({
-        title: 'Başarılı',
-        description: 'Şifreniz güncellendi.',
+        title: "Başarılı",
+        description: "Şifreniz güncellendi.",
       });
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
     }
     setPasswordLoading(false);
   };
@@ -210,17 +212,17 @@ export default function ProfilePage() {
 
     if (error) {
       toast({
-        title: 'Hata',
-        description: 'Hesap silinemedi.',
-        variant: 'destructive',
+        title: "Hata",
+        description: "Hesap silinemedi.",
+        variant: "destructive",
       });
     } else {
       toast({
-        title: 'Başarılı',
-        description: 'Hesabınız silindi.',
+        title: "Başarılı",
+        description: "Hesabınız silindi.",
       });
       await signOut();
-      navigate('/');
+      navigate("/");
     }
   };
 
@@ -229,219 +231,218 @@ export default function ProfilePage() {
       <div className="max-w-4xl mx-auto">
         <PageBreadcrumb />
         <h1 className="text-3xl md:text-4xl font-serif text-gradient-silver mb-6 md:mb-8">Hesap Ayarları</h1>
-        
-      {dataLoading ? (
-        <div className="space-y-6">
-          <Skeleton variant="shimmer" className="h-12 w-full" />
-          <Card className="glass-effect border-silver/20">
-            <CardHeader>
-              <Skeleton variant="shimmer" className="h-8 w-48 mb-2" />
-              <Skeleton variant="shimmer" className="h-4 w-64" />
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex justify-center">
-                <Skeleton variant="shimmer" className="h-32 w-32 rounded-full" />
-              </div>
-              <Skeleton variant="shimmer" className="h-10 w-full" />
-              <Skeleton variant="shimmer" className="h-10 w-full" />
-              <Skeleton variant="shimmer" className="h-24 w-full" />
-              <Skeleton variant="shimmer" className="h-10 w-32" />
-            </CardContent>
-          </Card>
-        </div>
-      ) : (
-          <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 glass-effect border-silver/20">
-            <TabsTrigger value="profile" className="gap-2">
-              <User className="w-4 h-4" />
-              <span className="hidden sm:inline">Profil</span>
-            </TabsTrigger>
-            <TabsTrigger value="security" className="gap-2">
-              <Shield className="w-4 h-4" />
-              <span className="hidden sm:inline">Güvenlik</span>
-            </TabsTrigger>
-            <TabsTrigger value="account" className="gap-2">
-              <Calendar className="w-4 h-4" />
-              <span className="hidden sm:inline">Hesap</span>
-            </TabsTrigger>
-          </TabsList>
 
-          {/* Profile Tab */}
-          <TabsContent value="profile" className="space-y-6">
+        {dataLoading ? (
+          <div className="space-y-6">
+            <Skeleton variant="shimmer" className="h-12 w-full" />
             <Card className="glass-effect border-silver/20">
               <CardHeader>
-                <div className="flex items-center justify-between flex-wrap gap-3">
-                  <div>
-                    <CardTitle className="text-xl md:text-2xl">Profil Bilgileri</CardTitle>
-                    <CardDescription>Profilinizi düzenleyin ve yönetin</CardDescription>
-                  </div>
-                  {role === 'teacher' && (
-                    <Badge className="bg-gradient-primary text-primary-foreground border-0 shadow-glow gap-1.5 px-3 py-1.5">
-                      <GraduationCap className="w-4 h-4" />
-                      <span className="font-medium">Hoca</span>
-                    </Badge>
-                  )}
-                </div>
+                <Skeleton variant="shimmer" className="h-8 w-48 mb-2" />
+                <Skeleton variant="shimmer" className="h-4 w-64" />
               </CardHeader>
               <CardContent className="space-y-6">
-                {user && (
-                  <div className="flex justify-center">
-                    <AvatarUpload
-                      currentAvatarUrl={avatarUrl}
-                      userId={user.id}
-                      onUploadComplete={handleAvatarUpload}
+                <div className="flex justify-center">
+                  <Skeleton variant="shimmer" className="h-32 w-32 rounded-full" />
+                </div>
+                <Skeleton variant="shimmer" className="h-10 w-full" />
+                <Skeleton variant="shimmer" className="h-10 w-full" />
+                <Skeleton variant="shimmer" className="h-24 w-full" />
+                <Skeleton variant="shimmer" className="h-10 w-32" />
+              </CardContent>
+            </Card>
+          </div>
+        ) : (
+          <Tabs defaultValue="profile" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-3 glass-effect border-silver/20">
+              <TabsTrigger value="profile" className="gap-2">
+                <User className="w-4 h-4" />
+                <span className="hidden sm:inline">Profil</span>
+              </TabsTrigger>
+              <TabsTrigger value="security" className="gap-2">
+                <Shield className="w-4 h-4" />
+                <span className="hidden sm:inline">Güvenlik</span>
+              </TabsTrigger>
+              <TabsTrigger value="account" className="gap-2">
+                <Calendar className="w-4 h-4" />
+                <span className="hidden sm:inline">Hesap</span>
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Profile Tab */}
+            <TabsContent value="profile" className="space-y-6">
+              <Card className="glass-effect border-silver/20">
+                <CardHeader>
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <div>
+                      <CardTitle className="text-xl md:text-2xl">Profil Bilgileri</CardTitle>
+                      <CardDescription>Profilinizi düzenleyin ve yönetin</CardDescription>
+                    </div>
+                    {role === "teacher" && (
+                      <Badge className="bg-gradient-primary text-primary-foreground border-0 shadow-glow gap-1.5 px-3 py-1.5">
+                        <GraduationCap className="w-4 h-4" />
+                        <span className="font-medium">Uzman</span>
+                      </Badge>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {user && (
+                    <div className="flex justify-center">
+                      <AvatarUpload
+                        currentAvatarUrl={avatarUrl}
+                        userId={user.id}
+                        onUploadComplete={handleAvatarUpload}
+                      />
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="text-silver-muted">
+                      E-posta
+                    </Label>
+                    <Input id="email" value={user?.email || ""} disabled className="glass-effect border-silver/20" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="username" className="text-silver-muted">
+                      Kullanıcı Adı
+                    </Label>
+                    <Input
+                      id="username"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      className="glass-effect border-silver/20"
+                      placeholder="Kullanıcı adınızı girin"
                     />
                   </div>
-                )}
-                
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-silver-muted">E-posta</Label>
-                  <Input 
-                    id="email" 
-                    value={user?.email || ''} 
-                    disabled 
-                    className="glass-effect border-silver/20" 
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="username" className="text-silver-muted">Kullanıcı Adı</Label>
-                  <Input
-                    id="username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="glass-effect border-silver/20"
-                    placeholder="Kullanıcı adınızı girin"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="bio" className="text-silver-muted">Biyografi</Label>
-                  <Textarea
-                    id="bio"
-                    value={bio}
-                    onChange={(e) => setBio(e.target.value)}
-                    rows={4}
-                    className="glass-effect border-silver/20"
-                    placeholder="Kendinizden bahsedin..."
-                  />
-                </div>
-                
-                <Button onClick={handleSave} disabled={loading} className="w-full sm:w-auto">
-                  {loading ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
-          {/* Security Tab */}
-          <TabsContent value="security" className="space-y-6">
-            <Card className="glass-effect border-silver/20">
-              <CardHeader>
-                <CardTitle className="text-xl md:text-2xl">Şifre Değiştir</CardTitle>
-                <CardDescription>Hesabınızın güvenliği için güçlü bir şifre kullanın</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="new-password" className="text-silver-muted">Yeni Şifre</Label>
-                  <Input
-                    id="new-password"
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="glass-effect border-silver/20"
-                    placeholder="En az 6 karakter"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="confirm-password" className="text-silver-muted">Şifre Tekrar</Label>
-                  <Input
-                    id="confirm-password"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="glass-effect border-silver/20"
-                    placeholder="Şifrenizi tekrar girin"
-                  />
-                </div>
-                
-                <Button 
-                  onClick={handlePasswordChange} 
-                  disabled={passwordLoading}
-                  className="w-full sm:w-auto"
-                >
-                  {passwordLoading ? 'Güncelleniyor...' : 'Şifreyi Güncelle'}
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Account Tab */}
-          <TabsContent value="account" className="space-y-6">
-            <Card className="glass-effect border-silver/20">
-              <CardHeader>
-                <CardTitle className="text-xl md:text-2xl">Hesap Bilgileri</CardTitle>
-                <CardDescription>Hesabınız hakkında detaylı bilgiler</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-silver-muted">Hesap ID</Label>
-                  <p className="text-sm glass-effect border-silver/20 rounded-md p-3 break-all">
-                    {user?.id}
-                  </p>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label className="text-silver-muted">Kayıt Tarihi</Label>
-                  <p className="text-sm glass-effect border-silver/20 rounded-md p-3">
-                    {profile?.created_at ? format(new Date(profile.created_at), 'dd MMMM yyyy, HH:mm') : 'Bilinmiyor'}
-                  </p>
-                </div>
-
-                {profile?.is_teacher_approved && (
                   <div className="space-y-2">
-                    <Label className="text-silver-muted">Öğretmen Durumu</Label>
-                    <p className="text-sm glass-effect border-silver/20 rounded-md p-3 text-green-400">
-                      ✓ Onaylanmış Öğretmen
+                    <Label htmlFor="bio" className="text-silver-muted">
+                      Biyografi
+                    </Label>
+                    <Textarea
+                      id="bio"
+                      value={bio}
+                      onChange={(e) => setBio(e.target.value)}
+                      rows={4}
+                      className="glass-effect border-silver/20"
+                      placeholder="Kendinizden bahsedin..."
+                    />
+                  </div>
+
+                  <Button onClick={handleSave} disabled={loading} className="w-full sm:w-auto">
+                    {loading ? "Kaydediliyor..." : "Değişiklikleri Kaydet"}
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Security Tab */}
+            <TabsContent value="security" className="space-y-6">
+              <Card className="glass-effect border-silver/20">
+                <CardHeader>
+                  <CardTitle className="text-xl md:text-2xl">Şifre Değiştir</CardTitle>
+                  <CardDescription>Hesabınızın güvenliği için güçlü bir şifre kullanın</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="new-password" className="text-silver-muted">
+                      Yeni Şifre
+                    </Label>
+                    <Input
+                      id="new-password"
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="glass-effect border-silver/20"
+                      placeholder="En az 6 karakter"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="confirm-password" className="text-silver-muted">
+                      Şifre Tekrar
+                    </Label>
+                    <Input
+                      id="confirm-password"
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="glass-effect border-silver/20"
+                      placeholder="Şifrenizi tekrar girin"
+                    />
+                  </div>
+
+                  <Button onClick={handlePasswordChange} disabled={passwordLoading} className="w-full sm:w-auto">
+                    {passwordLoading ? "Güncelleniyor..." : "Şifreyi Güncelle"}
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Account Tab */}
+            <TabsContent value="account" className="space-y-6">
+              <Card className="glass-effect border-silver/20">
+                <CardHeader>
+                  <CardTitle className="text-xl md:text-2xl">Hesap Bilgileri</CardTitle>
+                  <CardDescription>Hesabınız hakkında detaylı bilgiler</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-silver-muted">Hesap ID</Label>
+                    <p className="text-sm glass-effect border-silver/20 rounded-md p-3 break-all">{user?.id}</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-silver-muted">Kayıt Tarihi</Label>
+                    <p className="text-sm glass-effect border-silver/20 rounded-md p-3">
+                      {profile?.created_at ? format(new Date(profile.created_at), "dd MMMM yyyy, HH:mm") : "Bilinmiyor"}
                     </p>
                   </div>
-                )}
-              </CardContent>
-            </Card>
 
-            <Card className="glass-effect border-red-500/20">
-              <CardHeader>
-                <CardTitle className="text-xl md:text-2xl text-red-400">Tehlikeli Bölge</CardTitle>
-                <CardDescription>Bu işlemler geri alınamaz</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" className="w-full sm:w-auto gap-2">
-                      <Trash2 className="w-4 h-4" />
-                      Hesabı Sil
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent className="glass-effect border-silver/20">
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Hesabınızı silmek istediğinizden emin misiniz?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Bu işlem geri alınamaz. Hesabınız ve tüm verileriniz kalıcı olarak silinecektir.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>İptal</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleDeleteAccount} className="bg-red-500 hover:bg-red-600">
+                  {profile?.is_teacher_approved && (
+                    <div className="space-y-2">
+                      <Label className="text-silver-muted">Öğretmen Durumu</Label>
+                      <p className="text-sm glass-effect border-silver/20 rounded-md p-3 text-green-400">
+                        ✓ Onaylanmış Öğretmen
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="glass-effect border-red-500/20">
+                <CardHeader>
+                  <CardTitle className="text-xl md:text-2xl text-red-400">Tehlikeli Bölge</CardTitle>
+                  <CardDescription>Bu işlemler geri alınamaz</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" className="w-full sm:w-auto gap-2">
+                        <Trash2 className="w-4 h-4" />
                         Hesabı Sil
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent className="glass-effect border-silver/20">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Hesabınızı silmek istediğinizden emin misiniz?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Bu işlem geri alınamaz. Hesabınız ve tüm verileriniz kalıcı olarak silinecektir.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>İptal</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteAccount} className="bg-red-500 hover:bg-red-600">
+                          Hesabı Sil
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         )}
       </div>
     </div>

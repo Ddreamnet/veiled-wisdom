@@ -1,16 +1,16 @@
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { supabase, Profile } from '@/lib/supabase';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Save, GraduationCap, Award, Calendar, Phone } from 'lucide-react';
-import { AvatarUpload } from '@/components/AvatarUpload';
-import { Skeleton } from '@/components/ui/skeleton';
-import { z } from 'zod';
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { supabase, Profile } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { ArrowLeft, Save, GraduationCap, Award, Calendar, Phone } from "lucide-react";
+import { AvatarUpload } from "@/components/AvatarUpload";
+import { Skeleton } from "@/components/ui/skeleton";
+import { z } from "zod";
 
 type TeacherApprovalData = {
   date_of_birth: string | null;
@@ -24,12 +24,9 @@ const teacherProfileSchema = z.object({
   username: z
     .string()
     .trim()
-    .min(3, { message: 'Kullanıcı adı en az 3 karakter olmalı' })
-    .max(50, { message: 'Kullanıcı adı en fazla 50 karakter olabilir' }),
-  bio: z
-    .string()
-    .max(500, { message: 'Biyografi en fazla 500 karakter olabilir' })
-    .optional(),
+    .min(3, { message: "Kullanıcı adı en az 3 karakter olmalı" })
+    .max(50, { message: "Kullanıcı adı en fazla 50 karakter olabilir" }),
+  bio: z.string().max(500, { message: "Biyografi en fazla 500 karakter olabilir" }).optional(),
 });
 
 type TeacherProfileForm = z.infer<typeof teacherProfileSchema>;
@@ -43,10 +40,10 @@ export default function TeacherEdit() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [approvalData, setApprovalData] = useState<TeacherApprovalData | null>(null);
   const [formData, setFormData] = useState<TeacherProfileForm>({
-    username: '',
-    bio: '',
+    username: "",
+    bio: "",
   });
-  const [avatarUrl, setAvatarUrl] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [errors, setErrors] = useState<Partial<Record<keyof TeacherProfileForm, string>>>({});
 
   useEffect(() => {
@@ -58,37 +55,33 @@ export default function TeacherEdit() {
   const fetchProfile = async () => {
     if (!id) return;
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', id)
-      .single();
+    const { data, error } = await supabase.from("profiles").select("*").eq("id", id).single();
 
     if (error || !data) {
       toast({
-        title: 'Hata',
-        description: 'Profil bulunamadı.',
-        variant: 'destructive',
+        title: "Hata",
+        description: "Profil bulunamadı.",
+        variant: "destructive",
       });
-      navigate('/admin/teachers');
+      navigate("/admin/teachers");
       return;
     }
 
     // Fetch teacher approval data
     const { data: approval } = await supabase
-      .from('teacher_approvals')
-      .select('date_of_birth, specialization, education, years_of_experience, phone')
-      .eq('user_id', id)
-      .eq('status', 'approved')
+      .from("teacher_approvals")
+      .select("date_of_birth, specialization, education, years_of_experience, phone")
+      .eq("user_id", id)
+      .eq("status", "approved")
       .maybeSingle();
 
     setApprovalData(approval);
     setProfile(data);
     setFormData({
-      username: data.username || '',
-      bio: data.bio || '',
+      username: data.username || "",
+      bio: data.bio || "",
     });
-    setAvatarUrl(data.avatar_url || '');
+    setAvatarUrl(data.avatar_url || "");
     setLoading(false);
   };
 
@@ -116,9 +109,9 @@ export default function TeacherEdit() {
 
     if (!validateForm()) {
       toast({
-        title: 'Doğrulama Hatası',
-        description: 'Lütfen formdaki hataları düzeltin.',
-        variant: 'destructive',
+        title: "Doğrulama Hatası",
+        description: "Lütfen formdaki hataları düzeltin.",
+        variant: "destructive",
       });
       return;
     }
@@ -131,28 +124,25 @@ export default function TeacherEdit() {
       avatar_url: avatarUrl || null,
     };
 
-    const { error } = await supabase
-      .from('profiles')
-      .update(updateData)
-      .eq('id', id);
+    const { error } = await supabase.from("profiles").update(updateData).eq("id", id);
 
     if (error) {
       toast({
-        title: 'Hata',
-        description: 'Profil güncellenemedi.',
-        variant: 'destructive',
+        title: "Hata",
+        description: "Profil güncellenemedi.",
+        variant: "destructive",
       });
       setSaving(false);
       return;
     }
 
     toast({
-      title: 'Başarılı',
-      description: 'Profil güncellendi.',
+      title: "Başarılı",
+      description: "Profil güncellendi.",
     });
 
     setSaving(false);
-    navigate('/admin/teachers');
+    navigate("/admin/teachers");
   };
 
   const handleInputChange = (field: keyof TeacherProfileForm, value: string) => {
@@ -187,18 +177,14 @@ export default function TeacherEdit() {
 
   return (
     <div className="container py-8 md:py-12 px-4 md:px-6 lg:px-8">
-      <Button
-        variant="ghost"
-        className="mb-6"
-        onClick={() => navigate('/admin/teachers')}
-      >
+      <Button variant="ghost" className="mb-6" onClick={() => navigate("/admin/teachers")}>
         <ArrowLeft className="h-4 w-4 mr-2" />
         Geri Dön
       </Button>
 
       <Card>
         <CardHeader>
-          <CardTitle>Hoca Profilini Düzenle</CardTitle>
+          <CardTitle>Uzman Profilini Düzenle</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -209,26 +195,18 @@ export default function TeacherEdit() {
               <Input
                 id="username"
                 value={formData.username}
-                onChange={(e) => handleInputChange('username', e.target.value)}
+                onChange={(e) => handleInputChange("username", e.target.value)}
                 maxLength={50}
-                className={errors.username ? 'border-destructive' : ''}
+                className={errors.username ? "border-destructive" : ""}
               />
-              {errors.username && (
-                <p className="text-sm text-destructive mt-1">{errors.username}</p>
-              )}
-              <p className="text-xs text-muted-foreground mt-1">
-                {formData.username.length}/50 karakter
-              </p>
+              {errors.username && <p className="text-sm text-destructive mt-1">{errors.username}</p>}
+              <p className="text-xs text-muted-foreground mt-1">{formData.username.length}/50 karakter</p>
             </div>
 
             <div>
               <Label className="mb-4 block">Avatar</Label>
               <div className="flex justify-center">
-                <AvatarUpload
-                  currentAvatarUrl={avatarUrl}
-                  userId={id!}
-                  onUploadComplete={setAvatarUrl}
-                />
+                <AvatarUpload currentAvatarUrl={avatarUrl} userId={id!} onUploadComplete={setAvatarUrl} />
               </div>
             </div>
 
@@ -237,32 +215,23 @@ export default function TeacherEdit() {
               <Textarea
                 id="bio"
                 value={formData.bio}
-                onChange={(e) => handleInputChange('bio', e.target.value)}
+                onChange={(e) => handleInputChange("bio", e.target.value)}
                 rows={6}
                 maxLength={500}
-                className={errors.bio ? 'border-destructive' : ''}
-                placeholder="Hoca hakkında kısa bir açıklama yazın..."
+                className={errors.bio ? "border-destructive" : ""}
+                placeholder="Uzman hakkında kısa bir açıklama yazın..."
               />
-              {errors.bio && (
-                <p className="text-sm text-destructive mt-1">{errors.bio}</p>
-              )}
-              <p className="text-xs text-muted-foreground mt-1">
-                {formData.bio?.length || 0}/500 karakter
-              </p>
+              {errors.bio && <p className="text-sm text-destructive mt-1">{errors.bio}</p>}
+              <p className="text-xs text-muted-foreground mt-1">{formData.bio?.length || 0}/500 karakter</p>
             </div>
 
             <div className="flex gap-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => navigate('/admin/teachers')}
-                className="flex-1"
-              >
+              <Button type="button" variant="outline" onClick={() => navigate("/admin/teachers")} className="flex-1">
                 İptal
               </Button>
               <Button type="submit" disabled={saving} className="flex-1">
                 <Save className="h-4 w-4 mr-2" />
-                {saving ? 'Kaydediliyor...' : 'Kaydet'}
+                {saving ? "Kaydediliyor..." : "Kaydet"}
               </Button>
             </div>
           </form>
@@ -281,9 +250,7 @@ export default function TeacherEdit() {
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Kayıt Tarihi:</span>
-              <span>
-                {new Date(profile.created_at).toLocaleDateString('tr-TR')}
-              </span>
+              <span>{new Date(profile.created_at).toLocaleDateString("tr-TR")}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Onay Durumu:</span>
@@ -301,7 +268,7 @@ export default function TeacherEdit() {
         {approvalData && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Hoca Detayları</CardTitle>
+              <CardTitle className="text-sm">Uzman Detayları</CardTitle>
               <CardDescription className="text-xs">Başvuru sırasında verilen bilgiler</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
@@ -310,7 +277,7 @@ export default function TeacherEdit() {
                   <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
                   <div>
                     <p className="font-medium text-xs text-muted-foreground">Doğum Tarihi</p>
-                    <p>{new Date(approvalData.date_of_birth).toLocaleDateString('tr-TR')}</p>
+                    <p>{new Date(approvalData.date_of_birth).toLocaleDateString("tr-TR")}</p>
                   </div>
                 </div>
               )}

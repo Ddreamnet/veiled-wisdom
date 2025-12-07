@@ -10,13 +10,13 @@ const defaultPages = [
     slug: "about",
     title: "Biz Kimiz",
     content:
-      "Leyl, gizli ilimler ve antik bilgelik alanında uzmanlaşmış hocalar ile danışanları bir araya getiren modern bir platformdur.\n\nMisyonumuz, kadim bilgelik ve modern teknolojinin buluştuğu bir köprü oluşturarak, insanların yaşamlarında anlam ve yön bulmalarına yardımcı olmaktır.\n\nUzman hocalarımız, bakım, temizleme, analiz ve astroloji gibi çeşitli alanlarda hizmet sunmaktadır.",
+      "Leyl, gizli ilimler ve antik bilgelik alanında uzmanlaşmış uzmanlar ile danışanları bir araya getiren modern bir platformdur.\n\nMisyonumuz, kadim bilgelik ve modern teknolojinin buluştuğu bir köprü oluşturarak, insanların yaşamlarında anlam ve yön bulmalarına yardımcı olmaktır.\n\nUzman hocalarımız, bakım, temizleme, analiz ve astroloji gibi çeşitli alanlarda hizmet sunmaktadır.",
   },
   {
     slug: "how-it-works",
     title: "Nasıl Çalışır",
     content:
-      "## Kayıt Olun\nÜcretsiz hesap oluşturun ve platformumuza katılın.\n\n## Hoca Seçin\nİhtiyacınıza uygun kategoride uzman hocaları keşfedin.\n\n## İletişime Geçin\nHocayla mesajlaşarak tarih ve saat belirleyin.\n\n## Randevu Alın\nÖdeme yapın ve randevunuzu tamamlayın.",
+      "## Kayıt Olun\nÜcretsiz hesap oluşturun ve platformumuza katılın.\n\n## Hoca Seçin\nİhtiyacınıza uygun kategoride uzmanları keşfedin.\n\n## İletişime Geçin\nUzmanla mesajlaşarak tarih ve saat belirleyin.\n\n## Randevu Alın\nÖdeme yapın ve randevunuzu tamamlayın.",
   },
   {
     slug: "production",
@@ -45,7 +45,7 @@ const defaultPages = [
     slug: "faq",
     title: "SSS",
     content:
-      '## Platform nasıl çalışır?\nKayıt olduktan sonra kategorilerde uzman hocaları inceleyebilir, mesajlaşabilir ve randevu alabilirsiniz.\n\n## Ödeme nasıl yapılır?\nRandevu oluşturduktan sonra güvenli ödeme sayfasına yönlendirilirsiniz. Kredi kartı ile ödeme yapabilirsiniz.\n\n## Hoca olarak nasıl başvurabilirim?\nKayıt olurken "Hoca" seçeneğini işaretleyin. Başvurunuz incelendikten sonra onaylanacaktır.\n\n## Randevumu iptal edebilir miyim?\nRandevunuzu en az 24 saat öncesinden iptal edebilirsiniz. İptal politikası için hocayla iletişime geçin.\n\n## Verilerim güvende mi?\nEvet, tüm verileriniz şifrelenmiş olarak saklanır ve üçüncü şahıslarla paylaşılmaz.',
+      '## Platform nasıl çalışır?\nKayıt olduktan sonra kategorilerde uzmanları inceleyebilir, mesajlaşabilir ve randevu alabilirsiniz.\n\n## Ödeme nasıl yapılır?\nRandevu oluşturduktan sonra güvenli ödeme sayfasına yönlendirilirsiniz. Kredi kartı ile ödeme yapabilirsiniz.\n\n## Uzman olarak nasıl başvurabilirim?\nKayıt olurken "Uzman" seçeneğini işaretleyin. Başvurunuz incelendikten sonra onaylanacaktır.\n\n## Randevumu iptal edebilir miyim?\nRandevunuzu en az 24 saat öncesinden iptal edebilirsiniz. İptal politikası için uzmanla iletişime geçin.\n\n## Verilerim güvende mi?\nEvet, tüm verileriniz şifrelenmiş olarak saklanır ve üçüncü şahıslarla paylaşılmaz.',
   },
 ];
 
@@ -81,8 +81,8 @@ export default function PagesManagement() {
             const savedPage = savedPages?.find((p) => p.slug === page.slug);
 
             return (
-              <Card 
-                key={page.slug} 
+              <Card
+                key={page.slug}
                 className="hover:shadow-glow transition-smooth cursor-pointer hover:border-primary/50"
                 onClick={() => setEditingPage(pageData)}
               >

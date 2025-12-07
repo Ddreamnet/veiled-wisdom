@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Edit } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { AdminBreadcrumb } from '@/components/AdminBreadcrumb';
-import { useToast } from '@/hooks/use-toast';
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Edit } from "lucide-react";
+import { Link } from "react-router-dom";
+import { AdminBreadcrumb } from "@/components/AdminBreadcrumb";
+import { useToast } from "@/hooks/use-toast";
 
 type Teacher = {
   id: string;
@@ -28,9 +28,9 @@ export default function TeachersManagement() {
     try {
       // Get all users with teacher role from user_roles table
       const { data: teacherRoles, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'teacher');
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "teacher");
 
       if (rolesError) throw rolesError;
 
@@ -41,19 +41,16 @@ export default function TeachersManagement() {
 
       const teacherIds = teacherRoles.map((r) => r.user_id);
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .in('id', teacherIds);
+      const { data, error } = await supabase.from("profiles").select("*").in("id", teacherIds);
 
       if (error) throw error;
       setTeachers(data || []);
     } catch (error: any) {
-      console.error('Error fetching teachers:', error);
+      console.error("Error fetching teachers:", error);
       toast({
-        title: 'Hata',
-        description: 'Hocalar yüklenemedi.',
-        variant: 'destructive',
+        title: "Hata",
+        description: "Uzmanlar yüklenemedi.",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -79,20 +76,16 @@ export default function TeachersManagement() {
     <div className="container py-8 md:py-12 px-4 md:px-6 lg:px-8 space-y-8">
       <div className="space-y-4">
         <AdminBreadcrumb />
-        <h1 className="text-2xl md:text-3xl font-bold">Hocaları Düzenle</h1>
-        <p className="text-muted-foreground">
-          Onaylanmış hocaların profillerini görüntüle ve düzenle
-        </p>
+        <h1 className="text-2xl md:text-3xl font-bold">Uzmanları Düzenle</h1>
+        <p className="text-muted-foreground">Onaylanmış uzmanların profillerini görüntüle ve düzenle</p>
       </div>
 
       {teachers.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground text-lg">
-              Henüz onaylanmış hoca bulunmuyor.
-            </p>
+            <p className="text-muted-foreground text-lg">Henüz onaylanmış uzman bulunmuyor.</p>
             <p className="text-sm text-muted-foreground mt-2">
-              Hoca başvurularını "Onaylamalar" sayfasından onaylayabilirsiniz.
+              Uzman başvurularını "Onaylamalar" sayfasından onaylayabilirsiniz.
             </p>
           </CardContent>
         </Card>
@@ -114,7 +107,7 @@ export default function TeachersManagement() {
                 )}
                 <h3 className="font-semibold text-lg mb-2">{teacher.username}</h3>
                 <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                  {teacher.bio || 'Biyografi eklenmemiş'}
+                  {teacher.bio || "Biyografi eklenmemiş"}
                 </p>
                 <Link to={`/admin/teachers/${teacher.id}`}>
                   <Button size="sm" className="w-full">

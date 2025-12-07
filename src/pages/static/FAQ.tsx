@@ -1,37 +1,29 @@
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
-import { PageBreadcrumb } from '@/components/PageBreadcrumb';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { PageBreadcrumb } from "@/components/PageBreadcrumb";
 
 export default function FAQ() {
   const faqs = [
     {
-      question: 'Platform nasıl çalışır?',
-      answer:
-        'Kayıt olduktan sonra kategorilerde uzman hocaları inceleyebilir, mesajlaşabilir ve randevu alabilirsiniz.',
+      question: "Platform nasıl çalışır?",
+      answer: "Kayıt olduktan sonra kategorilerde uzmanları inceleyebilir, mesajlaşabilir ve randevu alabilirsiniz.",
     },
     {
-      question: 'Ödeme nasıl yapılır?',
+      question: "Ödeme nasıl yapılır?",
       answer:
-        'Randevu oluşturduktan sonra güvenli ödeme sayfasına yönlendirilirsiniz. Kredi kartı ile ödeme yapabilirsiniz.',
+        "Randevu oluşturduktan sonra güvenli ödeme sayfasına yönlendirilirsiniz. Kredi kartı ile ödeme yapabilirsiniz.",
     },
     {
-      question: 'Hoca olarak nasıl başvurabilirim?',
-      answer:
-        'Kayıt olurken "Hoca" seçeneğini işaretleyin. Başvurunuz incelendikten sonra onaylanacaktır.',
+      question: "Uzman olarak nasıl başvurabilirim?",
+      answer: 'Kayıt olurken "Uzman" seçeneğini işaretleyin. Başvurunuz incelendikten sonra onaylanacaktır.',
     },
     {
-      question: 'Randevumu iptal edebilir miyim?',
+      question: "Randevumu iptal edebilir miyim?",
       answer:
-        'Randevunuzu en az 24 saat öncesinden iptal edebilirsiniz. İptal politikası için hocayla iletişime geçin.',
+        "Randevunuzu en az 24 saat öncesinden iptal edebilirsiniz. İptal politikası için uzmanla iletişime geçin.",
     },
     {
-      question: 'Verilerim güvende mi?',
-      answer:
-        'Evet, tüm verileriniz şifrelenmiş olarak saklanır ve üçüncü şahıslarla paylaşılmaz.',
+      question: "Verilerim güvende mi?",
+      answer: "Evet, tüm verileriniz şifrelenmiş olarak saklanır ve üçüncü şahıslarla paylaşılmaz.",
     },
   ];
 

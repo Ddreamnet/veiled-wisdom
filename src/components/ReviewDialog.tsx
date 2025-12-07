@@ -1,11 +1,11 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/lib/supabase';
-import { Star } from 'lucide-react';
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
+import { Star } from "lucide-react";
 
 type ReviewDialogProps = {
   appointmentId: string;
@@ -18,25 +18,25 @@ export function ReviewDialog({ appointmentId, listingId, customerId, onReviewSub
   const [open, setOpen] = useState(false);
   const [rating, setRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
-  const [comment, setComment] = useState('');
+  const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
 
   const handleSubmit = async () => {
     if (rating === 0) {
       toast({
-        title: 'Eksik Bilgi',
-        description: 'Lütfen bir puan seçin.',
-        variant: 'destructive',
+        title: "Eksik Bilgi",
+        description: "Lütfen bir puan seçin.",
+        variant: "destructive",
       });
       return;
     }
 
     if (!comment.trim()) {
       toast({
-        title: 'Eksik Bilgi',
-        description: 'Lütfen bir yorum yazın.',
-        variant: 'destructive',
+        title: "Eksik Bilgi",
+        description: "Lütfen bir yorum yazın.",
+        variant: "destructive",
       });
       return;
     }
@@ -44,7 +44,7 @@ export function ReviewDialog({ appointmentId, listingId, customerId, onReviewSub
     setSubmitting(true);
 
     try {
-      const { error } = await supabase.from('reviews').insert({
+      const { error } = await supabase.from("reviews").insert({
         listing_id: listingId,
         customer_id: customerId,
         rating,
@@ -54,19 +54,19 @@ export function ReviewDialog({ appointmentId, listingId, customerId, onReviewSub
       if (error) throw error;
 
       toast({
-        title: 'Değerlendirme Gönderildi',
-        description: 'Yorumunuz başarıyla kaydedildi.',
+        title: "Değerlendirme Gönderildi",
+        description: "Yorumunuz başarıyla kaydedildi.",
       });
 
       setOpen(false);
       setRating(0);
-      setComment('');
+      setComment("");
       onReviewSubmitted?.();
     } catch (error: any) {
       toast({
-        title: 'Hata',
+        title: "Hata",
         description: error.message,
-        variant: 'destructive',
+        variant: "destructive",
       });
     } finally {
       setSubmitting(false);
@@ -83,7 +83,7 @@ export function ReviewDialog({ appointmentId, listingId, customerId, onReviewSub
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Hocayı Değerlendir</DialogTitle>
+          <DialogTitle>Uzmanı Değerlendir</DialogTitle>
         </DialogHeader>
         <div className="space-y-6 py-4">
           <div>
@@ -100,9 +100,7 @@ export function ReviewDialog({ appointmentId, listingId, customerId, onReviewSub
                 >
                   <Star
                     className={`w-8 h-8 ${
-                      star <= (hoveredRating || rating)
-                        ? 'fill-yellow-400 text-yellow-400'
-                        : 'text-muted-foreground'
+                      star <= (hoveredRating || rating) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"
                     }`}
                   />
                 </button>
@@ -122,13 +120,11 @@ export function ReviewDialog({ appointmentId, listingId, customerId, onReviewSub
               className="min-h-[120px]"
               maxLength={500}
             />
-            <p className="text-xs text-muted-foreground mt-2">
-              {comment.length}/500 karakter
-            </p>
+            <p className="text-xs text-muted-foreground mt-2">{comment.length}/500 karakter</p>
           </div>
 
           <Button onClick={handleSubmit} disabled={submitting} className="w-full">
-            {submitting ? 'Gönderiliyor...' : 'Değerlendirmeyi Gönder'}
+            {submitting ? "Gönderiliyor..." : "Değerlendirmeyi Gönder"}
           </Button>
         </div>
       </DialogContent>

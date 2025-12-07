@@ -12,15 +12,15 @@ import { getOptimizedThumbnailUrl, getOptimizedCoverUrl } from "@/lib/imageOptim
 import logoImage from "@/assets/logo.png";
 
 // Lazy load ParticleBackground - it's heavy and not critical
-const ParticleBackground = lazy(() => 
-  import("@/components/ParticleBackground").then(m => ({ default: m.ParticleBackground }))
+const ParticleBackground = lazy(() =>
+  import("@/components/ParticleBackground").then((m) => ({ default: m.ParticleBackground })),
 );
 
 export default function Index() {
   const { data, isLoading } = useHomeData();
   const categories = data?.categories || [];
   const curiosities = data?.curiosities || [];
-  
+
   const mousePosition = useMousePosition();
   const scrollPosition = useScrollPosition();
   const { user } = useAuth();
@@ -62,23 +62,15 @@ export default function Index() {
         >
           <div className="text-center space-y-6 md:space-y-8 animate-fade-in-up px-4">
             <div className="flex justify-center mb-2 md:mb-4">
-              <img
-                src={logoImage}
-                alt="Leyl Logo"
-                className="h-16 md:h-24 lg:h-28 w-auto object-contain"
-              />
+              <img src={logoImage} alt="Leyl Logo" className="h-16 md:h-24 lg:h-28 w-auto object-contain" />
             </div>
 
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-serif font-bold text-smoky leading-tight">
-              Leyl
-            </h1>
-            <p className="text-2xl md:text-3xl lg:text-4xl font-serif text-gradient-silver">
-              Gizli İlimler Platformu
-            </p>
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-serif font-bold text-smoky leading-tight">Leyl</h1>
+            <p className="text-2xl md:text-3xl lg:text-4xl font-serif text-gradient-silver">Gizli İlimler Platformu</p>
 
             <p className="text-base md:text-lg lg:text-xl text-silver-muted leading-relaxed max-w-3xl mx-auto">
-              Antik bilgelik ve modern yaklaşımın buluştuğu platform. Uzman hocalarımızla tanışın ve
-              bilgelik yolculuğunuza başlayın.
+              Antik bilgelik ve modern yaklaşımın buluştuğu platform. Uzmanlarımızla tanışın ve bilgelik yolculuğunuza
+              başlayın.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center pt-2 md:pt-4">
@@ -126,9 +118,7 @@ export default function Index() {
       {/* Curiosities Section */}
       <section className="container py-12 md:py-16 lg:py-24 px-4 -mt-32">
         <div className="text-center mb-8 md:mb-12">
-          <h2 className="text-3xl md:text-4xl font-serif font-bold text-gradient-silver mb-2">
-            Merak Konuları
-          </h2>
+          <h2 className="text-3xl md:text-4xl font-serif font-bold text-gradient-silver mb-2">Merak Konuları</h2>
           <p className="text-sm md:text-base text-silver-muted">Gizemli konuları keşfedin</p>
         </div>
 
@@ -146,7 +136,7 @@ export default function Index() {
                   </CardContent>
                 </Card>
               ))
-              : curiosities.map((curiosity) => (
+            : curiosities.map((curiosity) => (
                 <Card key={curiosity.id} className="group overflow-hidden card-hover">
                   {curiosity.cover_url && (
                     <div className="relative h-48 sm:h-52 md:h-56 overflow-hidden">
@@ -184,9 +174,7 @@ export default function Index() {
       {/* Categories Section */}
       <section className="container py-12 md:py-16 lg:py-24 px-4">
         <div className="text-center mb-8 md:mb-12">
-          <h2 className="text-3xl md:text-4xl font-serif font-bold text-gradient-silver mb-2">
-            Kategoriler
-          </h2>
+          <h2 className="text-3xl md:text-4xl font-serif font-bold text-gradient-silver mb-2">Kategoriler</h2>
           <p className="text-sm md:text-base text-silver-muted">Uzmanlık alanlarını keşfedin</p>
         </div>
 
@@ -200,7 +188,7 @@ export default function Index() {
                   </CardContent>
                 </Card>
               ))
-              : categories.map((category) => (
+            : categories.map((category) => (
                 <Link key={category.id} to={`/categories/${category.slug}`}>
                   <Card className="group overflow-hidden h-full card-hover">
                     {category.image_url && (

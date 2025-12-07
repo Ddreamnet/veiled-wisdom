@@ -88,7 +88,7 @@ export default function SignUp() {
     const result = await signUp(email, password, username, role, teacherData);
     if (!result.error) {
       if (role === "teacher") {
-        // Hoca başvurusu - login sayfasına yönlendir
+        // Uzman başvurusu - login sayfasına yönlendir
         navigate("/auth/sign-in");
         toast({
           title: "Başvurunuz Alındı",
@@ -167,7 +167,7 @@ export default function SignUp() {
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="teacher" id="teacher" />
                   <Label htmlFor="teacher" className="font-normal cursor-pointer text-silver-muted">
-                    Hoca (Onay gerektirir)
+                    Uzman (Onay gerektirir)
                   </Label>
                 </div>
               </RadioGroup>

@@ -48,8 +48,12 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     // Get emails from auth.users using Supabase admin client
-    const { data: { user: customerUser } } = await supabase.auth.admin.getUserById(customerUserId);
-    const { data: { user: teacherUser } } = await supabase.auth.admin.getUserById(teacherUserId);
+    const {
+      data: { user: customerUser },
+    } = await supabase.auth.admin.getUserById(customerUserId);
+    const {
+      data: { user: teacherUser },
+    } = await supabase.auth.admin.getUserById(teacherUserId);
 
     if (!customerUser?.email || !teacherUser?.email) {
       throw new Error("Could not fetch user emails");
@@ -72,13 +76,13 @@ const handler = async (req: Request): Promise<Response> => {
         <h2>Randevu Detayları:</h2>
         <ul>
           <li><strong>İlan:</strong> ${listingTitle}</li>
-          <li><strong>Hoca:</strong> ${teacherName}</li>
+          <li><strong>Uzman:</strong> ${teacherName}</li>
           <li><strong>Tarih & Saat:</strong> ${formattedDate}</li>
           <li><strong>Süre:</strong> ${duration} dakika</li>
           <li><strong>Ücret:</strong> ${price} TL</li>
         </ul>
         
-        <p>Hocadan onay geldiğinde size bildirim göndereceğiz.</p>
+        <p>Uzmandan onay geldiğinde size bildirim göndereceğiz.</p>
         
         <p>İyi günler,<br>Leyl Ekibi</p>
       `,
@@ -124,17 +128,14 @@ const handler = async (req: Request): Promise<Response> => {
           "Content-Type": "application/json",
           ...corsHeaders,
         },
-      }
+      },
     );
   } catch (error: any) {
     console.error("Error in send-appointment-email function:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
-    );
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
   }
 };
 

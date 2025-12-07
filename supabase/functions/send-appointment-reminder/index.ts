@@ -28,16 +28,18 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Fetch confirmed appointments in the 24-hour window
     const { data: appointments, error } = await supabase
-      .from('appointments')
-      .select(`
+      .from("appointments")
+      .select(
+        `
         *,
         listing:listings(title),
         customer:profiles!appointments_customer_id_fkey(username),
         teacher:profiles!appointments_teacher_id_fkey(username)
-      `)
-      .eq('status', 'confirmed')
-      .gte('start_ts', twentyThreeHoursLater.toISOString())
-      .lte('start_ts', twentyFiveHoursLater.toISOString());
+      `,
+      )
+      .eq("status", "confirmed")
+      .gte("start_ts", twentyThreeHoursLater.toISOString())
+      .lte("start_ts", twentyFiveHoursLater.toISOString());
 
     if (error) {
       console.error("Error fetching appointments:", error);
@@ -47,13 +49,10 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Found ${appointments?.length || 0} appointments to remind`);
 
     if (!appointments || appointments.length === 0) {
-      return new Response(
-        JSON.stringify({ success: true, sent: 0 }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        }
-      );
+      return new Response(JSON.stringify({ success: true, sent: 0 }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
     }
 
     let emailsSent = 0;
@@ -62,8 +61,12 @@ const handler = async (req: Request): Promise<Response> => {
     for (const appointment of appointments) {
       try {
         // Get user emails
-        const { data: { user: customerUser } } = await supabase.auth.admin.getUserById(appointment.customer_id);
-        const { data: { user: teacherUser } } = await supabase.auth.admin.getUserById(appointment.teacher_id);
+        const {
+          data: { user: customerUser },
+        } = await supabase.auth.admin.getUserById(appointment.customer_id);
+        const {
+          data: { user: teacherUser },
+        } = await supabase.auth.admin.getUserById(appointment.teacher_id);
 
         if (!customerUser?.email || !teacherUser?.email) {
           console.error(`Missing emails for appointment ${appointment.id}`);
@@ -87,7 +90,7 @@ const handler = async (req: Request): Promise<Response> => {
             <h2>Randevu Detayları:</h2>
             <ul>
               <li><strong>İlan:</strong> ${appointment.listing?.title}</li>
-              <li><strong>Hoca:</strong> ${appointment.teacher?.username}</li>
+              <li><strong>Uzman:</strong> ${appointment.teacher?.username}</li>
               <li><strong>Tarih & Saat:</strong> ${formattedDate}</li>
               <li><strong>Süre:</strong> ${appointment.duration_minutes} dakika</li>
               <li><strong>Ücret:</strong> ${appointment.price_at_booking} TL</li>
@@ -132,22 +135,16 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Total emails sent: ${emailsSent}`);
 
-    return new Response(
-      JSON.stringify({ success: true, sent: emailsSent }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
-    );
+    return new Response(JSON.stringify({ success: true, sent: emailsSent }), {
+      status: 200,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
   } catch (error: any) {
     console.error("Error in send-appointment-reminder function:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
-    );
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
   }
 };
 
