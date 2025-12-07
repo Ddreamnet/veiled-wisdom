@@ -151,8 +151,8 @@ export default function Index() {
                     </div>
                   )}
                   <CardHeader className="p-4 sm:p-5 md:p-6">
-                    <CardTitle className="text-lg sm:text-xl text-silver group-hover:text-gradient-purple transition-all font-serif uppercase">
-                      {curiosity.title}
+                    <CardTitle className="text-lg sm:text-xl text-silver group-hover:text-gradient-purple transition-all font-serif">
+                      {curiosity.title.toLocaleUpperCase('tr-TR')}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-4 sm:p-5 md:p-6 pt-0">
@@ -204,8 +204,8 @@ export default function Index() {
                       </div>
                     )}
                     <CardContent className="p-4 sm:p-5 md:p-6 pb-[12px]">
-                      <h3 className="font-semibold text-base sm:text-lg text-silver group-hover:text-gradient-purple transition-all mb-2 font-serif uppercase">
-                        {category.name}
+                      <h3 className="font-semibold text-base sm:text-lg text-silver group-hover:text-gradient-purple transition-all mb-2 font-serif">
+                        {category.name.toLocaleUpperCase('tr-TR')}
                       </h3>
                     </CardContent>
                   </Card>
