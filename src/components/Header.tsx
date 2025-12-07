@@ -66,11 +66,11 @@ const HeaderComponent = () => {
             </div>
             <div className="flex flex-col overflow-hidden">
               <span
-                className={`font-serif font-bold text-gradient-silver transition-all duration-300 ease-out uppercase ${
+                className={`font-serif font-bold text-gradient-silver transition-all duration-300 ease-out ${
                   isScrolled ? "text-xl sm:text-2xl" : "text-2xl sm:text-3xl"
                 }`}
               >
-                LEYL
+                Leyl
               </span>
               <span
                 className={`text-xs text-silver-muted transition-all duration-300 ease-out hidden sm:block ${
@@ -262,7 +262,7 @@ const HeaderComponent = () => {
                 <SheetHeader>
                   <SheetTitle className="flex items-center gap-2">
                     <img src={logo} alt="Leyl" className="h-8 w-8" />
-                    <span className="font-serif text-gradient-silver uppercase">MENÜ</span>
+                    <span className="font-serif text-gradient-silver">Menü</span>
                   </SheetTitle>
                 </SheetHeader>
 

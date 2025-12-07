@@ -230,7 +230,7 @@ export default function ProfilePage() {
     <div className="container py-8 md:py-12 px-4">
       <div className="max-w-4xl mx-auto">
         <PageBreadcrumb />
-        <h1 className="text-3xl md:text-4xl font-serif text-gradient-silver mb-6 md:mb-8 uppercase">HESAP AYARLARI</h1>
+        <h1 className="text-3xl md:text-4xl font-serif text-gradient-silver mb-6 md:mb-8">Hesap Ayarları</h1>
 
         {dataLoading ? (
           <div className="space-y-6">

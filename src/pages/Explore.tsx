@@ -29,8 +29,8 @@ export default function Explore() {
   return (
     <div className="container py-8 md:py-12 px-4">
       <PageBreadcrumb />
-      <h1 className="text-3xl md:text-4xl font-serif font-bold text-gradient-silver mb-6 md:mb-8 uppercase">
-        KATEGORİLERİ KEŞFET
+      <h1 className="text-3xl md:text-4xl font-serif font-bold text-gradient-silver mb-6 md:mb-8">
+        Kategorileri Keşfet
       </h1>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
         {categories.map((category) => (
@@ -49,7 +49,7 @@ export default function Explore() {
                 </div>
               )}
               <CardContent className="p-4 sm:p-5 md:p-6 pb-[12px]">
-                <h3 className="font-semibold text-base sm:text-lg text-silver group-hover:text-gradient-purple transition-all font-serif uppercase">
+                <h3 className="font-semibold text-base sm:text-lg text-silver group-hover:text-gradient-purple transition-all">
                   {category.name}
                 </h3>
               </CardContent>
