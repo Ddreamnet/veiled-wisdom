@@ -163,7 +163,7 @@ export default function Index() {
                         <img src={getOptimizedThumbnailUrl(category.image_url)} alt={category.name} loading="lazy" decoding="async" className="w-full h-full object-cover card-image" />
                         <div className="absolute inset-0 bg-gradient-to-t from-card/50 to-transparent" />
                       </div>}
-                    <CardContent className="p-4 sm:p-5 md:p-6 pl-[12px] pr-[12px] pb-0 pt-0">
+                    <CardContent className="p-4 sm:p-5 md:p-6 pl-[12px] pr-[12px] pt-[6px] pb-[6px]">
                       <h3 className="font-semibold text-base sm:text-lg text-silver group-hover:text-gradient-purple transition-all mb-2 font-serif">
                         {category.name.toLocaleUpperCase('tr-TR')}
                       </h3>
