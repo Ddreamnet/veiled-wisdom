@@ -65,8 +65,8 @@ export default function Index() {
               <img src={logoImage} alt="Leyl Logo" className="h-16 md:h-24 lg:h-28 w-auto object-contain" />
             </div>
 
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-serif font-bold text-smoky leading-tight">Leyl</h1>
-            <p className="text-2xl md:text-3xl lg:text-4xl font-serif text-gradient-silver">GİZLİ İLİMLER PLATFORMU</p>
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-serif font-bold text-smoky leading-tight uppercase">LEYL</h1>
+            <p className="text-2xl md:text-3xl lg:text-4xl font-serif text-gradient-silver uppercase">GİZLİ İLİMLER PLATFORMU</p>
 
             <p className="text-base md:text-lg lg:text-xl text-silver-muted leading-relaxed max-w-3xl mx-auto">
               Antik bilgelik ve modern yaklaşımın buluştuğu platform. Uzmanlarımızla tanışın ve bilgelik yolculuğunuza
@@ -118,7 +118,7 @@ export default function Index() {
       {/* Curiosities Section */}
       <section className="container py-12 md:py-16 lg:py-24 px-4 -mt-32">
         <div className="text-center mb-8 md:mb-12">
-          <h2 className="text-3xl md:text-4xl font-serif font-bold text-gradient-silver mb-2">Merak Konuları</h2>
+          <h2 className="text-3xl md:text-4xl font-serif font-bold text-gradient-silver mb-2 uppercase">MERAK KONULARI</h2>
           <p className="text-sm md:text-base text-silver-muted">Gizemli Konuları Keşfedin! 🌼🤍🌕</p>
         </div>
 
@@ -151,7 +151,7 @@ export default function Index() {
                     </div>
                   )}
                   <CardHeader className="p-4 sm:p-5 md:p-6">
-                    <CardTitle className="text-lg sm:text-xl text-silver group-hover:text-gradient-purple transition-all">
+                    <CardTitle className="text-lg sm:text-xl text-silver group-hover:text-gradient-purple transition-all font-serif uppercase">
                       {curiosity.title}
                     </CardTitle>
                   </CardHeader>
@@ -174,7 +174,7 @@ export default function Index() {
       {/* Categories Section */}
       <section className="container py-12 md:py-16 lg:py-24 px-4">
         <div className="text-center mb-8 md:mb-12">
-          <h2 className="text-3xl md:text-4xl font-serif font-bold text-gradient-silver mb-2">Kategoriler</h2>
+          <h2 className="text-3xl md:text-4xl font-serif font-bold text-gradient-silver mb-2 uppercase">KATEGORİLER</h2>
           <p className="text-sm md:text-base text-silver-muted">Uzmanlık Alanlarını Keşfedin! 🌼🤍🌕</p>
         </div>
 
@@ -204,7 +204,7 @@ export default function Index() {
                       </div>
                     )}
                     <CardContent className="p-4 sm:p-5 md:p-6 pb-[12px]">
-                      <h3 className="font-semibold text-base sm:text-lg text-silver group-hover:text-gradient-purple transition-all mb-2">
+                      <h3 className="font-semibold text-base sm:text-lg text-silver group-hover:text-gradient-purple transition-all mb-2 font-serif uppercase">
                         {category.name}
                       </h3>
                     </CardContent>
