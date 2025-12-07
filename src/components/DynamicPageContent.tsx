@@ -9,15 +9,15 @@ interface DynamicPageContentProps {
 export function DynamicPageContent({ content, isLoading }: DynamicPageContentProps) {
   if (isLoading) {
     return (
-      <Card>
-        <CardContent className="p-6 md:p-8 space-y-4">
-          <Skeleton className="h-6 w-1/3" />
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-2/3" />
-          <Skeleton className="h-6 w-1/4 mt-4" />
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-3/4" />
+      <Card className="glass-effect border-border/30 shadow-elegant">
+        <CardContent className="p-6 md:p-10 space-y-6">
+          <Skeleton className="h-7 w-1/3 bg-secondary/50" />
+          <Skeleton className="h-4 w-full bg-secondary/40" />
+          <Skeleton className="h-4 w-full bg-secondary/40" />
+          <Skeleton className="h-4 w-2/3 bg-secondary/40" />
+          <Skeleton className="h-7 w-1/4 mt-6 bg-secondary/50" />
+          <Skeleton className="h-4 w-full bg-secondary/40" />
+          <Skeleton className="h-4 w-3/4 bg-secondary/40" />
         </CardContent>
       </Card>
     );
@@ -27,8 +27,8 @@ export function DynamicPageContent({ content, isLoading }: DynamicPageContentPro
   const sections = content.split('\n\n').filter(Boolean);
 
   return (
-    <Card>
-      <CardContent className="p-6 md:p-8 space-y-4 md:space-y-6">
+    <Card className="glass-effect border-border/30 shadow-elegant overflow-hidden">
+      <CardContent className="p-6 md:p-10 space-y-6 md:space-y-8">
         {sections.map((section, index) => {
           const trimmed = section.trim();
           
@@ -36,7 +36,10 @@ export function DynamicPageContent({ content, isLoading }: DynamicPageContentPro
           if (trimmed.startsWith('## ')) {
             const headingText = trimmed.replace('## ', '');
             return (
-              <h2 key={index} className="text-xl md:text-2xl font-semibold mt-4 first:mt-0">
+              <h2 
+                key={index} 
+                className="text-xl md:text-2xl font-semibold text-gradient-silver mt-8 first:mt-0 pb-2 border-b border-primary/20"
+              >
                 {headingText}
               </h2>
             );
@@ -45,18 +48,21 @@ export function DynamicPageContent({ content, isLoading }: DynamicPageContentPro
           // Regular paragraph - handle single line breaks within paragraphs
           const lines = trimmed.split('\n');
           return (
-            <div key={index} className="space-y-2">
+            <div key={index} className="space-y-3">
               {lines.map((line, lineIndex) => {
                 const lineTrimmed = line.trim();
                 if (lineTrimmed.startsWith('## ')) {
                   return (
-                    <h2 key={lineIndex} className="text-xl md:text-2xl font-semibold mt-4 first:mt-0">
+                    <h2 
+                      key={lineIndex} 
+                      className="text-xl md:text-2xl font-semibold text-gradient-silver mt-8 first:mt-0 pb-2 border-b border-primary/20"
+                    >
                       {lineTrimmed.replace('## ', '')}
                     </h2>
                   );
                 }
                 return (
-                  <p key={lineIndex} className="text-sm md:text-base text-muted-foreground">
+                  <p key={lineIndex} className="text-sm md:text-base text-foreground/80 leading-relaxed">
                     {lineTrimmed}
                   </p>
                 );
