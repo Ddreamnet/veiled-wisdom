@@ -67,13 +67,13 @@ const HeaderComponent = () => {
             <div className="flex flex-col overflow-hidden">
               <span
                 className={`font-serif font-bold text-gradient-silver transition-all duration-300 ease-out ${
-                  isScrolled ? "text-2xl" : "text-3xl"
+                  isScrolled ? "text-xl sm:text-2xl" : "text-2xl sm:text-3xl"
                 }`}
               >
                 Leyl
               </span>
               <span
-                className={`text-xs text-silver-muted transition-all duration-300 ease-out ${
+                className={`text-xs text-silver-muted transition-all duration-300 ease-out hidden sm:block ${
                   isScrolled ? "opacity-0 max-h-0" : "opacity-100 max-h-4"
                 }`}
               >
@@ -237,7 +237,7 @@ const HeaderComponent = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <>
+              <div className="hidden lg:flex items-center gap-3">
                 <Link to="/auth/sign-in">
                   <Button variant="ghost" size="sm" className="transition-all duration-200 ease-out">
                     Giriş Yap
@@ -246,7 +246,7 @@ const HeaderComponent = () => {
                 <Link to="/auth/sign-up">
                   <Button size="sm" className="transition-all duration-200 ease-out">Kayıt Ol</Button>
                 </Link>
-              </>
+              </div>
             )}
 
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
