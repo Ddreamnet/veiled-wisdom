@@ -34,7 +34,7 @@ export default function Explore() {
                   <img src={category.image_url} alt={category.name} loading="lazy" decoding="async" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                   <div className="absolute inset-0 bg-gradient-to-t from-card/70 via-transparent to-transparent" />
                 </div>}
-              <CardContent className="px-3 py-2 flex items-center">
+              <CardContent className="px-3 py-2 min-h-[48px] flex items-center justify-center">
                 <h3 className="font-semibold text-base sm:text-lg text-silver group-hover:text-gradient-purple transition-all font-serif">
                   {category.name.toLocaleUpperCase('tr-TR')}
                 </h3>
