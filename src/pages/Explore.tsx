@@ -14,7 +14,7 @@ export default function Explore() {
         <Skeleton className="h-10 w-64 mb-6 md:mb-8" />
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
           {[1, 2, 3, 4].map(i => <Card key={i}>
-              <Skeleton className="h-48 sm:h-52 md:h-56 w-full rounded-t-lg" />
+              <Skeleton className="h-40 sm:h-44 md:h-48 w-full rounded-t-lg" />
               <CardContent className="p-4 sm:p-5 md:p-6 pb-[12px]">
                 <Skeleton className="h-6 w-24" />
               </CardContent>
@@ -30,7 +30,7 @@ export default function Explore() {
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
         {categories.map(category => <Link key={category.id} to={`/categories/${category.slug}`}>
             <Card className="group overflow-hidden h-full card-hover">
-              {category.image_url && <div className="relative h-48 sm:h-52 md:h-56 overflow-hidden">
+              {category.image_url && <div className="relative h-40 sm:h-44 md:h-48 overflow-hidden">
                   <img src={category.image_url} alt={category.name} loading="lazy" decoding="async" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                   <div className="absolute inset-0 bg-gradient-to-t from-card/70 via-transparent to-transparent" />
                 </div>}

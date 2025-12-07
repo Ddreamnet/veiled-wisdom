@@ -16,7 +16,7 @@ export default function CategoryDetail() {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i}>
-              <Skeleton className="h-48 sm:h-52 md:h-56 w-full rounded-t-lg" />
+              <Skeleton className="h-40 sm:h-44 md:h-48 w-full rounded-t-lg" />
               <CardContent className="p-4 sm:p-5 md:p-6">
                 <Skeleton className="h-5 md:h-6 w-28 md:w-32 mb-2" />
                 <Skeleton className="h-4 w-20 md:w-24" />
@@ -72,10 +72,10 @@ export default function CategoryDetail() {
                     alt={subCat.name}
                     loading="lazy"
                     decoding="async"
-                    className="w-full h-48 sm:h-52 md:h-56 object-cover rounded-t-lg"
+                    className="w-full h-40 sm:h-44 md:h-48 object-cover rounded-t-lg"
                   />
                 ) : (
-                  <div className="w-full h-48 sm:h-52 md:h-56 bg-primary/20 rounded-t-lg" />
+                  <div className="w-full h-40 sm:h-44 md:h-48 bg-primary/20 rounded-t-lg" />
                 )}
                 <CardContent className="px-3 py-2 min-h-[48px] flex items-center justify-between">
                   <h3 className="font-semibold text-base sm:text-lg font-serif">{subCat.name.toLocaleUpperCase('tr-TR')}</h3>
