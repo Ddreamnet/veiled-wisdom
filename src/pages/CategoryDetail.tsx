@@ -77,7 +77,7 @@ export default function CategoryDetail() {
                 ) : (
                   <div className="w-full h-40 sm:h-44 md:h-48 bg-primary/20 rounded-t-lg" />
                 )}
-                <CardContent className="p-4 sm:p-5 md:p-6 flex items-center justify-between pb-[12px] py-[24px]">
+                <CardContent className="px-3 py-2 flex items-center justify-between">
                   <h3 className="font-semibold text-base sm:text-lg font-serif">{subCat.name.toLocaleUpperCase('tr-TR')}</h3>
                   <p className="text-xs sm:text-sm text-muted-foreground">
                     {listingCounts[subCat.id] || 0} ilan
