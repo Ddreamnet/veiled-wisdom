@@ -9,7 +9,7 @@ import { useScrollPosition } from "@/hooks/useScrollPosition";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHomeData } from "@/lib/queries";
 import { getOptimizedThumbnailUrl, getOptimizedCoverUrl } from "@/lib/imageOptimizer";
-import logoImage from "@/assets/logo.png";
+import logoImage from "@/assets/logo.webp";
 
 // Lazy load ParticleBackground - it's heavy and not critical
 const ParticleBackground = lazy(() => import("@/components/ParticleBackground").then(m => ({
