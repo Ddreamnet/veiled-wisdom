@@ -12,27 +12,28 @@ import { getOptimizedThumbnailUrl, getOptimizedCoverUrl } from "@/lib/imageOptim
 import logoImage from "@/assets/logo.png";
 
 // Lazy load ParticleBackground - it's heavy and not critical
-const ParticleBackground = lazy(() =>
-  import("@/components/ParticleBackground").then((m) => ({ default: m.ParticleBackground })),
-);
-
+const ParticleBackground = lazy(() => import("@/components/ParticleBackground").then(m => ({
+  default: m.ParticleBackground
+})));
 export default function Index() {
-  const { data, isLoading } = useHomeData();
+  const {
+    data,
+    isLoading
+  } = useHomeData();
   const categories = data?.categories || [];
   const curiosities = data?.curiosities || [];
-
   const mousePosition = useMousePosition();
   const scrollPosition = useScrollPosition();
-  const { user } = useAuth();
+  const {
+    user
+  } = useAuth();
 
   // Calculate parallax values (memoized for performance)
   const parallaxY = useMemo(() => scrollPosition * 0.5, [scrollPosition]);
   const parallaxScale = useMemo(() => 1 + scrollPosition * 0.0002, [scrollPosition]);
   const decorativeParallax1 = useMemo(() => parallaxY * 0.3, [parallaxY]);
   const decorativeParallax2 = useMemo(() => parallaxY * 0.5, [parallaxY]);
-
-  return (
-    <div className="min-h-screen">
+  return <div className="min-h-screen">
       {/* Hero Section with Liquid Gradient */}
       <section className="relative liquid-gradient py-16 md:py-24 lg:py-32 overflow-hidden">
         {/* Particle Background - Lazy loaded */}
@@ -41,25 +42,19 @@ export default function Index() {
         </Suspense>
 
         {/* Mouse-following Glow */}
-        <div
-          className="absolute w-96 h-96 rounded-full pointer-events-none"
-          style={{
-            background: `radial-gradient(circle, hsl(280 90% 70% / 0.15) 0%, transparent 70%)`,
-            left: `${mousePosition.x}px`,
-            top: `${mousePosition.y}px`,
-            transform: `translate3d(-50%, -50%, 0)`,
-            filter: "blur(60px)",
-            willChange: "transform",
-          }}
-        />
+        <div className="absolute w-96 h-96 rounded-full pointer-events-none" style={{
+        background: `radial-gradient(circle, hsl(280 90% 70% / 0.15) 0%, transparent 70%)`,
+        left: `${mousePosition.x}px`,
+        top: `${mousePosition.y}px`,
+        transform: `translate3d(-50%, -50%, 0)`,
+        filter: "blur(60px)",
+        willChange: "transform"
+      }} />
 
-        <div
-          className="container relative z-10"
-          style={{
-            transform: `translate3d(0, -${parallaxY}px, 0) scale(${parallaxScale})`,
-            willChange: "transform",
-          }}
-        >
+        <div className="container relative z-10" style={{
+        transform: `translate3d(0, -${parallaxY}px, 0) scale(${parallaxScale})`,
+        willChange: "transform"
+      }}>
           <div className="text-center space-y-6 md:space-y-8 animate-fade-in-up px-4">
             <div className="flex justify-center mb-2 md:mb-4">
               <img src={logoImage} alt="Leyl Logo" className="h-16 md:h-24 lg:h-28 w-auto object-contain" />
@@ -80,35 +75,27 @@ export default function Index() {
                   Keşfet
                 </Button>
               </Link>
-              {!user && (
-                <Link to="/auth/sign-up" className="w-full sm:w-auto">
+              {!user && <Link to="/auth/sign-up" className="w-full sm:w-auto">
                   <Button size="lg" variant="secondary" className="w-full sm:w-auto">
                     <Users className="w-4 h-4 md:w-5 md:h-5 mr-2" />
                     Kayıt Ol
                   </Button>
-                </Link>
-              )}
+                </Link>}
             </div>
           </div>
         </div>
 
         {/* Decorative Elements with Parallax */}
         <div className="absolute inset-0 pointer-events-none">
-          <div
-            className="absolute top-20 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl animate-glow-pulse"
-            style={{
-              transform: `translate3d(0, ${decorativeParallax1}px, 0)`,
-              willChange: "transform",
-            }}
-          />
-          <div
-            className="absolute bottom-20 right-10 w-96 h-96 bg-accent/10 rounded-full blur-3xl animate-glow-pulse"
-            style={{
-              animationDelay: "4s",
-              transform: `translate3d(0, ${decorativeParallax2}px, 0)`,
-              willChange: "transform",
-            }}
-          />
+          <div className="absolute top-20 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl animate-glow-pulse" style={{
+          transform: `translate3d(0, ${decorativeParallax1}px, 0)`,
+          willChange: "transform"
+        }} />
+          <div className="absolute bottom-20 right-10 w-96 h-96 bg-accent/10 rounded-full blur-3xl animate-glow-pulse" style={{
+          animationDelay: "4s",
+          transform: `translate3d(0, ${decorativeParallax2}px, 0)`,
+          willChange: "transform"
+        }} />
         </div>
       </section>
 
@@ -123,9 +110,7 @@ export default function Index() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-          {isLoading
-            ? [1, 2, 3].map((i) => (
-                <Card key={i} className="overflow-hidden">
+          {isLoading ? [1, 2, 3].map(i => <Card key={i} className="overflow-hidden">
                   <Skeleton className="h-48 sm:h-52 md:h-56 w-full" />
                   <CardHeader className="p-4 sm:p-5 md:p-6">
                     <Skeleton className="h-6 w-3/4" />
@@ -134,22 +119,11 @@ export default function Index() {
                     <Skeleton className="h-4 w-full mb-2" />
                     <Skeleton className="h-4 w-2/3" />
                   </CardContent>
-                </Card>
-              ))
-            : curiosities.map((curiosity) => (
-                <Card key={curiosity.id} className="group overflow-hidden card-hover">
-                  {curiosity.cover_url && (
-                    <div className="relative h-48 sm:h-52 md:h-56 overflow-hidden">
-                      <img
-                        src={getOptimizedCoverUrl(curiosity.cover_url)}
-                        alt={curiosity.title}
-                        loading="lazy"
-                        decoding="async"
-                        className="w-full h-full object-cover card-image"
-                      />
+                </Card>) : curiosities.map(curiosity => <Card key={curiosity.id} className="group overflow-hidden card-hover">
+                  {curiosity.cover_url && <div className="relative h-48 sm:h-52 md:h-56 overflow-hidden">
+                      <img src={getOptimizedCoverUrl(curiosity.cover_url)} alt={curiosity.title} loading="lazy" decoding="async" className="w-full h-full object-cover card-image" />
                       <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
-                    </div>
-                  )}
+                    </div>}
                   <CardHeader className="p-4 sm:p-5 md:p-6">
                     <CardTitle className="text-lg sm:text-xl text-silver group-hover:text-gradient-purple transition-all font-serif">
                       {curiosity.title.toLocaleUpperCase('tr-TR')}
@@ -166,8 +140,7 @@ export default function Index() {
                       </Button>
                     </Link>
                   </CardContent>
-                </Card>
-              ))}
+                </Card>)}
         </div>
       </section>
 
@@ -179,40 +152,25 @@ export default function Index() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
-          {isLoading
-            ? [1, 2, 3, 4].map((i) => (
-                <Card key={i} className="overflow-hidden">
+          {isLoading ? [1, 2, 3, 4].map(i => <Card key={i} className="overflow-hidden">
                   <Skeleton className="h-40 sm:h-44 md:h-48 w-full" />
                   <CardContent className="p-4 sm:p-5 md:p-6 pb-[12px]">
                     <Skeleton className="h-6 w-24" />
                   </CardContent>
-                </Card>
-              ))
-            : categories.map((category) => (
-                <Link key={category.id} to={`/categories/${category.slug}`}>
+                </Card>) : categories.map(category => <Link key={category.id} to={`/categories/${category.slug}`}>
                   <Card className="group overflow-hidden h-full card-hover">
-                    {category.image_url && (
-                      <div className="relative h-40 sm:h-44 md:h-48 overflow-hidden">
-                        <img
-                          src={getOptimizedThumbnailUrl(category.image_url)}
-                          alt={category.name}
-                          loading="lazy"
-                          decoding="async"
-                          className="w-full h-full object-cover card-image"
-                        />
+                    {category.image_url && <div className="relative h-40 sm:h-44 md:h-48 overflow-hidden">
+                        <img src={getOptimizedThumbnailUrl(category.image_url)} alt={category.name} loading="lazy" decoding="async" className="w-full h-full object-cover card-image" />
                         <div className="absolute inset-0 bg-gradient-to-t from-card/50 to-transparent" />
-                      </div>
-                    )}
-                    <CardContent className="p-4 sm:p-5 md:p-6 pb-[12px]">
+                      </div>}
+                    <CardContent className="p-4 sm:p-5 md:p-6 pb-[6px] pt-[6px] pl-[12px] pr-[12px]">
                       <h3 className="font-semibold text-base sm:text-lg text-silver group-hover:text-gradient-purple transition-all mb-2 font-serif">
                         {category.name.toLocaleUpperCase('tr-TR')}
                       </h3>
                     </CardContent>
                   </Card>
-                </Link>
-              ))}
+                </Link>)}
         </div>
       </section>
-    </div>
-  );
+    </div>;
 }
