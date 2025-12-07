@@ -159,7 +159,7 @@ export default function Index() {
                   </CardContent>
                 </Card>) : categories.map(category => <Link key={category.id} to={`/categories/${category.slug}`}>
                   <Card className="group overflow-hidden h-full card-hover">
-                    {category.image_url && <div className="relative h-40 sm:h-44 md:h-48 overflow-hidden">
+                    {category.image_url && <div className="relative h-48 sm:h-52 md:h-56 overflow-hidden">
                         <img src={getOptimizedThumbnailUrl(category.image_url)} alt={category.name} loading="lazy" decoding="async" className="w-full h-full object-cover card-image" />
                         <div className="absolute inset-0 bg-gradient-to-t from-card/50 to-transparent" />
                       </div>}
