@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Link } from "react-router-dom";
-import logo from "@/assets/logo.png";
+import logo from "@/assets/logo.webp";
 import { Facebook, Twitter, Instagram } from "lucide-react";
 const FooterComponent = () => {
   return <footer className="relative w-full border-t border-silver/10 bg-card/50 backdrop-blur-sm mt-auto overflow-hidden">

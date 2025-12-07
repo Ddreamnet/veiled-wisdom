@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { NavLink } from "@/components/NavLink";
-import logo from "@/assets/logo.png";
+import logo from "@/assets/logo.webp";
 import {
   DropdownMenu,
   DropdownMenuContent,

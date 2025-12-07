@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { UserRole } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
-import logo from "@/assets/logo.png";
+import logo from "@/assets/logo.webp";
 const teacherApplicationSchema = z.object({
   dateOfBirth: z.string().min(1, "Doğum tarihi gereklidir"),
   specialization: z
