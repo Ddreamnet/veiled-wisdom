@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Edit, Trash2, Search, Filter, BookOpen, ArrowLeft, Home, Video, MessageSquare } from 'lucide-react';
+import { NumberInput } from '@/components/ui/number-input';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -561,36 +562,37 @@ export default function MyListings() {
                           <RadioGroup
                             onValueChange={field.onChange}
                             value={field.value}
+                            defaultValue={field.value}
                             className="grid grid-cols-2 gap-4"
                           >
-                            <div 
+                            <Label 
+                              htmlFor="video"
                               className={`flex items-center space-x-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${
                                 field.value === 'video' 
                                   ? 'border-primary bg-primary/5' 
                                   : 'border-border hover:border-primary/50'
                               }`}
-                              onClick={() => field.onChange('video')}
                             >
                               <RadioGroupItem value="video" id="video" />
-                              <Label htmlFor="video" className="cursor-pointer flex items-center gap-2">
+                              <div className="flex items-center gap-2">
                                 <Video className="h-5 w-5 text-primary" />
                                 <span className="font-medium">Görüntülü Görüşme</span>
-                              </Label>
-                            </div>
-                            <div 
+                              </div>
+                            </Label>
+                            <Label 
+                              htmlFor="messaging"
                               className={`flex items-center space-x-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${
                                 field.value === 'messaging' 
                                   ? 'border-primary bg-primary/5' 
                                   : 'border-border hover:border-primary/50'
                               }`}
-                              onClick={() => field.onChange('messaging')}
                             >
                               <RadioGroupItem value="messaging" id="messaging" />
-                              <Label htmlFor="messaging" className="cursor-pointer flex items-center gap-2">
+                              <div className="flex items-center gap-2">
                                 <MessageSquare className="h-5 w-5 text-primary" />
                                 <span className="font-medium">Mesajlaşma</span>
-                              </Label>
-                            </div>
+                              </div>
+                            </Label>
                           </RadioGroup>
                         </FormControl>
                         <FormMessage />
@@ -663,23 +665,25 @@ export default function MyListings() {
                       {fields.map((field, index) => (
                         <div 
                           key={field.id} 
-                          className="grid grid-cols-[1fr,1fr,auto] gap-3 p-4 border rounded-xl bg-muted/30"
+                          className="flex flex-col sm:flex-row gap-3 p-4 border rounded-xl bg-muted/30"
                         >
                           <FormField
                             control={form.control}
                             name={`packages.${index}.duration`}
                             render={({ field }) => (
-                              <FormItem>
+                              <FormItem className="flex-1">
                                 <FormLabel className="text-xs">
                                   Süre (dakika)
                                 </FormLabel>
                                 <FormControl>
-                                  <Input
-                                    type="number"
-                                    min="1"
-                                    max="480"
+                                  <NumberInput
+                                    value={field.value}
+                                    onChange={field.onChange}
+                                    min={1}
+                                    max={480}
+                                    step={5}
+                                    suffix="dk"
                                     placeholder="30"
-                                    {...field}
                                   />
                                 </FormControl>
                                 <FormMessage />
@@ -691,16 +695,17 @@ export default function MyListings() {
                             control={form.control}
                             name={`packages.${index}.price`}
                             render={({ field }) => (
-                              <FormItem>
+                              <FormItem className="flex-1">
                                 <FormLabel className="text-xs">Fiyat (TL)</FormLabel>
                                 <FormControl>
-                                  <Input
-                                    type="number"
-                                    step="0.01"
-                                    min="1"
-                                    max="10000"
+                                  <NumberInput
+                                    value={field.value}
+                                    onChange={field.onChange}
+                                    min={1}
+                                    max={10000}
+                                    step={10}
+                                    suffix="₺"
                                     placeholder="100"
-                                    {...field}
                                   />
                                 </FormControl>
                                 <FormMessage />
@@ -708,14 +713,14 @@ export default function MyListings() {
                             )}
                           />
 
-                          <div className="flex items-end pb-2">
+                          <div className="flex items-end pb-2 justify-end sm:justify-start">
                             {fields.length > 1 && (
                               <Button
                                 type="button"
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => remove(index)}
-                                className="text-destructive hover:text-destructive"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
