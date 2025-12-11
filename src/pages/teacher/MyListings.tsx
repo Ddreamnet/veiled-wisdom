@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useNavigate } from "react-router-dom";
-import { supabase, Category, Listing, ListingPrice } from "@/lib/supabase";
+import { supabase, Category, Listing, ListingPrice, ConsultationType } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, Search, Filter, BookOpen, ArrowLeft, Home } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Filter, BookOpen, ArrowLeft, Home, Video, MessageSquare } from 'lucide-react';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -49,11 +49,17 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 type ListingWithPrices = Listing & {
   prices: ListingPrice[];
   category: Category;
 };
+
+const pricePackageSchema = z.object({
+  duration: z.string().min(1, "Süre gerekli"),
+  price: z.string().min(1, "Fiyat gerekli"),
+});
 
 const listingFormSchema = z.object({
   title: z.string()
@@ -66,25 +72,21 @@ const listingFormSchema = z.object({
   subcategory_id: z.string().optional(),
   is_active: z.boolean().default(true),
   cover_url: z.string().optional(),
-  price_30: z.string().optional(),
-  price_45: z.string().optional(),
-  price_60: z.string().optional(),
+  consultation_type: z.enum(['video', 'messaging']),
+  packages: z.array(pricePackageSchema).min(1, "En az bir paket eklemelisiniz"),
 }).refine((data) => {
-  const hasAtLeastOnePrice = data.price_30 || data.price_45 || data.price_60;
-  return hasAtLeastOnePrice;
-}, {
-  message: "En az bir fiyat girmelisiniz",
-  path: ["price_30"],
-}).refine((data) => {
-  const prices = [data.price_30, data.price_45, data.price_60].filter(Boolean);
-  return prices.every(price => {
-    const num = parseFloat(price!);
-    return !isNaN(num) && num > 0 && num <= 10000;
+  return data.packages.every(pkg => {
+    const duration = parseInt(pkg.duration);
+    const price = parseFloat(pkg.price);
+    return !isNaN(duration) && duration > 0 && duration <= 480 &&
+           !isNaN(price) && price > 0 && price <= 10000;
   });
 }, {
-  message: "Fiyatlar 0-10000 TL arasında olmalıdır",
-  path: ["price_30"],
+  message: "Süre 1-480 dakika, fiyat 0-10000 TL arasında olmalıdır",
+  path: ["packages"],
 });
+
+type ListingFormValues = z.infer<typeof listingFormSchema>;
 
 export default function MyListings() {
   const { user } = useAuth();
@@ -101,7 +103,7 @@ export default function MyListings() {
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
 
-  const form = useForm<z.infer<typeof listingFormSchema>>({
+  const form = useForm<ListingFormValues>({
     resolver: zodResolver(listingFormSchema),
     defaultValues: {
       title: '',
@@ -110,11 +112,17 @@ export default function MyListings() {
       subcategory_id: '',
       is_active: true,
       cover_url: '',
-      price_30: '',
-      price_45: '',
-      price_60: '',
+      consultation_type: 'video',
+      packages: [{ duration: '30', price: '' }],
     },
   });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "packages",
+  });
+
+  const consultationType = form.watch('consultation_type');
 
   useEffect(() => {
     if (user) {
@@ -137,7 +145,6 @@ export default function MyListings() {
     setLoading(true);
 
     try {
-      // Fetch listings with category
       const { data } = await supabase
         .from('listings')
         .select('*, category:categories(*)')
@@ -145,14 +152,12 @@ export default function MyListings() {
         .order('created_at', { ascending: false });
 
       if (data && data.length > 0) {
-        // Batch fetch all prices in a single query
         const listingIds = data.map(l => l.id);
         const { data: allPrices } = await supabase
           .from('listing_prices')
           .select('*')
           .in('listing_id', listingIds);
 
-        // Group prices by listing_id
         const pricesMap: Record<string, any[]> = {};
         (allPrices || []).forEach(price => {
           if (!pricesMap[price.listing_id]) {
@@ -161,7 +166,6 @@ export default function MyListings() {
           pricesMap[price.listing_id].push(price);
         });
 
-        // Merge prices into listings
         const listingsWithPrices = data.map(listing => ({
           ...listing,
           prices: pricesMap[listing.id] || [],
@@ -205,13 +209,14 @@ export default function MyListings() {
   const handleEdit = (listing: ListingWithPrices) => {
     setEditingId(listing.id);
 
-    const p30 = listing.prices.find((p) => p.duration_minutes === 30);
-    const p45 = listing.prices.find((p) => p.duration_minutes === 45);
-    const p60 = listing.prices.find((p) => p.duration_minutes === 60);
-
-    // Check if listing has a parent category (is subcategory)
     const parentCategory = categories.find(c => c.id === listing.category.parent_id);
     
+    // Convert existing prices to package format
+    const packages = listing.prices.map(p => ({
+      duration: p.duration_minutes.toString(),
+      price: p.price.toString(),
+    }));
+
     form.reset({
       title: listing.title,
       description: listing.description || '',
@@ -219,20 +224,18 @@ export default function MyListings() {
       subcategory_id: parentCategory ? listing.category_id : '',
       is_active: listing.is_active,
       cover_url: listing.cover_url || '',
-      price_30: p30?.price.toString() || '',
-      price_45: p45?.price.toString() || '',
-      price_60: p60?.price.toString() || '',
+      consultation_type: listing.consultation_type || 'video',
+      packages: packages.length > 0 ? packages : [{ duration: '30', price: '' }],
     });
 
     setOpen(true);
   };
 
-  const handleSubmit = async (values: z.infer<typeof listingFormSchema>) => {
+  const handleSubmit = async (values: ListingFormValues) => {
     if (!user) return;
     setSubmitting(true);
 
     try {
-      // Eğer seçilen ana kategorinin alt kategorileri varsa, alt kategori zorunlu
       if (subcategories.length > 0 && !values.subcategory_id) {
         toast({
           title: 'Alt kategori gerekli',
@@ -243,7 +246,6 @@ export default function MyListings() {
         return;
       }
 
-      // Alt kategori varsa onu, yoksa ana kategoriyi kullan
       const finalCategoryId = values.subcategory_id || values.category_id;
 
       const listingData = {
@@ -253,6 +255,7 @@ export default function MyListings() {
         is_active: values.is_active,
         cover_url: values.cover_url || null,
         teacher_id: user.id,
+        consultation_type: values.consultation_type,
       };
 
       let listingId = editingId;
@@ -287,10 +290,11 @@ export default function MyListings() {
           throw deleteError;
         }
 
-        const prices = [];
-        if (values.price_30) prices.push({ listing_id: listingId, duration_minutes: 30 as const, price: parseFloat(values.price_30) });
-        if (values.price_45) prices.push({ listing_id: listingId, duration_minutes: 45 as const, price: parseFloat(values.price_45) });
-        if (values.price_60) prices.push({ listing_id: listingId, duration_minutes: 60 as const, price: parseFloat(values.price_60) });
+        const prices = values.packages.map(pkg => ({
+          listing_id: listingId,
+          duration_minutes: parseInt(pkg.duration),
+          price: parseFloat(pkg.price),
+        }));
 
         if (prices.length > 0) {
           const { error: insertError } = await supabase
@@ -354,10 +358,27 @@ export default function MyListings() {
       subcategory_id: '',
       is_active: true,
       cover_url: '',
-      price_30: '',
-      price_45: '',
-      price_60: '',
+      consultation_type: 'video',
+      packages: [{ duration: '30', price: '' }],
     });
+  };
+
+  const formatDurationLabel = (minutes: number, type: ConsultationType) => {
+    if (minutes >= 60) {
+      const hours = Math.floor(minutes / 60);
+      const remainingMinutes = minutes % 60;
+      if (remainingMinutes === 0) {
+        return type === 'video' 
+          ? `${hours} saat görüntülü görüşme`
+          : `${hours} saat mesajlaşma`;
+      }
+      return type === 'video'
+        ? `${hours} saat ${remainingMinutes} dk görüntülü görüşme`
+        : `${hours} saat ${remainingMinutes} dk mesajlaşma`;
+    }
+    return type === 'video'
+      ? `${minutes} dakika görüntülü görüşme`
+      : `${minutes} dakika mesajlaşma`;
   };
 
   // Filtered listings
@@ -529,6 +550,54 @@ export default function MyListings() {
                     )}
                   </div>
 
+                  {/* Consultation Type */}
+                  <FormField
+                    control={form.control}
+                    name="consultation_type"
+                    render={({ field }) => (
+                      <FormItem className="space-y-3">
+                        <FormLabel>Görüşme Türü *</FormLabel>
+                        <FormControl>
+                          <RadioGroup
+                            onValueChange={field.onChange}
+                            value={field.value}
+                            className="grid grid-cols-2 gap-4"
+                          >
+                            <div 
+                              className={`flex items-center space-x-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                                field.value === 'video' 
+                                  ? 'border-primary bg-primary/5' 
+                                  : 'border-border hover:border-primary/50'
+                              }`}
+                              onClick={() => field.onChange('video')}
+                            >
+                              <RadioGroupItem value="video" id="video" />
+                              <Label htmlFor="video" className="cursor-pointer flex items-center gap-2">
+                                <Video className="h-5 w-5 text-primary" />
+                                <span className="font-medium">Görüntülü Görüşme</span>
+                              </Label>
+                            </div>
+                            <div 
+                              className={`flex items-center space-x-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                                field.value === 'messaging' 
+                                  ? 'border-primary bg-primary/5' 
+                                  : 'border-border hover:border-primary/50'
+                              }`}
+                              onClick={() => field.onChange('messaging')}
+                            >
+                              <RadioGroupItem value="messaging" id="messaging" />
+                              <Label htmlFor="messaging" className="cursor-pointer flex items-center gap-2">
+                                <MessageSquare className="h-5 w-5 text-primary" />
+                                <span className="font-medium">Mesajlaşma</span>
+                              </Label>
+                            </div>
+                          </RadioGroup>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
                   {/* Is Active */}
                   <FormField
                     control={form.control}
@@ -566,73 +635,101 @@ export default function MyListings() {
                     )}
                   />
 
-                  {/* Pricing */}
+                  {/* Dynamic Pricing Packages */}
                   <div className="border-t pt-4 space-y-4">
-                    <div>
-                      <h3 className="font-semibold mb-2">Seans Fiyatları *</h3>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        En az bir fiyat girmelisiniz. Fiyatlar 0-10000 TL arasında olmalıdır.
-                      </p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold mb-1">Paketler *</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {consultationType === 'video' 
+                            ? 'Görüntülü görüşme paketlerini belirleyin' 
+                            : 'Mesajlaşma paketlerini belirleyin'}
+                        </p>
+                      </div>
+                      {fields.length < 5 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => append({ duration: '', price: '' })}
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Paket Ekle
+                        </Button>
+                      )}
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="price_30"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>30 Dakika (TL)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                placeholder="0.00"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                    <div className="space-y-3">
+                      {fields.map((field, index) => (
+                        <div 
+                          key={field.id} 
+                          className="grid grid-cols-[1fr,1fr,auto] gap-3 p-4 border rounded-xl bg-muted/30"
+                        >
+                          <FormField
+                            control={form.control}
+                            name={`packages.${index}.duration`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs">
+                                  Süre (dakika)
+                                </FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    min="1"
+                                    max="480"
+                                    placeholder="30"
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
 
-                      <FormField
-                        control={form.control}
-                        name="price_45"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>45 Dakika (TL)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                placeholder="0.00"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                          <FormField
+                            control={form.control}
+                            name={`packages.${index}.price`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs">Fiyat (TL)</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="1"
+                                    max="10000"
+                                    placeholder="100"
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
 
-                      <FormField
-                        control={form.control}
-                        name="price_60"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>60 Dakika (TL)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                placeholder="0.00"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                          <div className="flex items-end pb-2">
+                            {fields.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => remove(index)}
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
+
+                    {form.formState.errors.packages && (
+                      <p className="text-sm text-destructive">
+                        {form.formState.errors.packages.message}
+                      </p>
+                    )}
                   </div>
 
                   <DialogFooter>
@@ -703,9 +800,9 @@ export default function MyListings() {
             />
           </div>
           
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Select value={filterStatus} onValueChange={(value: any) => setFilterStatus(value)}>
-              <SelectTrigger className="w-full sm:w-[150px]">
+          <div className="flex flex-wrap gap-2">
+            <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as any)}>
+              <SelectTrigger className="w-[140px]">
                 <Filter className="h-4 w-4 mr-2" />
                 <SelectValue />
               </SelectTrigger>
@@ -717,7 +814,7 @@ export default function MyListings() {
             </Select>
 
             <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger className="w-full sm:w-[200px]">
+              <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Kategori" />
               </SelectTrigger>
               <SelectContent>
@@ -735,122 +832,111 @@ export default function MyListings() {
 
       {/* Listings Grid */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-          {[1, 2, 3].map((i) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => (
             <Card key={i}>
-              <Skeleton className="w-full h-48 rounded-t-lg" />
-              <CardHeader>
-                <Skeleton className="h-6 w-3/4" />
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-2/3" />
+              <Skeleton className="h-48 w-full" />
+              <CardContent className="p-4">
+                <Skeleton className="h-6 w-3/4 mb-2" />
+                <Skeleton className="h-4 w-full mb-4" />
+                <div className="flex gap-2">
+                  <Skeleton className="h-6 w-16" />
+                  <Skeleton className="h-6 w-16" />
+                </div>
               </CardContent>
             </Card>
           ))}
         </div>
       ) : filteredListings.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 px-4 text-center">
-            <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-            {searchQuery || filterStatus !== 'all' || filterCategory !== 'all' ? (
-              <>
-                <p className="text-base md:text-lg font-semibold mb-2">Sonuç bulunamadı</p>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Arama kriterlerinize uygun ilan bulunamadı.
-                </p>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setSearchQuery('');
-                    setFilterStatus('all');
-                    setFilterCategory('all');
-                  }}
-                >
-                  Filtreleri Temizle
-                </Button>
-              </>
-            ) : (
-              <>
-                <p className="text-base md:text-lg font-semibold mb-2">Henüz ilan yok</p>
-                <p className="text-sm text-muted-foreground mb-4">
-                  İlk ilanınızı oluşturarak öğrencilere ulaşmaya başlayın.
-                </p>
-                <Button onClick={() => { resetForm(); setOpen(true); }}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  İlk İlanı Oluştur
-                </Button>
-              </>
-            )}
-          </CardContent>
+        <Card className="p-8 text-center">
+          <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold mb-2">
+            {searchQuery || filterStatus !== 'all' || filterCategory !== 'all' 
+              ? 'Sonuç bulunamadı' 
+              : 'Henüz ilan yok'}
+          </h3>
+          <p className="text-muted-foreground mb-4">
+            {searchQuery || filterStatus !== 'all' || filterCategory !== 'all'
+              ? 'Farklı filtreler deneyin'
+              : 'İlk ilanınızı oluşturarak başlayın'}
+          </p>
+          {!searchQuery && filterStatus === 'all' && filterCategory === 'all' && (
+            <Button onClick={() => { resetForm(); setOpen(true); }}>
+              <Plus className="h-4 w-4 mr-2" />
+              Yeni İlan Oluştur
+            </Button>
+          )}
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredListings.map((listing) => (
-            <Card key={listing.id} className="hover:shadow-glow transition-smooth overflow-hidden flex flex-col">
-              {listing.cover_url && (
-                <div className="aspect-video relative overflow-hidden">
+            <Card key={listing.id} className="overflow-hidden group">
+              <div className="relative h-48 bg-muted">
+                {listing.cover_url ? (
                   <img
                     src={listing.cover_url}
                     alt={listing.title}
-                    className="object-cover w-full h-full"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
-                </div>
-              )}
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-2">
-                  <CardTitle className="text-base md:text-lg line-clamp-2 break-words flex-1">{listing.title}</CardTitle>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <BookOpen className="h-16 w-16 text-muted-foreground/30" />
+                  </div>
+                )}
+                <div className="absolute top-2 right-2 flex gap-1">
                   {listing.is_active ? (
-                    <Badge variant="default" className="text-xs flex-shrink-0">Aktif</Badge>
+                    <Badge className="bg-green-500">Aktif</Badge>
                   ) : (
-                    <Badge variant="secondary" className="text-xs flex-shrink-0">Pasif</Badge>
+                    <Badge variant="secondary">Pasif</Badge>
+                  )}
+                  {listing.consultation_type === 'messaging' ? (
+                    <Badge variant="outline" className="bg-background/80">
+                      <MessageSquare className="h-3 w-3 mr-1" />
+                      Mesaj
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="bg-background/80">
+                      <Video className="h-3 w-3 mr-1" />
+                      Video
+                    </Badge>
                   )}
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-4 flex-1 flex flex-col">
-                <p className="text-sm text-muted-foreground line-clamp-3 break-words">
+              </div>
+              <CardContent className="p-4">
+                <h3 className="font-semibold text-lg mb-1 line-clamp-1">{listing.title}</h3>
+                <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
                   {listing.description}
                 </p>
                 
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Filter className="h-4 w-4 flex-shrink-0" />
-                  <span className="truncate">{listing.category.name}</span>
+                <div className="flex flex-wrap gap-1 mb-4">
+                  {listing.prices.slice(0, 3).map((price, idx) => (
+                    <Badge key={idx} variant="outline" className="text-xs">
+                      {formatDurationLabel(price.duration_minutes, listing.consultation_type || 'video').split(' ').slice(0, 2).join(' ')} - {price.price} TL
+                    </Badge>
+                  ))}
+                  {listing.prices.length > 3 && (
+                    <Badge variant="outline" className="text-xs">
+                      +{listing.prices.length - 3}
+                    </Badge>
+                  )}
                 </div>
-                
-                <div className="border-t pt-3 flex-1">
-                  <p className="text-xs font-semibold text-muted-foreground mb-2">Fiyatlar:</p>
-                  <div className="space-y-1">
-                    {listing.prices.length > 0 ? (
-                      listing.prices.map((price) => (
-                        <div key={price.duration_minutes} className="flex justify-between text-sm gap-2">
-                          <span className="text-muted-foreground">{price.duration_minutes} dk</span>
-                          <span className="font-semibold">{price.price} TL</span>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-xs text-muted-foreground">Fiyat bilgisi yok</p>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="flex flex-col sm:flex-row gap-2 pt-2">
+
+                <div className="flex gap-2">
                   <Button
-                    size="sm"
                     variant="outline"
+                    size="sm"
+                    className="flex-1"
                     onClick={() => handleEdit(listing)}
-                    className="flex-1 w-full sm:w-auto"
                   >
-                    <Edit className="h-4 w-4 mr-2" />
+                    <Edit className="h-4 w-4 mr-1" />
                     Düzenle
                   </Button>
                   <Button
-                    size="sm"
                     variant="destructive"
+                    size="sm"
                     onClick={() => handleDelete(listing.id)}
-                    className="flex-1 w-full sm:w-auto"
                   >
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    Sil
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
               </CardContent>
