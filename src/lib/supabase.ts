@@ -50,6 +50,8 @@ export type Category = {
   created_at: string;
 };
 
+export type ConsultationType = 'video' | 'messaging';
+
 export type Listing = {
   id: string;
   teacher_id: string;
@@ -58,13 +60,14 @@ export type Listing = {
   description: string;
   cover_url: string | null;
   is_active: boolean;
+  consultation_type: ConsultationType;
   created_at: string;
 };
 
 export type ListingPrice = {
   id: string;
   listing_id: string;
-  duration_minutes: 30 | 45 | 60;
+  duration_minutes: number;
   price: number;
 };
 
