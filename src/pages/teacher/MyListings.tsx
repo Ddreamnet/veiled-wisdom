@@ -58,8 +58,14 @@ type ListingWithPrices = Listing & {
 };
 
 const pricePackageSchema = z.object({
-  duration: z.string().min(1, "Süre gerekli"),
-  price: z.string().min(1, "Fiyat gerekli"),
+  duration: z.string().refine((val) => {
+    const num = parseInt(val);
+    return !isNaN(num) && num >= 1 && num <= 480;
+  }, { message: "Süre 1-480 dakika arasında olmalıdır" }),
+  price: z.string().refine((val) => {
+    const num = parseFloat(val);
+    return !isNaN(num) && num >= 1 && num <= 10000;
+  }, { message: "Fiyat 1-10000 TL arasında olmalıdır" }),
 });
 
 const listingFormSchema = z.object({
@@ -75,16 +81,6 @@ const listingFormSchema = z.object({
   cover_url: z.string().optional(),
   consultation_type: z.enum(['video', 'messaging']),
   packages: z.array(pricePackageSchema).min(1, "En az bir paket eklemelisiniz"),
-}).refine((data) => {
-  return data.packages.every(pkg => {
-    const duration = parseInt(pkg.duration);
-    const price = parseFloat(pkg.price);
-    return !isNaN(duration) && duration > 0 && duration <= 480 &&
-           !isNaN(price) && price > 0 && price <= 10000;
-  });
-}, {
-  message: "Süre 1-480 dakika, fiyat 0-10000 TL arasında olmalıdır",
-  path: ["packages"],
 });
 
 type ListingFormValues = z.infer<typeof listingFormSchema>;
