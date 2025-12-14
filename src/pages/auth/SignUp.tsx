@@ -85,8 +85,20 @@ export default function SignUp() {
             phone,
           }
         : undefined;
-    const result = await signUp(email, password, username, role, teacherData);
-    if (!result.error) {
+    try {
+      const result = await signUp(email, password, username, role, teacherData);
+      
+      if (result.error) {
+        console.error("SignUp error:", result.error);
+        toast({
+          title: "Kayıt Başarısız",
+          description: result.error.message || "Bir hata oluştu. Lütfen tekrar deneyin.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
       if (role === "teacher") {
         // Uzman başvurusu - login sayfasına yönlendir
         navigate("/auth/sign-in");
@@ -99,8 +111,16 @@ export default function SignUp() {
         // Müşteri - login sayfasına yönlendir
         navigate("/auth/sign-in");
       }
+    } catch (error: any) {
+      console.error("SignUp exception:", error);
+      toast({
+        title: "Kayıt Başarısız",
+        description: error?.message || "Beklenmeyen bir hata oluştu.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
   return (
     <div className="min-h-screen flex items-center justify-center p-4 py-12 liquid-gradient">
