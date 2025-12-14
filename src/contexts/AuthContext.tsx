@@ -426,48 +426,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error };
       }
 
-      // Kullanıcı oluşturulduysa profil ve rol oluştur
+      // Kullanıcı oluşturulduysa - profil ve rol trigger tarafından otomatik oluşturulur
       if (data.user) {
-        let hasError = false;
-
-        // 1. Profil oluştur (kullanıcı kendi id'si için - RLS'e uygun)
-        const { error: profileError } = await supabase.from("profiles").insert({
-          id: data.user.id,
-          username: username,
-          is_teacher_approved: false,
-        });
-
-        if (profileError && profileError.code !== "23505") {
-          console.error("Profile creation error:", profileError);
-          toast({
-            title: "Profil Oluşturulamadı",
-            description: "Hesabınız oluşturuldu ancak profil kaydı başarısız oldu. Lütfen destek ile iletişime geçin.",
-            variant: "destructive",
-            duration: 8000,
-          });
-          hasError = true;
-        }
-
-        // 2. Rol ata (başlangıçta customer)
-        const { error: roleError } = await supabase.from("user_roles").insert({
-          user_id: data.user.id,
-          role: "customer",
-        });
-
-        if (roleError && roleError.code !== "23505") {
-          console.error("Role assignment error:", roleError);
-          if (!hasError) {
-            toast({
-              title: "Rol Atanamadı",
-              description: "Hesabınız oluşturuldu ancak rol ataması başarısız oldu. Lütfen destek ile iletişime geçin.",
-              variant: "destructive",
-              duration: 8000,
-            });
-          }
-          hasError = true;
-        }
-
-        // 3. Uzman ise başvuru kaydı oluştur
+        // Uzman ise başvuru kaydı oluştur
         if (selectedRole === "teacher" && teacherData) {
           const { error: approvalError } = await supabase.from("teacher_approvals").insert({
             user_id: data.user.id,
@@ -489,14 +450,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               variant: "destructive",
               duration: 8000,
             });
-            hasError = true;
           }
-        }
-
-        // Kritik hatalar varsa ve işlem devam edemezse kullanıcıyı bilgilendir
-        if (hasError && !profileError) {
-          // Profil başarılı ama diğer işlemler başarısız - kullanıcı yine de devam edebilir
-          console.warn("Kayıt tamamlandı ancak bazı işlemler başarısız oldu");
         }
       }
 
