@@ -82,7 +82,7 @@ export default function PublicProfile() {
                         variant={role === "teacher" ? "default" : "secondary"}
                         className="text-sm sm:text-base px-3 sm:px-4 py-1 sm:py-1.5"
                       >
-                        {role === "teacher" ? "✨ Eğitmen" : "👤 Danışan"}
+                        {role === "teacher" ? "✨ Uzman" : "👤 Danışan"}
                       </Badge>
                     )}
                   </div>

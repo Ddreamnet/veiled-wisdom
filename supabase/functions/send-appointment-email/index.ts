@@ -102,7 +102,7 @@ const handler = async (req: Request): Promise<Response> => {
         <h2>Randevu Detayları:</h2>
         <ul>
           <li><strong>İlan:</strong> ${listingTitle}</li>
-          <li><strong>Öğrenci:</strong> ${customerName}</li>
+          <li><strong>Danışan:</strong> ${customerName}</li>
           <li><strong>Tarih & Saat:</strong> ${formattedDate}</li>
           <li><strong>Süre:</strong> ${duration} dakika</li>
           <li><strong>Ücret:</strong> ${price} TL</li>

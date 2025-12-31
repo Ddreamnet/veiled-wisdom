@@ -84,7 +84,7 @@ const handler = async (req: Request): Promise<Response> => {
       `
         : `
         <h1>Merhaba ${customerName},</h1>
-        <p>Üzgünüz, randevu talebiniz öğretmen tarafından reddedildi.</p>
+        <p>Üzgünüz, randevu talebiniz uzman tarafından reddedildi.</p>
         
         <h2>İptal Edilen Randevu:</h2>
         <ul>

@@ -410,7 +410,7 @@ export default function MyListings() {
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbLink href="/profile">Öğretmen</BreadcrumbLink>
+              <BreadcrumbLink href="/profile">Uzman</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>

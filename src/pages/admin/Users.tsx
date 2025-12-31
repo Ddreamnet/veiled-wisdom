@@ -45,40 +45,56 @@ export default function UsersManagement() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      // Fetch all profiles with user roles
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("*")
-        .order("created_at", { ascending: false });
+      // Fetch all data in parallel
+      const [profilesResult, rolesResult, approvalsResult] = await Promise.all([
+        supabase.from("profiles").select("*").order("created_at", { ascending: false }),
+        supabase.from("user_roles").select("*"),
+        supabase.from("teacher_approvals").select("user_id, status, full_name, created_at"),
+      ]);
 
-      if (profilesError) throw profilesError;
+      if (profilesResult.error) throw profilesResult.error;
+      if (rolesResult.error) throw rolesResult.error;
+      if (approvalsResult.error) throw approvalsResult.error;
 
-      // Fetch user roles
-      const { data: roles, error: rolesError } = await supabase.from("user_roles").select("*");
+      const profiles = profilesResult.data || [];
+      const roles = rolesResult.data || [];
+      const approvals = approvalsResult.data || [];
 
-      if (rolesError) throw rolesError;
+      // Create a map of all unique user IDs from profiles, roles, and approvals
+      const allUserIds = new Set<string>();
+      profiles.forEach((p) => allUserIds.add(p.id));
+      roles.forEach((r) => allUserIds.add(r.user_id));
+      approvals.forEach((a) => allUserIds.add(a.user_id));
 
-      // Fetch teacher approvals
-      const { data: approvals, error: approvalsError } = await supabase
-        .from("teacher_approvals")
-        .select("user_id, status");
+      // Create maps for quick lookup
+      const profilesMap = new Map(profiles.map((p) => [p.id, p]));
+      const rolesMap = new Map(roles.map((r) => [r.user_id, r]));
+      const approvalsMap = new Map(approvals.map((a) => [a.user_id, a]));
 
-      if (approvalsError) throw approvalsError;
+      // Build user data for all unique users
+      const usersData: UserData[] = Array.from(allUserIds).map((userId) => {
+        const profile = profilesMap.get(userId);
+        const userRole = rolesMap.get(userId);
+        const approval = approvalsMap.get(userId);
 
-      // Combine data
-      const usersData: UserData[] = (profiles || []).map((profile) => {
-        const userRole = roles?.find((r) => r.user_id === profile.id);
-        const approval = approvals?.find((a) => a.user_id === profile.id);
+        // Get username from profile, or from approval full_name, or show as "Profil Eksik"
+        const username = profile?.username || approval?.full_name || null;
+        
+        // Get created_at from profile, or from approval
+        const created_at = profile?.created_at || approval?.created_at || new Date().toISOString();
 
         return {
-          id: profile.id,
-          username: profile.username || null,
-          avatar_url: profile.avatar_url || null,
+          id: userId,
+          username,
+          avatar_url: profile?.avatar_url || null,
           role: userRole?.role || null,
-          created_at: profile.created_at,
+          created_at,
           teacher_status: approval?.status || null,
         };
       });
+
+      // Sort by created_at descending
+      usersData.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
       setUsers(usersData);
     } catch (error: any) {
@@ -157,7 +173,7 @@ export default function UsersManagement() {
       case "teacher":
         return "Uzman";
       case "customer":
-        return "Öğrenci";
+        return "Danışan";
       default:
         return "Rol Yok";
     }
@@ -311,7 +327,7 @@ export default function UsersManagement() {
           <TabsTrigger value="all">Tümü ({users.length})</TabsTrigger>
           <TabsTrigger value="admin">Admin ({filterUsersByRole("admin").length})</TabsTrigger>
           <TabsTrigger value="teacher">Uzman ({filterUsersByRole("teacher").length})</TabsTrigger>
-          <TabsTrigger value="customer">Öğrenci ({filterUsersByRole("customer").length})</TabsTrigger>
+          <TabsTrigger value="customer">Danışan ({filterUsersByRole("customer").length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="all" className="mt-6">
@@ -344,7 +360,7 @@ export default function UsersManagement() {
         <TabsContent value="customer" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Öğrenci Kullanıcılar</CardTitle>
+              <CardTitle>Danışan Kullanıcılar</CardTitle>
             </CardHeader>
             <CardContent>{renderUsersTable(filterUsersByRole("customer"))}</CardContent>
           </Card>
@@ -382,7 +398,7 @@ export default function UsersManagement() {
                 <SelectItem value="customer">
                   <div className="flex items-center gap-2">
                     <User className="w-4 h-4" />
-                    Öğrenci
+                    Danışan
                   </div>
                 </SelectItem>
               </SelectContent>
