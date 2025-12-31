@@ -426,8 +426,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error };
       }
 
-      // Kullanıcı oluşturulduysa - profil ve rol trigger tarafından otomatik oluşturulur
+      // Kullanıcı oluşturulduysa
       if (data.user) {
+        // Profil oluştur (trigger yoksa fallback)
+        const { error: profileError } = await supabase.from("profiles").upsert(
+          {
+            id: data.user.id,
+            username: username,
+            is_teacher_approved: false,
+          },
+          { onConflict: "id" }
+        );
+        
+        if (profileError) {
+          console.warn("Profile creation error (might already exist):", profileError);
+        }
+
+        // Danışan ise customer rolü ata
+        if (selectedRole === "customer") {
+          // Önce mevcut rolü kontrol et
+          const { data: existingRole } = await supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", data.user.id)
+            .maybeSingle();
+
+          // Rol yoksa customer rolü ata
+          if (!existingRole) {
+            const { error: roleError } = await supabase.from("user_roles").insert({
+              user_id: data.user.id,
+              role: "customer",
+            });
+
+            if (roleError) {
+              console.error("Customer role assignment error:", roleError);
+            } else {
+              console.log("Customer role assigned successfully for user:", data.user.id);
+            }
+          }
+        }
+
         // Uzman ise başvuru kaydı oluştur
         if (selectedRole === "teacher" && teacherData) {
           const { error: approvalError } = await supabase.from("teacher_approvals").insert({
