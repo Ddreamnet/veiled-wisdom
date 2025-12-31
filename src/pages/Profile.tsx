@@ -402,9 +402,9 @@ export default function ProfilePage() {
 
                   {profile?.is_teacher_approved && (
                     <div className="space-y-2">
-                      <Label className="text-silver-muted">Öğretmen Durumu</Label>
+                      <Label className="text-silver-muted">Uzman Durumu</Label>
                       <p className="text-sm glass-effect border-silver/20 rounded-md p-3 text-green-400">
-                        ✓ Onaylanmış Öğretmen
+                        ✓ Onaylanmış Uzman
                       </p>
                     </div>
                   )}

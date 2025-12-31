@@ -100,7 +100,7 @@ export default function Appointments() {
           <div>
             <p className="text-sm font-medium break-words">İlan: {appointment.listing?.title}</p>
             <p className="text-sm text-muted-foreground truncate">
-              {isTeacher ? 'Öğrenci' : 'Öğretmen'}: {isTeacher ? appointment.customer?.username : appointment.teacher?.username}
+              {isTeacher ? 'Danışan' : 'Uzman'}: {isTeacher ? appointment.customer?.username : appointment.teacher?.username}
             </p>
           </div>
           <div className="text-sm text-muted-foreground space-y-1">

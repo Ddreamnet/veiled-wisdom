@@ -108,7 +108,7 @@ export default function SignUp() {
           duration: 7000,
         });
       } else {
-        // Müşteri - login sayfasına yönlendir
+        // Danışan - login sayfasına yönlendir
         navigate("/auth/sign-in");
       }
     } catch (error: any) {

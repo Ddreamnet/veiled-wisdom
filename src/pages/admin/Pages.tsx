@@ -10,13 +10,13 @@ const defaultPages = [
     slug: "about",
     title: "Biz Kimiz",
     content:
-      "Leyl, gizli ilimler ve antik bilgelik alanında uzmanlaşmış uzmanlar ile danışanları bir araya getiren modern bir platformdur.\n\nMisyonumuz, kadim bilgelik ve modern teknolojinin buluştuğu bir köprü oluşturarak, insanların yaşamlarında anlam ve yön bulmalarına yardımcı olmaktır.\n\nUzman hocalarımız, bakım, temizleme, analiz ve astroloji gibi çeşitli alanlarda hizmet sunmaktadır.",
+      "Leyl, gizli ilimler ve antik bilgelik alanında uzmanlaşmış uzmanlar ile danışanları bir araya getiren modern bir platformdur.\n\nMisyonumuz, kadim bilgelik ve modern teknolojinin buluştuğu bir köprü oluşturarak, insanların yaşamlarında anlam ve yön bulmalarına yardımcı olmaktır.\n\nUzmanlarımız, bakım, temizleme, analiz ve astroloji gibi çeşitli alanlarda hizmet sunmaktadır.",
   },
   {
     slug: "how-it-works",
     title: "Nasıl Çalışır",
     content:
-      "## Kayıt Olun\nÜcretsiz hesap oluşturun ve platformumuza katılın.\n\n## Hoca Seçin\nİhtiyacınıza uygun kategoride uzmanları keşfedin.\n\n## İletişime Geçin\nUzmanla mesajlaşarak tarih ve saat belirleyin.\n\n## Randevu Alın\nÖdeme yapın ve randevunuzu tamamlayın.",
+      "## Kayıt Olun\nÜcretsiz hesap oluşturun ve platformumuza katılın.\n\n## Uzman Seçin\nİhtiyacınıza uygun kategoride uzmanları keşfedin.\n\n## İletişime Geçin\nUzmanla mesajlaşarak tarih ve saat belirleyin.\n\n## Randevu Alın\nÖdeme yapın ve randevunuzu tamamlayın.",
   },
   {
     slug: "production",
