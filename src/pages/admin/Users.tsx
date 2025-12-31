@@ -18,7 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Users as UsersIcon, Shield, GraduationCap, User, CheckCircle, XCircle, Clock, AlertTriangle, Wrench, RefreshCw, Mail } from "lucide-react";
+import { Users as UsersIcon, Shield, GraduationCap, User, CheckCircle, XCircle, Clock, AlertTriangle, Wrench, Mail } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type UserData = {
@@ -42,118 +42,73 @@ export default function UsersManagement() {
   const [loading, setLoading] = useState(true);
   const [repairing, setRepairing] = useState<string | null>(null);
   const [repairingAll, setRepairingAll] = useState(false);
-  const [syncing, setSyncing] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [newRole, setNewRole] = useState<UserRole | null>(null);
   const [showRoleDialog, setShowRoleDialog] = useState(false);
-  const [useEdgeFunction, setUseEdgeFunction] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchUsers();
   }, []);
 
-  // Fetch users from edge function (includes auth.users data)
-  const fetchUsersFromEdgeFunction = async (): Promise<UserData[] | null> => {
-    try {
-      const { data, error } = await supabase.functions.invoke("get-all-users", {
-        body: {},
-      });
-
-      if (error) {
-        console.error("[Users] Edge function error:", error);
-        return null;
-      }
-
-      if (data?.users) {
-        console.log("[Users] Edge function returned", data.users.length, "users");
-        return data.users;
-      }
-
-      return null;
-    } catch (err) {
-      console.error("[Users] Edge function call failed:", err);
-      return null;
-    }
-  };
-
-  // Fallback: Fetch from profiles/roles/approvals tables only
-  const fetchUsersFromTables = async (): Promise<UserData[]> => {
-    const [profilesResult, rolesResult, approvalsResult] = await Promise.all([
-      supabase.from("profiles").select("*").order("created_at", { ascending: false }),
-      supabase.from("user_roles").select("*"),
-      supabase.from("teacher_approvals").select("user_id, status, full_name, created_at"),
-    ]);
-
-    if (profilesResult.error) throw profilesResult.error;
-    if (rolesResult.error) throw rolesResult.error;
-    if (approvalsResult.error) throw approvalsResult.error;
-
-    const profiles = profilesResult.data || [];
-    const roles = rolesResult.data || [];
-    const approvals = approvalsResult.data || [];
-
-    const allUserIds = new Set<string>();
-    profiles.forEach((p) => allUserIds.add(p.id));
-    roles.forEach((r) => allUserIds.add(r.user_id));
-    approvals.forEach((a) => allUserIds.add(a.user_id));
-
-    const profilesMap = new Map(profiles.map((p) => [p.id, p]));
-    const rolesMap = new Map(roles.map((r) => [r.user_id, r]));
-    const approvalsMap = new Map(approvals.map((a) => [a.user_id, a]));
-
-    const usersData: UserData[] = Array.from(allUserIds).map((userId) => {
-      const profile = profilesMap.get(userId);
-      const userRole = rolesMap.get(userId);
-      const approval = approvalsMap.get(userId);
-
-      const username = profile?.username || approval?.full_name || null;
-      const created_at = profile?.created_at || approval?.created_at || new Date().toISOString();
-
-      const hasRoleIssue = approval?.status === "approved" && userRole?.role !== "teacher";
-      const hasMissingRole = !userRole;
-      const hasMissingProfile = !profile;
-
-      return {
-        id: userId,
-        email: null, // No email available without edge function
-        username,
-        avatar_url: profile?.avatar_url || null,
-        role: userRole?.role || null,
-        created_at,
-        teacher_status: approval?.status || null,
-        hasRoleIssue,
-        hasMissingRole,
-        hasMissingProfile,
-        hasProfile: !!profile,
-        hasRole: !!userRole,
-        hasApproval: !!approval,
-      };
-    });
-
-    usersData.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    return usersData;
-  };
-
+  // Fetch users from profiles/roles/approvals tables
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      // Try edge function first for complete data
-      if (useEdgeFunction) {
-        const edgeUsers = await fetchUsersFromEdgeFunction();
-        if (edgeUsers) {
-          setUsers(edgeUsers);
-          setLoading(false);
-          return;
-        }
-        // Edge function failed, fall back to tables
-        console.log("[Users] Falling back to table-based fetch");
-        setUseEdgeFunction(false);
-      }
+      const [profilesResult, rolesResult, approvalsResult] = await Promise.all([
+        supabase.from("profiles").select("*").order("created_at", { ascending: false }),
+        supabase.from("user_roles").select("*"),
+        supabase.from("teacher_approvals").select("user_id, status, full_name, created_at"),
+      ]);
 
-      // Fallback to table-based fetch
-      const tableUsers = await fetchUsersFromTables();
-      setUsers(tableUsers);
+      if (profilesResult.error) throw profilesResult.error;
+      if (rolesResult.error) throw rolesResult.error;
+      if (approvalsResult.error) throw approvalsResult.error;
+
+      const profiles = profilesResult.data || [];
+      const roles = rolesResult.data || [];
+      const approvals = approvalsResult.data || [];
+
+      const allUserIds = new Set<string>();
+      profiles.forEach((p) => allUserIds.add(p.id));
+      roles.forEach((r) => allUserIds.add(r.user_id));
+      approvals.forEach((a) => allUserIds.add(a.user_id));
+
+      const profilesMap = new Map(profiles.map((p) => [p.id, p]));
+      const rolesMap = new Map(roles.map((r) => [r.user_id, r]));
+      const approvalsMap = new Map(approvals.map((a) => [a.user_id, a]));
+
+      const usersData: UserData[] = Array.from(allUserIds).map((userId) => {
+        const profile = profilesMap.get(userId);
+        const userRole = rolesMap.get(userId);
+        const approval = approvalsMap.get(userId);
+
+        const username = profile?.username || approval?.full_name || null;
+        const created_at = profile?.created_at || approval?.created_at || new Date().toISOString();
+
+        const hasRoleIssue = approval?.status === "approved" && userRole?.role !== "teacher";
+        const hasMissingRole = !userRole;
+        const hasMissingProfile = !profile;
+
+        return {
+          id: userId,
+          email: null,
+          username,
+          avatar_url: profile?.avatar_url || null,
+          role: userRole?.role || null,
+          created_at,
+          teacher_status: approval?.status || null,
+          hasRoleIssue,
+          hasMissingRole,
+          hasMissingProfile,
+          hasProfile: !!profile,
+          hasRole: !!userRole,
+          hasApproval: !!approval,
+        };
+      });
+
+      usersData.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setUsers(usersData);
     } catch (error: any) {
       console.error("Error fetching users:", error);
       toast({
@@ -163,44 +118,6 @@ export default function UsersManagement() {
       });
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Sync all missing users using edge function
-  const handleSyncAll = async () => {
-    setSyncing(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("sync-missing-users", {
-        body: {},
-      });
-
-      if (error) {
-        console.error("[Users] Sync error:", error);
-        toast({
-          title: "Hata",
-          description: `Senkronizasyon başarısız oldu: ${error.message}`,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      toast({
-        title: "Senkronizasyon Tamamlandı",
-        description: `${data.profilesCreated} profil oluşturuldu, ${data.rolesAssigned} rol atandı, ${data.rolesFixed} rol düzeltildi.`,
-      });
-
-      // Refresh user list
-      setUseEdgeFunction(true);
-      await fetchUsers();
-    } catch (err) {
-      console.error("[Users] Sync failed:", err);
-      toast({
-        title: "Hata",
-        description: "Senkronizasyon sırasında bir hata oluştu.",
-        variant: "destructive",
-      });
-    } finally {
-      setSyncing(false);
     }
   };
 
@@ -591,40 +508,15 @@ export default function UsersManagement() {
             </h1>
             <p className="text-muted-foreground mt-2">Tüm kullanıcıları görüntüle ve yönet</p>
           </div>
-          <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              onClick={handleSyncAll}
-              disabled={syncing}
-              className="border-blue-500/50 hover:bg-blue-500/10"
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
-              {syncing ? "Senkronize Ediliyor..." : "Tümünü Senkronize Et"}
-            </Button>
-            <Card className="p-4">
+          <Card className="p-4">
               <div className="text-center">
                 <p className="text-2xl font-bold">{users.length}</p>
                 <p className="text-sm text-muted-foreground">Toplam Kullanıcı</p>
               </div>
             </Card>
-          </div>
         </div>
       </div>
 
-      {/* Data source indicator */}
-      <div className="text-xs text-muted-foreground">
-        {useEdgeFunction ? (
-          <span className="flex items-center gap-1">
-            <CheckCircle className="w-3 h-3 text-green-500" />
-            auth.users tablosundan tam veri yüklendi
-          </span>
-        ) : (
-          <span className="flex items-center gap-1">
-            <AlertTriangle className="w-3 h-3 text-amber-500" />
-            Yalnızca profiles/roles tablolarından veri yüklendi (email bilgisi mevcut değil)
-          </span>
-        )}
-      </div>
 
       {/* User Issues Warning */}
       {usersWithIssues.length > 0 && (
