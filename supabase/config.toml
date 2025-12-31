@@ -12,8 +12,11 @@ verify_jwt = false
 [functions.create-daily-room]
 verify_jwt = true
 
+# These functions do their own auth+admin checks inside the function.
+# Setting verify_jwt=false prevents CORS preflight failures in browsers.
 [functions.get-all-users]
-verify_jwt = true
+verify_jwt = false
 
 [functions.sync-missing-users]
-verify_jwt = true
+verify_jwt = false
+
