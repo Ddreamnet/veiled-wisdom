@@ -56,16 +56,8 @@ export default function UsersManagement() {
   // Fetch users from edge function (includes auth.users data)
   const fetchUsersFromEdgeFunction = async (): Promise<UserData[] | null> => {
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
-        console.error("[Users] No session for edge function call");
-        return null;
-      }
-
       const { data, error } = await supabase.functions.invoke("get-all-users", {
-        headers: {
-          Authorization: `Bearer ${sessionData.session.access_token}`,
-        },
+        body: {},
       });
 
       if (error) {
@@ -178,20 +170,7 @@ export default function UsersManagement() {
   const handleSyncAll = async () => {
     setSyncing(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
-        toast({
-          title: "Hata",
-          description: "Oturum bulunamadı.",
-          variant: "destructive",
-        });
-        return;
-      }
-
       const { data, error } = await supabase.functions.invoke("sync-missing-users", {
-        headers: {
-          Authorization: `Bearer ${sessionData.session.access_token}`,
-        },
         body: {},
       });
 
