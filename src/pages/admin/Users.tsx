@@ -192,13 +192,14 @@ export default function UsersManagement() {
         headers: {
           Authorization: `Bearer ${sessionData.session.access_token}`,
         },
+        body: {},
       });
 
       if (error) {
         console.error("[Users] Sync error:", error);
         toast({
           title: "Hata",
-          description: "Senkronizasyon başarısız oldu.",
+          description: `Senkronizasyon başarısız oldu: ${error.message}`,
           variant: "destructive",
         });
         return;
