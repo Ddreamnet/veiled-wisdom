@@ -11,3 +11,9 @@ verify_jwt = false
 
 [functions.create-daily-room]
 verify_jwt = true
+
+[functions.get-all-users]
+verify_jwt = true
+
+[functions.sync-missing-users]
+verify_jwt = true

@@ -18,19 +18,23 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Users as UsersIcon, Shield, GraduationCap, User, CheckCircle, XCircle, Clock, AlertTriangle, Wrench } from "lucide-react";
+import { Users as UsersIcon, Shield, GraduationCap, User, CheckCircle, XCircle, Clock, AlertTriangle, Wrench, RefreshCw, Mail } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type UserData = {
   id: string;
+  email: string | null;
   username: string | null;
   avatar_url: string | null;
   role: UserRole | null;
   created_at: string;
   teacher_status?: "pending" | "approved" | "rejected" | null;
-  hasRoleIssue?: boolean; // Onaylı uzman ama rolü teacher değil
-  hasMissingRole?: boolean; // Hiç rolü yok
-  hasMissingProfile?: boolean; // Profili yok
+  hasRoleIssue?: boolean;
+  hasMissingRole?: boolean;
+  hasMissingProfile?: boolean;
+  hasProfile?: boolean;
+  hasRole?: boolean;
+  hasApproval?: boolean;
 };
 
 export default function UsersManagement() {
@@ -38,78 +42,126 @@ export default function UsersManagement() {
   const [loading, setLoading] = useState(true);
   const [repairing, setRepairing] = useState<string | null>(null);
   const [repairingAll, setRepairingAll] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [newRole, setNewRole] = useState<UserRole | null>(null);
   const [showRoleDialog, setShowRoleDialog] = useState(false);
+  const [useEdgeFunction, setUseEdgeFunction] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchUsers();
   }, []);
 
+  // Fetch users from edge function (includes auth.users data)
+  const fetchUsersFromEdgeFunction = async (): Promise<UserData[] | null> => {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        console.error("[Users] No session for edge function call");
+        return null;
+      }
+
+      const { data, error } = await supabase.functions.invoke("get-all-users", {
+        headers: {
+          Authorization: `Bearer ${sessionData.session.access_token}`,
+        },
+      });
+
+      if (error) {
+        console.error("[Users] Edge function error:", error);
+        return null;
+      }
+
+      if (data?.users) {
+        console.log("[Users] Edge function returned", data.users.length, "users");
+        return data.users;
+      }
+
+      return null;
+    } catch (err) {
+      console.error("[Users] Edge function call failed:", err);
+      return null;
+    }
+  };
+
+  // Fallback: Fetch from profiles/roles/approvals tables only
+  const fetchUsersFromTables = async (): Promise<UserData[]> => {
+    const [profilesResult, rolesResult, approvalsResult] = await Promise.all([
+      supabase.from("profiles").select("*").order("created_at", { ascending: false }),
+      supabase.from("user_roles").select("*"),
+      supabase.from("teacher_approvals").select("user_id, status, full_name, created_at"),
+    ]);
+
+    if (profilesResult.error) throw profilesResult.error;
+    if (rolesResult.error) throw rolesResult.error;
+    if (approvalsResult.error) throw approvalsResult.error;
+
+    const profiles = profilesResult.data || [];
+    const roles = rolesResult.data || [];
+    const approvals = approvalsResult.data || [];
+
+    const allUserIds = new Set<string>();
+    profiles.forEach((p) => allUserIds.add(p.id));
+    roles.forEach((r) => allUserIds.add(r.user_id));
+    approvals.forEach((a) => allUserIds.add(a.user_id));
+
+    const profilesMap = new Map(profiles.map((p) => [p.id, p]));
+    const rolesMap = new Map(roles.map((r) => [r.user_id, r]));
+    const approvalsMap = new Map(approvals.map((a) => [a.user_id, a]));
+
+    const usersData: UserData[] = Array.from(allUserIds).map((userId) => {
+      const profile = profilesMap.get(userId);
+      const userRole = rolesMap.get(userId);
+      const approval = approvalsMap.get(userId);
+
+      const username = profile?.username || approval?.full_name || null;
+      const created_at = profile?.created_at || approval?.created_at || new Date().toISOString();
+
+      const hasRoleIssue = approval?.status === "approved" && userRole?.role !== "teacher";
+      const hasMissingRole = !userRole;
+      const hasMissingProfile = !profile;
+
+      return {
+        id: userId,
+        email: null, // No email available without edge function
+        username,
+        avatar_url: profile?.avatar_url || null,
+        role: userRole?.role || null,
+        created_at,
+        teacher_status: approval?.status || null,
+        hasRoleIssue,
+        hasMissingRole,
+        hasMissingProfile,
+        hasProfile: !!profile,
+        hasRole: !!userRole,
+        hasApproval: !!approval,
+      };
+    });
+
+    usersData.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return usersData;
+  };
+
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      // Fetch all data in parallel
-      const [profilesResult, rolesResult, approvalsResult] = await Promise.all([
-        supabase.from("profiles").select("*").order("created_at", { ascending: false }),
-        supabase.from("user_roles").select("*"),
-        supabase.from("teacher_approvals").select("user_id, status, full_name, created_at"),
-      ]);
+      // Try edge function first for complete data
+      if (useEdgeFunction) {
+        const edgeUsers = await fetchUsersFromEdgeFunction();
+        if (edgeUsers) {
+          setUsers(edgeUsers);
+          setLoading(false);
+          return;
+        }
+        // Edge function failed, fall back to tables
+        console.log("[Users] Falling back to table-based fetch");
+        setUseEdgeFunction(false);
+      }
 
-      if (profilesResult.error) throw profilesResult.error;
-      if (rolesResult.error) throw rolesResult.error;
-      if (approvalsResult.error) throw approvalsResult.error;
-
-      const profiles = profilesResult.data || [];
-      const roles = rolesResult.data || [];
-      const approvals = approvalsResult.data || [];
-
-      // Create a map of all unique user IDs from profiles, roles, and approvals
-      const allUserIds = new Set<string>();
-      profiles.forEach((p) => allUserIds.add(p.id));
-      roles.forEach((r) => allUserIds.add(r.user_id));
-      approvals.forEach((a) => allUserIds.add(a.user_id));
-
-      // Create maps for quick lookup
-      const profilesMap = new Map(profiles.map((p) => [p.id, p]));
-      const rolesMap = new Map(roles.map((r) => [r.user_id, r]));
-      const approvalsMap = new Map(approvals.map((a) => [a.user_id, a]));
-
-      // Build user data for all unique users
-      const usersData: UserData[] = Array.from(allUserIds).map((userId) => {
-        const profile = profilesMap.get(userId);
-        const userRole = rolesMap.get(userId);
-        const approval = approvalsMap.get(userId);
-
-        // Get username from profile, or from approval full_name
-        const username = profile?.username || approval?.full_name || null;
-        
-        // Get created_at from profile, or from approval
-        const created_at = profile?.created_at || approval?.created_at || new Date().toISOString();
-
-        // Check various issues
-        const hasRoleIssue = approval?.status === "approved" && userRole?.role !== "teacher";
-        const hasMissingRole = !userRole;
-        const hasMissingProfile = !profile;
-
-        return {
-          id: userId,
-          username,
-          avatar_url: profile?.avatar_url || null,
-          role: userRole?.role || null,
-          created_at,
-          teacher_status: approval?.status || null,
-          hasRoleIssue,
-          hasMissingRole,
-          hasMissingProfile,
-        };
-      });
-
-      // Sort by created_at descending
-      usersData.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-      setUsers(usersData);
+      // Fallback to table-based fetch
+      const tableUsers = await fetchUsersFromTables();
+      setUsers(tableUsers);
     } catch (error: any) {
       console.error("Error fetching users:", error);
       toast({
@@ -122,7 +174,57 @@ export default function UsersManagement() {
     }
   };
 
-  // Repair a single user - handle missing profile, missing role, or wrong role
+  // Sync all missing users using edge function
+  const handleSyncAll = async () => {
+    setSyncing(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        toast({
+          title: "Hata",
+          description: "Oturum bulunamadı.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke("sync-missing-users", {
+        headers: {
+          Authorization: `Bearer ${sessionData.session.access_token}`,
+        },
+      });
+
+      if (error) {
+        console.error("[Users] Sync error:", error);
+        toast({
+          title: "Hata",
+          description: "Senkronizasyon başarısız oldu.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Senkronizasyon Tamamlandı",
+        description: `${data.profilesCreated} profil oluşturuldu, ${data.rolesAssigned} rol atandı, ${data.rolesFixed} rol düzeltildi.`,
+      });
+
+      // Refresh user list
+      setUseEdgeFunction(true);
+      await fetchUsers();
+    } catch (err) {
+      console.error("[Users] Sync failed:", err);
+      toast({
+        title: "Hata",
+        description: "Senkronizasyon sırasında bir hata oluştu.",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  // Repair a single user
   const handleRepairUser = async (user: UserData) => {
     setRepairing(user.id);
     try {
@@ -131,7 +233,7 @@ export default function UsersManagement() {
         const { error: profileError } = await supabase.from("profiles").upsert(
           {
             id: user.id,
-            username: user.username || "Kullanıcı",
+            username: user.username || user.email?.split("@")[0] || "Kullanıcı",
             is_teacher_approved: user.teacher_status === "approved",
           },
           { onConflict: "id" }
@@ -144,7 +246,7 @@ export default function UsersManagement() {
       }
 
       // Step 2: Determine target role and assign
-      let targetRole: UserRole = "customer"; // Default
+      let targetRole: UserRole = "customer";
       
       if (user.teacher_status === "approved") {
         targetRole = "teacher";
@@ -169,7 +271,7 @@ export default function UsersManagement() {
 
       toast({
         title: "Başarılı",
-        description: `${user.username || "Kullanıcı"} onarıldı. Rol: ${getRoleLabel(targetRole)}`,
+        description: `${user.username || user.email || "Kullanıcı"} onarıldı. Rol: ${getRoleLabel(targetRole)}`,
       });
 
       fetchUsers();
@@ -185,7 +287,7 @@ export default function UsersManagement() {
     }
   };
 
-  // Repair all users with any issues (role or profile)
+  // Repair all users with any issues
   const handleRepairAll = async () => {
     const usersWithIssues = users.filter((u) => u.hasRoleIssue || u.hasMissingRole || u.hasMissingProfile);
     if (usersWithIssues.length === 0) return;
@@ -196,24 +298,19 @@ export default function UsersManagement() {
 
     for (const user of usersWithIssues) {
       try {
-        // Step 1: Create profile if missing
         if (user.hasMissingProfile) {
           const { error: profileError } = await supabase.from("profiles").upsert(
             {
               id: user.id,
-              username: user.username || "Kullanıcı",
+              username: user.username || user.email?.split("@")[0] || "Kullanıcı",
               is_teacher_approved: user.teacher_status === "approved",
             },
             { onConflict: "id" }
           );
 
-          if (profileError) {
-            console.error("Profile creation error:", profileError);
-            throw profileError;
-          }
+          if (profileError) throw profileError;
         }
 
-        // Step 2: Determine target role
         let targetRole: UserRole = "customer";
         if (user.teacher_status === "approved") {
           targetRole = "teacher";
@@ -221,7 +318,6 @@ export default function UsersManagement() {
           targetRole = user.role;
         }
 
-        // Delete existing roles and insert correct one
         await supabase.from("user_roles").delete().eq("user_id", user.id);
 
         const { error: roleError } = await supabase
@@ -230,7 +326,6 @@ export default function UsersManagement() {
 
         if (roleError) throw roleError;
 
-        // Update profile if teacher
         if (targetRole === "teacher") {
           await supabase.from("profiles").update({ is_teacher_approved: true }).eq("id", user.id);
         }
@@ -261,15 +356,12 @@ export default function UsersManagement() {
     if (!selectedUser || !newRole) return;
 
     try {
-      // Delete existing role
       await supabase.from("user_roles").delete().eq("user_id", selectedUser.id);
 
-      // Insert new role
       const { error } = await supabase.from("user_roles").insert([{ user_id: selectedUser.id, role: newRole }]);
 
       if (error) throw error;
 
-      // If changing to teacher, ensure they have an approved status
       if (newRole === "teacher") {
         const { data: existingApproval } = await supabase
           .from("teacher_approvals")
@@ -377,12 +469,47 @@ export default function UsersManagement() {
     }
   };
 
+  const getStatusIndicator = (user: UserData) => {
+    if (!user.hasProfile && !user.hasRole) {
+      return (
+        <Badge variant="destructive" className="text-xs">
+          Hiç Yok
+        </Badge>
+      );
+    }
+    if (user.hasMissingProfile) {
+      return (
+        <Badge variant="outline" className="text-xs border-orange-500 text-orange-500">
+          Profil Eksik
+        </Badge>
+      );
+    }
+    if (user.hasMissingRole) {
+      return (
+        <Badge variant="outline" className="text-xs border-amber-500 text-amber-500">
+          Rol Eksik
+        </Badge>
+      );
+    }
+    if (user.hasRoleIssue) {
+      return (
+        <Badge variant="outline" className="text-xs border-amber-500 text-amber-500">
+          Rol Tutarsız
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant="outline" className="text-xs border-green-500 text-green-500">
+        Tam
+      </Badge>
+    );
+  };
+
   const filterUsersByRole = (role: UserRole | "all") => {
     if (role === "all") return users;
     return users.filter((u) => u.role === role);
   };
 
-  // Count users with any issues
   const usersWithIssues = users.filter((u) => u.hasRoleIssue || u.hasMissingRole || u.hasMissingProfile);
 
   const renderUsersTable = (filteredUsers: UserData[]) => (
@@ -390,6 +517,7 @@ export default function UsersManagement() {
       <TableHeader>
         <TableRow>
           <TableHead>Kullanıcı</TableHead>
+          <TableHead>Durum</TableHead>
           <TableHead>Rol</TableHead>
           <TableHead>Uzman Durumu</TableHead>
           <TableHead>Kayıt Tarihi</TableHead>
@@ -399,7 +527,7 @@ export default function UsersManagement() {
       <TableBody>
         {filteredUsers.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={5} className="text-center text-muted-foreground">
+            <TableCell colSpan={6} className="text-center text-muted-foreground">
               Kullanıcı bulunamadı
             </TableCell>
           </TableRow>
@@ -412,31 +540,20 @@ export default function UsersManagement() {
                 <div className="flex items-center gap-3">
                   <Avatar>
                     <AvatarImage src={user.avatar_url || undefined} />
-                    <AvatarFallback>{user.username?.[0]?.toUpperCase() || "U"}</AvatarFallback>
+                    <AvatarFallback>{user.username?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || "U"}</AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col">
                     <span className="font-medium">{user.username || "İsimsiz"}</span>
-                    {user.hasRoleIssue && (
-                      <span className="text-xs text-amber-600 flex items-center gap-1">
-                        <AlertTriangle className="w-3 h-3" />
-                        Rol tutarsızlığı
-                      </span>
-                    )}
-                    {user.hasMissingRole && !user.hasRoleIssue && (
-                      <span className="text-xs text-amber-600 flex items-center gap-1">
-                        <AlertTriangle className="w-3 h-3" />
-                        Rol eksik
-                      </span>
-                    )}
-                    {user.hasMissingProfile && (
-                      <span className="text-xs text-amber-600 flex items-center gap-1">
-                        <AlertTriangle className="w-3 h-3" />
-                        Profil eksik
+                    {user.email && (
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Mail className="w-3 h-3" />
+                        {user.email}
                       </span>
                     )}
                   </div>
                 </div>
               </TableCell>
+              <TableCell>{getStatusIndicator(user)}</TableCell>
               <TableCell>
                 <Badge variant={getRoleBadgeVariant(user.role)} className="flex items-center gap-1 w-fit">
                   {getRoleIcon(user.role)}
@@ -486,7 +603,7 @@ export default function UsersManagement() {
     <div className="container py-8 md:py-12 px-4 md:px-6 lg:px-8 space-y-8">
       <div className="space-y-4">
         <AdminBreadcrumb />
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
               <UsersIcon className="w-8 h-8" />
@@ -494,13 +611,39 @@ export default function UsersManagement() {
             </h1>
             <p className="text-muted-foreground mt-2">Tüm kullanıcıları görüntüle ve yönet</p>
           </div>
-          <Card className="p-4">
-            <div className="text-center">
-              <p className="text-2xl font-bold">{users.length}</p>
-              <p className="text-sm text-muted-foreground">Toplam Kullanıcı</p>
-            </div>
-          </Card>
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              onClick={handleSyncAll}
+              disabled={syncing}
+              className="border-blue-500/50 hover:bg-blue-500/10"
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
+              {syncing ? "Senkronize Ediliyor..." : "Tümünü Senkronize Et"}
+            </Button>
+            <Card className="p-4">
+              <div className="text-center">
+                <p className="text-2xl font-bold">{users.length}</p>
+                <p className="text-sm text-muted-foreground">Toplam Kullanıcı</p>
+              </div>
+            </Card>
+          </div>
         </div>
+      </div>
+
+      {/* Data source indicator */}
+      <div className="text-xs text-muted-foreground">
+        {useEdgeFunction ? (
+          <span className="flex items-center gap-1">
+            <CheckCircle className="w-3 h-3 text-green-500" />
+            auth.users tablosundan tam veri yüklendi
+          </span>
+        ) : (
+          <span className="flex items-center gap-1">
+            <AlertTriangle className="w-3 h-3 text-amber-500" />
+            Yalnızca profiles/roles tablolarından veri yüklendi (email bilgisi mevcut değil)
+          </span>
+        )}
       </div>
 
       {/* User Issues Warning */}
@@ -583,7 +726,7 @@ export default function UsersManagement() {
           <AlertDialogHeader>
             <AlertDialogTitle>Kullanıcı Rolünü Değiştir</AlertDialogTitle>
             <AlertDialogDescription>
-              <strong>{selectedUser?.username || "İsimsiz"}</strong> kullanıcısının rolünü değiştirmek üzeresiniz.
+              <strong>{selectedUser?.username || selectedUser?.email || "İsimsiz"}</strong> kullanıcısının rolünü değiştirmek üzeresiniz.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-4">
