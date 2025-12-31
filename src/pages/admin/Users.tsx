@@ -29,6 +29,8 @@ type UserData = {
   created_at: string;
   teacher_status?: "pending" | "approved" | "rejected" | null;
   hasRoleIssue?: boolean; // Onaylı uzman ama rolü teacher değil
+  hasMissingRole?: boolean; // Hiç rolü yok
+  hasMissingProfile?: boolean; // Profili yok
 };
 
 export default function UsersManagement() {
@@ -86,8 +88,10 @@ export default function UsersManagement() {
         // Get created_at from profile, or from approval
         const created_at = profile?.created_at || approval?.created_at || new Date().toISOString();
 
-        // Check if user has approved teacher status but wrong role
+        // Check various issues
         const hasRoleIssue = approval?.status === "approved" && userRole?.role !== "teacher";
+        const hasMissingRole = !userRole;
+        const hasMissingProfile = !profile;
 
         return {
           id: userId,
@@ -97,6 +101,8 @@ export default function UsersManagement() {
           created_at,
           teacher_status: approval?.status || null,
           hasRoleIssue,
+          hasMissingRole,
+          hasMissingProfile,
         };
       });
 
@@ -116,26 +122,54 @@ export default function UsersManagement() {
     }
   };
 
-  // Repair a single user's role
+  // Repair a single user - handle missing profile, missing role, or wrong role
   const handleRepairUser = async (user: UserData) => {
     setRepairing(user.id);
     try {
-      // Delete existing roles
+      // Step 1: Create profile if missing
+      if (user.hasMissingProfile) {
+        const { error: profileError } = await supabase.from("profiles").upsert(
+          {
+            id: user.id,
+            username: user.username || "Kullanıcı",
+            is_teacher_approved: user.teacher_status === "approved",
+          },
+          { onConflict: "id" }
+        );
+
+        if (profileError) {
+          console.error("Profile creation error:", profileError);
+          throw new Error("Profil oluşturulamadı: " + profileError.message);
+        }
+      }
+
+      // Step 2: Determine target role and assign
+      let targetRole: UserRole = "customer"; // Default
+      
+      if (user.teacher_status === "approved") {
+        targetRole = "teacher";
+      } else if (user.role) {
+        targetRole = user.role;
+      }
+
+      // Delete existing roles first
       await supabase.from("user_roles").delete().eq("user_id", user.id);
 
-      // Insert teacher role
+      // Insert correct role
       const { error: roleError } = await supabase
         .from("user_roles")
-        .insert({ user_id: user.id, role: "teacher" });
+        .insert({ user_id: user.id, role: targetRole });
 
       if (roleError) throw roleError;
 
-      // Update profile
-      await supabase.from("profiles").update({ is_teacher_approved: true }).eq("id", user.id);
+      // Step 3: Update profile if teacher
+      if (targetRole === "teacher") {
+        await supabase.from("profiles").update({ is_teacher_approved: true }).eq("id", user.id);
+      }
 
       toast({
         title: "Başarılı",
-        description: `${user.username || "Kullanıcı"} artık Uzman rolünde.`,
+        description: `${user.username || "Kullanıcı"} onarıldı. Rol: ${getRoleLabel(targetRole)}`,
       });
 
       fetchUsers();
@@ -143,7 +177,7 @@ export default function UsersManagement() {
       console.error("Repair error:", error);
       toast({
         title: "Hata",
-        description: "Rol düzeltilemedi.",
+        description: error.message || "Onarım başarısız oldu.",
         variant: "destructive",
       });
     } finally {
@@ -151,9 +185,9 @@ export default function UsersManagement() {
     }
   };
 
-  // Repair all users with role issues
+  // Repair all users with any issues (role or profile)
   const handleRepairAll = async () => {
-    const usersWithIssues = users.filter((u) => u.hasRoleIssue);
+    const usersWithIssues = users.filter((u) => u.hasRoleIssue || u.hasMissingRole || u.hasMissingProfile);
     if (usersWithIssues.length === 0) return;
 
     setRepairingAll(true);
@@ -162,18 +196,44 @@ export default function UsersManagement() {
 
     for (const user of usersWithIssues) {
       try {
-        // Delete existing roles
+        // Step 1: Create profile if missing
+        if (user.hasMissingProfile) {
+          const { error: profileError } = await supabase.from("profiles").upsert(
+            {
+              id: user.id,
+              username: user.username || "Kullanıcı",
+              is_teacher_approved: user.teacher_status === "approved",
+            },
+            { onConflict: "id" }
+          );
+
+          if (profileError) {
+            console.error("Profile creation error:", profileError);
+            throw profileError;
+          }
+        }
+
+        // Step 2: Determine target role
+        let targetRole: UserRole = "customer";
+        if (user.teacher_status === "approved") {
+          targetRole = "teacher";
+        } else if (user.role) {
+          targetRole = user.role;
+        }
+
+        // Delete existing roles and insert correct one
         await supabase.from("user_roles").delete().eq("user_id", user.id);
 
-        // Insert teacher role
         const { error: roleError } = await supabase
           .from("user_roles")
-          .insert({ user_id: user.id, role: "teacher" });
+          .insert({ user_id: user.id, role: targetRole });
 
         if (roleError) throw roleError;
 
-        // Update profile
-        await supabase.from("profiles").update({ is_teacher_approved: true }).eq("id", user.id);
+        // Update profile if teacher
+        if (targetRole === "teacher") {
+          await supabase.from("profiles").update({ is_teacher_approved: true }).eq("id", user.id);
+        }
 
         successCount++;
       } catch (error) {
@@ -322,8 +382,8 @@ export default function UsersManagement() {
     return users.filter((u) => u.role === role);
   };
 
-  // Count users with role issues
-  const usersWithRoleIssues = users.filter((u) => u.hasRoleIssue);
+  // Count users with any issues
+  const usersWithIssues = users.filter((u) => u.hasRoleIssue || u.hasMissingRole || u.hasMissingProfile);
 
   const renderUsersTable = (filteredUsers: UserData[]) => (
     <Table>
@@ -344,8 +404,10 @@ export default function UsersManagement() {
             </TableCell>
           </TableRow>
         ) : (
-          filteredUsers.map((user) => (
-            <TableRow key={user.id} className={user.hasRoleIssue ? "bg-amber-500/10" : ""}>
+          filteredUsers.map((user) => {
+            const needsRepair = user.hasRoleIssue || user.hasMissingRole || user.hasMissingProfile;
+            return (
+            <TableRow key={user.id} className={needsRepair ? "bg-amber-500/10" : ""}>
               <TableCell>
                 <div className="flex items-center gap-3">
                   <Avatar>
@@ -358,6 +420,18 @@ export default function UsersManagement() {
                       <span className="text-xs text-amber-600 flex items-center gap-1">
                         <AlertTriangle className="w-3 h-3" />
                         Rol tutarsızlığı
+                      </span>
+                    )}
+                    {user.hasMissingRole && !user.hasRoleIssue && (
+                      <span className="text-xs text-amber-600 flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" />
+                        Rol eksik
+                      </span>
+                    )}
+                    {user.hasMissingProfile && (
+                      <span className="text-xs text-amber-600 flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" />
+                        Profil eksik
                       </span>
                     )}
                   </div>
@@ -373,7 +447,7 @@ export default function UsersManagement() {
               <TableCell>{new Date(user.created_at).toLocaleDateString("tr-TR")}</TableCell>
               <TableCell>
                 <div className="flex gap-2">
-                  {user.hasRoleIssue && (
+                  {needsRepair && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -391,7 +465,7 @@ export default function UsersManagement() {
                 </div>
               </TableCell>
             </TableRow>
-          ))
+          )})
         )}
       </TableBody>
     </Table>
@@ -429,8 +503,8 @@ export default function UsersManagement() {
         </div>
       </div>
 
-      {/* Role Issues Warning */}
-      {usersWithRoleIssues.length > 0 && (
+      {/* User Issues Warning */}
+      {usersWithIssues.length > 0 && (
         <Card className="border-amber-500/50 bg-amber-500/5">
           <CardContent className="p-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -438,10 +512,10 @@ export default function UsersManagement() {
                 <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5" />
                 <div>
                   <p className="font-medium text-amber-700 dark:text-amber-400">
-                    {usersWithRoleIssues.length} kullanıcıda rol tutarsızlığı tespit edildi
+                    {usersWithIssues.length} kullanıcıda sorun tespit edildi
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Bu kullanıcılar onaylı uzman başvurusuna sahip ama rolleri "Uzman" olarak atanmamış.
+                    Bu kullanıcılarda eksik profil, eksik rol veya tutarsızlık var.
                   </p>
                 </div>
               </div>
