@@ -225,6 +225,62 @@ export default function Approvals() {
     }
   };
 
+  const assignTeacherRole = async (userId: string, maxRetries = 3): Promise<{ success: boolean; error?: string }> => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Delete any existing roles first
+        const { error: deleteError } = await supabase.from("user_roles").delete().eq("user_id", userId);
+        
+        if (deleteError) {
+          console.error(`Role delete error (attempt ${attempt}):`, deleteError);
+          if (attempt === maxRetries) {
+            return { success: false, error: `Mevcut roller silinemedi: ${deleteError.message}` };
+          }
+          await new Promise(resolve => setTimeout(resolve, 500 * attempt)); // Exponential backoff
+          continue;
+        }
+
+        // Insert teacher role
+        const { error: roleError } = await supabase.from("user_roles").insert({ user_id: userId, role: "teacher" });
+
+        if (roleError) {
+          console.error(`Role insert error (attempt ${attempt}):`, roleError);
+          if (attempt === maxRetries) {
+            return { success: false, error: `Uzman rolü atanamadı: ${roleError.message}` };
+          }
+          await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+          continue;
+        }
+
+        // Verify role assignment
+        const { data: verifyData, error: verifyError } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userId)
+          .eq("role", "teacher")
+          .maybeSingle();
+
+        if (verifyError || !verifyData) {
+          console.error(`Role verification failed (attempt ${attempt}):`, verifyError);
+          if (attempt === maxRetries) {
+            return { success: false, error: "Rol ataması doğrulanamadı" };
+          }
+          await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+          continue;
+        }
+
+        return { success: true };
+      } catch (err: any) {
+        console.error(`Unexpected error (attempt ${attempt}):`, err);
+        if (attempt === maxRetries) {
+          return { success: false, error: err.message || "Beklenmeyen hata" };
+        }
+        await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+      }
+    }
+    return { success: false, error: "Maksimum deneme sayısına ulaşıldı" };
+  };
+
   const handleApproval = async (approvalId: string, userId: string, approve: boolean) => {
     setLoading(true);
 
@@ -243,19 +299,17 @@ export default function Approvals() {
       }
 
       if (approve) {
-        // 2. Delete any existing roles and assign teacher role
-        await supabase.from("user_roles").delete().eq("user_id", userId);
+        // 2. Assign teacher role with retry mechanism
+        const roleResult = await assignTeacherRole(userId);
 
-        const { error: roleError } = await supabase.from("user_roles").insert({ user_id: userId, role: "teacher" });
-
-        if (roleError) {
-          console.error("Role insert error:", roleError);
-          // Rollback approval
+        if (!roleResult.success) {
+          console.error("Role assignment failed:", roleResult.error);
+          // Rollback approval status
           await supabase
             .from("teacher_approvals")
             .update({ status: "pending", updated_at: new Date().toISOString() })
             .eq("id", approvalId);
-          throw new Error("Rol atanamadı. İşlem geri alındı.");
+          throw new Error(`Rol ataması başarısız: ${roleResult.error}. İşlem geri alındı.`);
         }
 
         // 3. Update is_teacher_approved in profile
@@ -266,13 +320,15 @@ export default function Approvals() {
 
         if (profileError) {
           console.error("Profile update error:", profileError);
-          // Profile might not exist, but continue anyway - repair can fix this later
+          // Profile update is not critical - repair can fix this later
         }
       }
 
       toast({
         title: approve ? "Onaylandı" : "Reddedildi",
-        description: approve ? "Uzman başvurusu onaylandı ve teacher rolü atandı." : "Uzman başvurusu reddedildi.",
+        description: approve 
+          ? "Uzman başvurusu onaylandı ve rol başarıyla atandı." 
+          : "Uzman başvurusu reddedildi.",
       });
 
       fetchApprovals();
