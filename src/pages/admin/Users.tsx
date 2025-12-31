@@ -18,7 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Users as UsersIcon, Shield, GraduationCap, User, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Users as UsersIcon, Shield, GraduationCap, User, CheckCircle, XCircle, Clock, AlertTriangle, Wrench } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type UserData = {
@@ -28,11 +28,14 @@ type UserData = {
   role: UserRole | null;
   created_at: string;
   teacher_status?: "pending" | "approved" | "rejected" | null;
+  hasRoleIssue?: boolean; // Onaylı uzman ama rolü teacher değil
 };
 
 export default function UsersManagement() {
   const [users, setUsers] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [repairing, setRepairing] = useState<string | null>(null);
+  const [repairingAll, setRepairingAll] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [newRole, setNewRole] = useState<UserRole | null>(null);
   const [showRoleDialog, setShowRoleDialog] = useState(false);
@@ -77,11 +80,14 @@ export default function UsersManagement() {
         const userRole = rolesMap.get(userId);
         const approval = approvalsMap.get(userId);
 
-        // Get username from profile, or from approval full_name, or show as "Profil Eksik"
+        // Get username from profile, or from approval full_name
         const username = profile?.username || approval?.full_name || null;
         
         // Get created_at from profile, or from approval
         const created_at = profile?.created_at || approval?.created_at || new Date().toISOString();
+
+        // Check if user has approved teacher status but wrong role
+        const hasRoleIssue = approval?.status === "approved" && userRole?.role !== "teacher";
 
         return {
           id: userId,
@@ -90,6 +96,7 @@ export default function UsersManagement() {
           role: userRole?.role || null,
           created_at,
           teacher_status: approval?.status || null,
+          hasRoleIssue,
         };
       });
 
@@ -107,6 +114,81 @@ export default function UsersManagement() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Repair a single user's role
+  const handleRepairUser = async (user: UserData) => {
+    setRepairing(user.id);
+    try {
+      // Delete existing roles
+      await supabase.from("user_roles").delete().eq("user_id", user.id);
+
+      // Insert teacher role
+      const { error: roleError } = await supabase
+        .from("user_roles")
+        .insert({ user_id: user.id, role: "teacher" });
+
+      if (roleError) throw roleError;
+
+      // Update profile
+      await supabase.from("profiles").update({ is_teacher_approved: true }).eq("id", user.id);
+
+      toast({
+        title: "Başarılı",
+        description: `${user.username || "Kullanıcı"} artık Uzman rolünde.`,
+      });
+
+      fetchUsers();
+    } catch (error: any) {
+      console.error("Repair error:", error);
+      toast({
+        title: "Hata",
+        description: "Rol düzeltilemedi.",
+        variant: "destructive",
+      });
+    } finally {
+      setRepairing(null);
+    }
+  };
+
+  // Repair all users with role issues
+  const handleRepairAll = async () => {
+    const usersWithIssues = users.filter((u) => u.hasRoleIssue);
+    if (usersWithIssues.length === 0) return;
+
+    setRepairingAll(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const user of usersWithIssues) {
+      try {
+        // Delete existing roles
+        await supabase.from("user_roles").delete().eq("user_id", user.id);
+
+        // Insert teacher role
+        const { error: roleError } = await supabase
+          .from("user_roles")
+          .insert({ user_id: user.id, role: "teacher" });
+
+        if (roleError) throw roleError;
+
+        // Update profile
+        await supabase.from("profiles").update({ is_teacher_approved: true }).eq("id", user.id);
+
+        successCount++;
+      } catch (error) {
+        console.error(`Error repairing user ${user.id}:`, error);
+        errorCount++;
+      }
+    }
+
+    toast({
+      title: "Toplu Onarım Tamamlandı",
+      description: `${successCount} kullanıcı düzeltildi${errorCount > 0 ? `, ${errorCount} hata oluştu` : ""}.`,
+    });
+
+    setRepairingAll(false);
+    fetchUsers();
   };
 
   const handleRoleChange = (user: UserData) => {
@@ -240,6 +322,9 @@ export default function UsersManagement() {
     return users.filter((u) => u.role === role);
   };
 
+  // Count users with role issues
+  const usersWithRoleIssues = users.filter((u) => u.hasRoleIssue);
+
   const renderUsersTable = (filteredUsers: UserData[]) => (
     <Table>
       <TableHeader>
@@ -260,14 +345,22 @@ export default function UsersManagement() {
           </TableRow>
         ) : (
           filteredUsers.map((user) => (
-            <TableRow key={user.id}>
+            <TableRow key={user.id} className={user.hasRoleIssue ? "bg-amber-500/10" : ""}>
               <TableCell>
                 <div className="flex items-center gap-3">
                   <Avatar>
                     <AvatarImage src={user.avatar_url || undefined} />
                     <AvatarFallback>{user.username?.[0]?.toUpperCase() || "U"}</AvatarFallback>
                   </Avatar>
-                  <span className="font-medium">{user.username || "İsimsiz"}</span>
+                  <div className="flex flex-col">
+                    <span className="font-medium">{user.username || "İsimsiz"}</span>
+                    {user.hasRoleIssue && (
+                      <span className="text-xs text-amber-600 flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" />
+                        Rol tutarsızlığı
+                      </span>
+                    )}
+                  </div>
                 </div>
               </TableCell>
               <TableCell>
@@ -279,9 +372,23 @@ export default function UsersManagement() {
               <TableCell>{getTeacherStatusBadge(user.teacher_status)}</TableCell>
               <TableCell>{new Date(user.created_at).toLocaleDateString("tr-TR")}</TableCell>
               <TableCell>
-                <Button variant="outline" size="sm" onClick={() => handleRoleChange(user)}>
-                  Rol Değiştir
-                </Button>
+                <div className="flex gap-2">
+                  {user.hasRoleIssue && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleRepairUser(user)}
+                      disabled={repairing === user.id}
+                      className="border-amber-500/50 hover:bg-amber-500/10"
+                    >
+                      <Wrench className="w-3 h-3 mr-1" />
+                      {repairing === user.id ? "..." : "Onar"}
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" onClick={() => handleRoleChange(user)}>
+                    Rol Değiştir
+                  </Button>
+                </div>
               </TableCell>
             </TableRow>
           ))
@@ -321,6 +428,35 @@ export default function UsersManagement() {
           </Card>
         </div>
       </div>
+
+      {/* Role Issues Warning */}
+      {usersWithRoleIssues.length > 0 && (
+        <Card className="border-amber-500/50 bg-amber-500/5">
+          <CardContent className="p-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5" />
+                <div>
+                  <p className="font-medium text-amber-700 dark:text-amber-400">
+                    {usersWithRoleIssues.length} kullanıcıda rol tutarsızlığı tespit edildi
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Bu kullanıcılar onaylı uzman başvurusuna sahip ama rolleri "Uzman" olarak atanmamış.
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={handleRepairAll}
+                disabled={repairingAll}
+                className="bg-amber-500 hover:bg-amber-600 text-white"
+              >
+                <Wrench className="w-4 h-4 mr-2" />
+                {repairingAll ? "Onarılıyor..." : "Tümünü Onar"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Tabs defaultValue="all" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
