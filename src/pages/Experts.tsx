@@ -6,50 +6,37 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageBreadcrumb } from "@/components/PageBreadcrumb";
 import { User, Sparkles } from "lucide-react";
 import { getOptimizedAvatarUrl } from "@/lib/imageOptimizer";
-
 interface Expert {
   id: string;
   username: string | null;
   avatar_url: string | null;
   bio: string | null;
 }
-
 const fetchApprovedExperts = async (): Promise<Expert[]> => {
   // Get all users with teacher role from user_roles table (same logic as admin panel)
-  const { data: teacherRoles, error: rolesError } = await supabase
-    .from("user_roles")
-    .select("user_id")
-    .eq("role", "teacher");
-
+  const {
+    data: teacherRoles,
+    error: rolesError
+  } = await supabase.from("user_roles").select("user_id").eq("role", "teacher");
   if (rolesError) throw rolesError;
-
   if (!teacherRoles || teacherRoles.length === 0) return [];
-
-  const teacherIds = teacherRoles.map((r) => r.user_id);
+  const teacherIds = teacherRoles.map(r => r.user_id);
 
   // Fetch profiles for these teachers
-  const { data: profiles, error: profilesError } = await supabase
-    .from("profiles")
-    .select("id, username, avatar_url, bio")
-    .in("id", teacherIds);
-
+  const {
+    data: profiles,
+    error: profilesError
+  } = await supabase.from("profiles").select("id, username, avatar_url, bio").in("id", teacherIds);
   if (profilesError) throw profilesError;
-
   return profiles || [];
 };
-
-function ExpertCard({ expert }: { expert: Expert }) {
-  const truncatedBio = expert.bio
-    ? expert.bio.length > 50
-      ? expert.bio.slice(0, 50) + "..."
-      : expert.bio
-    : "Uzman hakkında bilgi bulunmuyor.";
-
-  return (
-    <Link
-      to={`/profile/${expert.id}`}
-      className="group relative block"
-    >
+function ExpertCard({
+  expert
+}: {
+  expert: Expert;
+}) {
+  const truncatedBio = expert.bio ? expert.bio.length > 50 ? expert.bio.slice(0, 50) + "..." : expert.bio : "Uzman hakkında bilgi bulunmuyor.";
+  return <Link to={`/profile/${expert.id}`} className="group relative block">
       {/* Card container with futuristic design */}
       <div className="relative mt-16 pt-20 pb-6 px-6 rounded-2xl border border-primary/20 bg-gradient-to-br from-card via-card to-primary/5 shadow-elegant transition-all duration-500 hover:shadow-glow hover:border-primary/40 hover:-translate-y-2 overflow-visible">
         {/* Animated border glow effect */}
@@ -69,11 +56,7 @@ function ExpertCard({ expert }: { expert: Expert }) {
             {/* Inner ring */}
             <div className="absolute -inset-1 rounded-full bg-gradient-to-b from-primary via-primary/50 to-transparent opacity-40 group-hover:opacity-70 transition-opacity duration-500" />
             <Avatar className="relative h-28 w-28 border-4 border-background shadow-2xl ring-2 ring-primary/20 group-hover:ring-primary/50 transition-all duration-500">
-              <AvatarImage
-                src={getOptimizedAvatarUrl(expert.avatar_url, 112)}
-                alt={expert.username || "Expert"}
-                className="object-cover"
-              />
+              <AvatarImage src={getOptimizedAvatarUrl(expert.avatar_url, 112)} alt={expert.username || "Expert"} className="object-cover" />
               <AvatarFallback className="bg-gradient-to-br from-primary/30 to-primary/10 text-2xl">
                 <User className="h-12 w-12 text-primary" />
               </AvatarFallback>
@@ -104,13 +87,10 @@ function ExpertCard({ expert }: { expert: Expert }) {
           </div>
         </div>
       </div>
-    </Link>
-  );
+    </Link>;
 }
-
 function ExpertCardSkeleton() {
-  return (
-    <div className="relative mt-16 pt-20 pb-6 px-6 rounded-2xl border border-primary/10 bg-card">
+  return <div className="relative mt-16 pt-20 pb-6 px-6 rounded-2xl border border-primary/10 bg-card">
       {/* Avatar skeleton */}
       <div className="absolute -top-14 left-1/2 -translate-x-1/2">
         <Skeleton className="h-28 w-28 rounded-full" />
@@ -120,28 +100,27 @@ function ExpertCardSkeleton() {
         <Skeleton className="h-4 w-48 mx-auto" />
         <Skeleton className="h-4 w-40 mx-auto" />
       </div>
-    </div>
-  );
+    </div>;
 }
-
 export default function Experts() {
-  const { data: experts = [], isLoading, error } = useQuery({
+  const {
+    data: experts = [],
+    isLoading,
+    error
+  } = useQuery({
     queryKey: ["approved-experts"],
     queryFn: fetchApprovedExperts,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 5 * 60 * 1000
   });
-
-  return (
-    <div className="min-h-screen liquid-gradient">
+  return <div className="min-h-screen liquid-gradient">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 max-w-7xl">
-        <PageBreadcrumb customItems={[{ label: "Uzmanlarımız" }]} />
+        <PageBreadcrumb customItems={[{
+        label: "Uzmanlarımız"
+      }]} />
 
         {/* Hero Section */}
         <div className="text-center mb-12 sm:mb-16 space-y-4">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-sm text-primary mb-4">
-            <Sparkles className="h-4 w-4" />
-            <span>Onaylı Uzmanlar</span>
-          </div>
+          
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gradient-silver font-serif">
             Uzmanlarımız
           </h1>
@@ -151,33 +130,24 @@ export default function Experts() {
         </div>
 
         {/* Error State */}
-        {error && (
-          <div className="text-center py-12">
+        {error && <div className="text-center py-12">
             <p className="text-destructive">Uzmanlar yüklenirken bir hata oluştu.</p>
-          </div>
-        )}
+          </div>}
 
         {/* Loading State */}
-        {isLoading && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <ExpertCardSkeleton key={i} />
-            ))}
-          </div>
-        )}
+        {isLoading && <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
+            {Array.from({
+          length: 8
+        }).map((_, i) => <ExpertCardSkeleton key={i} />)}
+          </div>}
 
         {/* Experts Grid */}
-        {!isLoading && !error && experts.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
-            {experts.map((expert) => (
-              <ExpertCard key={expert.id} expert={expert} />
-            ))}
-          </div>
-        )}
+        {!isLoading && !error && experts.length > 0 && <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
+            {experts.map(expert => <ExpertCard key={expert.id} expert={expert} />)}
+          </div>}
 
         {/* Empty State */}
-        {!isLoading && !error && experts.length === 0 && (
-          <div className="text-center py-16 sm:py-24 space-y-4">
+        {!isLoading && !error && experts.length === 0 && <div className="text-center py-16 sm:py-24 space-y-4">
             <div className="w-20 h-20 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
               <User className="h-10 w-10 text-primary" />
             </div>
@@ -187,9 +157,7 @@ export default function Experts() {
             <p className="text-muted-foreground max-w-md mx-auto">
               Yakında uzmanlarımız bu sayfada yer alacak.
             </p>
-          </div>
-        )}
+          </div>}
       </div>
-    </div>
-  );
+    </div>;
 }
