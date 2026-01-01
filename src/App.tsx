@@ -42,6 +42,7 @@ const Contact = lazy(() => import('./pages/static/Contact'));
 const Terms = lazy(() => import('./pages/static/Terms'));
 const Privacy = lazy(() => import('./pages/static/Privacy'));
 const FAQ = lazy(() => import('./pages/static/FAQ'));
+const Experts = lazy(() => import('./pages/Experts'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 // Loading component
@@ -111,6 +112,7 @@ function AppRoutes() {
           <Route path="/auth/sign-in" element={user ? <Navigate to="/" replace /> : <SignIn />} />
           <Route path="/auth/sign-up" element={user ? <Navigate to="/" replace /> : <SignUp />} />
           <Route path="/explore" element={<Explore />} />
+          <Route path="/experts" element={<Experts />} />
           
           <Route path="/categories/:slug" element={<CategoryDetail />} />
           <Route path="/categories/:slug/:subslug" element={<SubCategoryDetail />} />
