@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,11 @@ import { getOptimizedThumbnailUrl, getOptimizedAvatarUrl } from "@/lib/imageOpti
 export default function PublicProfile() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { data, isLoading: loading } = usePublicProfile(id);
+  
+  // Check if user came from experts page
+  const fromExperts = location.state?.from === "experts";
 
   const profile = data?.profile;
   const role = data?.role;
@@ -48,7 +52,11 @@ export default function PublicProfile() {
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 max-w-7xl">
         <PageBreadcrumb
-          customItems={[{ label: "Profil", href: "/profile" }, { label: profile.username || "Kullanıcı" }]}
+          customItems={
+            fromExperts 
+              ? [{ label: "Uzmanlarımız", href: "/experts" }, { label: profile.username || "Uzman" }]
+              : [{ label: "Profil", href: "/profile" }, { label: profile.username || "Kullanıcı" }]
+          }
         />
 
         {/* Profile Header with gradient background */}
