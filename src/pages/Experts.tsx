@@ -15,23 +15,23 @@ interface Expert {
 }
 
 const fetchApprovedExperts = async (): Promise<Expert[]> => {
-  // Get all approved teacher user IDs
-  const { data: approvals, error: approvalsError } = await supabase
-    .from("teacher_approvals")
+  // Get all users with teacher role from user_roles table (same logic as admin panel)
+  const { data: teacherRoles, error: rolesError } = await supabase
+    .from("user_roles")
     .select("user_id")
-    .eq("status", "approved");
+    .eq("role", "teacher");
 
-  if (approvalsError) throw approvalsError;
+  if (rolesError) throw rolesError;
 
-  if (!approvals || approvals.length === 0) return [];
+  if (!teacherRoles || teacherRoles.length === 0) return [];
 
-  const userIds = approvals.map((a) => a.user_id);
+  const teacherIds = teacherRoles.map((r) => r.user_id);
 
-  // Fetch profiles for these approved experts
+  // Fetch profiles for these teachers
   const { data: profiles, error: profilesError } = await supabase
     .from("profiles")
     .select("id, username, avatar_url, bio")
-    .in("id", userIds);
+    .in("id", teacherIds);
 
   if (profilesError) throw profilesError;
 
