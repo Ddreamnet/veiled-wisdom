@@ -35,18 +35,13 @@ function ExpertCard({
 }: {
   expert: Expert;
 }) {
-  const truncatedBio = expert.bio ? expert.bio.length > 50 ? expert.bio.slice(0, 50) + "..." : expert.bio : "Uzman hakkında bilgi bulunmuyor.";
-  return <Link to={`/profile/${expert.id}`} className="group relative block">
+  const truncatedBio = expert.bio ? expert.bio.length > 100 ? expert.bio.slice(0, 100) + "..." : expert.bio : "Uzman hakkında bilgi bulunmuyor.";
+  return <Link to={`/profile/${expert.id}`} state={{ from: "experts" }} className="group relative block">
       {/* Card container with futuristic design */}
       <div className="relative mt-16 pt-20 pb-6 px-6 rounded-2xl border border-primary/20 bg-gradient-to-br from-card via-card to-primary/5 shadow-elegant transition-all duration-500 hover:shadow-glow hover:border-primary/40 hover:-translate-y-2 overflow-visible">
         {/* Animated border glow effect */}
         <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary/0 via-primary/10 to-primary/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         
-        {/* Decorative corner accents */}
-        <div className="absolute top-0 left-4 w-8 h-0.5 bg-gradient-to-r from-primary/60 to-transparent" />
-        <div className="absolute top-0 right-4 w-8 h-0.5 bg-gradient-to-l from-primary/60 to-transparent" />
-        <div className="absolute bottom-0 left-4 w-8 h-0.5 bg-gradient-to-r from-primary/40 to-transparent" />
-        <div className="absolute bottom-0 right-4 w-8 h-0.5 bg-gradient-to-l from-primary/40 to-transparent" />
         
         {/* Floating avatar - centered and overlapping */}
         <div className="absolute -top-14 left-1/2 -translate-x-1/2">
