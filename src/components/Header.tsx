@@ -84,12 +84,20 @@ const HeaderComponent = () => {
 
           <nav className="hidden lg:flex items-center gap-1 ml-auto">
             {!user && (
-              <Link
-                to="/explore"
-                className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
-              >
-                Keşfet
-              </Link>
+              <>
+                <Link
+                  to="/explore"
+                  className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
+                >
+                  Keşfet
+                </Link>
+                <Link
+                  to="/experts"
+                  className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
+                >
+                  Uzmanlarımız
+                </Link>
+              </>
             )}
 
             {user && role === "customer" && (
@@ -99,6 +107,12 @@ const HeaderComponent = () => {
                   className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
                 >
                   Keşfet
+                </Link>
+                <Link
+                  to="/experts"
+                  className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
+                >
+                  Uzmanlarımız
                 </Link>
                 <Link to="/messages">
                   <Button variant="ghost" size="icon" className="relative transition-all duration-200 ease-out">
@@ -123,6 +137,12 @@ const HeaderComponent = () => {
                   className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
                 >
                   Keşfet
+                </Link>
+                <Link
+                  to="/experts"
+                  className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
+                >
+                  Uzmanlarımız
                 </Link>
                 <Link to="/messages">
                   <Button variant="ghost" size="icon" className="relative transition-all duration-200 ease-out">
@@ -284,6 +304,13 @@ const HeaderComponent = () => {
                         Keşfet
                       </Link>
                       <Link
+                        to="/experts"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out text-left"
+                      >
+                        Uzmanlarımız
+                      </Link>
+                      <Link
                         to="/about"
                         onClick={() => setMobileMenuOpen(false)}
                         className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out text-left"
@@ -328,6 +355,13 @@ const HeaderComponent = () => {
                         Keşfet
                       </Link>
                       <Link
+                        to="/experts"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out text-left"
+                      >
+                        Uzmanlarımız
+                      </Link>
+                      <Link
                         to="/messages"
                         onClick={() => setMobileMenuOpen(false)}
                         className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
@@ -362,6 +396,13 @@ const HeaderComponent = () => {
                         className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out text-left"
                       >
                         Keşfet
+                      </Link>
+                      <Link
+                        to="/experts"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out text-left"
+                      >
+                        Uzmanlarımız
                       </Link>
                       <Link
                         to="/teacher/my-listings"
