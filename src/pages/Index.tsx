@@ -31,6 +31,17 @@ function CategoriesCarousel({ categories, isLoading }: { categories: Category[];
   const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
   const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
 
+  // Desktop'ta tüm kartlar ekrana sığarsa Embla kaydırma alanı oluşmaz ve loop çalışmaz.
+  // Bu yüzden gerektiğinde kategorileri çoğaltıp her breakpoint'te overflow garanti ediyoruz.
+  const loopSlides = useMemo(() => {
+    if (!categories?.length) return [] as Category[];
+
+    // 4'lü desktop görünümünde bile kaydırma olabilmesi için en az 8 slide hedefliyoruz.
+    const targetMin = 8;
+    let result = categories.slice();
+    while (result.length < targetMin) result = result.concat(categories);
+    return result;
+  }, [categories]);
   return (
     <section className="container py-12 md:py-16 lg:py-24 px-4">
       <div className="text-center mb-8 md:mb-12">
@@ -75,28 +86,28 @@ function CategoriesCarousel({ categories, isLoading }: { categories: Category[];
           {/* Carousel Container */}
           <div className="overflow-hidden" ref={emblaRef}>
             <div className="flex touch-pan-y -ml-4">
-              {categories.map(category => (
-                <div 
-                  key={category.id} 
+              {loopSlides.map((category, idx) => (
+                <div
+                  key={`${category.id}-${idx}`}
                   className="flex-[0_0_80%] sm:flex-[0_0_45%] md:flex-[0_0_30%] lg:flex-[0_0_24%] min-w-0 pl-4"
                 >
                   <Link to={`/categories/${category.slug}`}>
                     <Card className="group overflow-hidden h-full card-hover">
                       {category.image_url && (
                         <div className="relative h-40 sm:h-44 md:h-48 overflow-hidden">
-                          <img 
-                            src={getOptimizedThumbnailUrl(category.image_url)} 
-                            alt={category.name} 
-                            loading="lazy" 
-                            decoding="async" 
-                            className="w-full h-full object-cover card-image" 
+                          <img
+                            src={getOptimizedThumbnailUrl(category.image_url)}
+                            alt={category.name}
+                            loading="lazy"
+                            decoding="async"
+                            className="w-full h-full object-cover card-image"
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-card/50 to-transparent" />
                         </div>
                       )}
                       <CardContent className="px-3 py-2 min-h-[48px] flex items-center">
                         <h3 className="font-semibold text-base sm:text-lg text-silver group-hover:text-gradient-purple transition-all font-serif">
-                          {category.name.toLocaleUpperCase('tr-TR')}
+                          {category.name.toLocaleUpperCase("tr-TR")}
                         </h3>
                       </CardContent>
                     </Card>
