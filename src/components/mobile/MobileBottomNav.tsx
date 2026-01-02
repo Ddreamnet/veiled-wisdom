@@ -31,7 +31,7 @@ const MobileBottomNavComponent = () => {
 
   // Get navigation items based on role
   const getNavItems = (): NavItem[] => {
-    // Admin navigation
+    // Admin navigation - NO Home, NO Messages in bottom nav
     if (role === "admin") {
       return [
         { icon: LayoutDashboard, label: "Dashboard", href: "/admin/dashboard" },
