@@ -1,4 +1,4 @@
-import { memo, useState, useEffect } from "react";
+import { memo, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
   User,
   LogOut,
@@ -18,7 +17,6 @@ import {
   MessageSquare,
   BookOpen,
   DollarSign,
-  Menu,
 } from "lucide-react";
 import { useScrollPosition } from "@/hooks/useScrollPosition";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
@@ -30,7 +28,6 @@ const HeaderComponent = () => {
   const { user, role, signOut } = useAuth();
   const scrollPosition = useScrollPosition();
   const isScrolled = scrollPosition > 20;
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { unreadCount } = useUnreadCount();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
@@ -71,7 +68,7 @@ const HeaderComponent = () => {
 
   return (
     <header
-      className={`sticky top-0 z-50 w-full border-b transition-all duration-300 ease-out will-change-transform ${
+      className={`sticky top-0 z-50 w-full border-b transition-all duration-300 ease-out will-change-transform hidden md:block ${
         isScrolled 
           ? "backdrop-blur-xl bg-background/95 border-silver/20 shadow-lg" 
           : "backdrop-blur-md bg-background/80 border-silver/10 shadow-sm"
@@ -244,133 +241,7 @@ const HeaderComponent = () => {
             )}
           </div>
 
-          {/* MOBILE MENU - Only visible on mobile */}
-          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden transition-all duration-200 ease-out">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent 
-              side="right" 
-              className="w-[300px] sm:w-[400px] glass-effect border-silver/20 bg-background/95 backdrop-blur-xl"
-            >
-              <SheetHeader>
-                <SheetTitle className="flex items-center gap-2">
-                  <img src={logo} alt="Leyl" className="h-8 w-8" />
-                  <span className="font-serif text-gradient-silver uppercase">MENÜ</span>
-                </SheetTitle>
-              </SheetHeader>
-
-              <nav className="flex flex-col gap-4 mt-8">
-                {/* Center nav items for mobile */}
-                {centerNavItems.map((item) => (
-                  <Link
-                    key={item.href}
-                    to={item.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out text-left"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-
-                {/* User-specific mobile items */}
-                {user && role !== "admin" && (
-                  <>
-                    <div className="border-t border-silver/10 my-2" />
-                    <Link
-                      to="/messages"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
-                    >
-                      <MessageSquare className="h-5 w-5" />
-                      Mesajlar
-                      {unreadCount > 0 && (
-                        <Badge 
-                          variant="destructive" 
-                          className="ml-auto h-5 min-w-5 flex items-center justify-center p-0 px-1 text-xs"
-                        >
-                          {unreadCount > 99 ? '99+' : unreadCount}
-                        </Badge>
-                      )}
-                    </Link>
-                  </>
-                )}
-
-                {user && role === "teacher" && (
-                  <>
-                    <Link
-                      to="/teacher/my-listings"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
-                    >
-                      <BookOpen className="h-5 w-5" />
-                      İlanlarım
-                    </Link>
-                    <Link
-                      to="/teacher/earnings"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
-                    >
-                      <DollarSign className="h-5 w-5" />
-                      Gelirlerim
-                    </Link>
-                  </>
-                )}
-
-                {user && (
-                  <>
-                    <div className="border-t border-silver/10 my-2" />
-                    <Link
-                      to="/profile"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
-                    >
-                      <User className="h-5 w-5" />
-                      Profil
-                    </Link>
-                    {role !== "admin" && (
-                      <Link
-                        to="/settings"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
-                      >
-                        <Settings className="h-5 w-5" />
-                        Ayarlar
-                      </Link>
-                    )}
-                    <button
-                      onClick={() => {
-                        signOut();
-                        setMobileMenuOpen(false);
-                      }}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-destructive hover:bg-destructive/10 transition-all duration-200 ease-out text-left w-full"
-                    >
-                      <LogOut className="h-5 w-5" />
-                      Çıkış Yap
-                    </button>
-                  </>
-                )}
-
-                {!user && (
-                  <>
-                    <div className="border-t border-silver/10 my-4" />
-                    <Link to="/auth/sign-in" onClick={() => setMobileMenuOpen(false)}>
-                      <Button variant="secondary" className="w-full justify-center transition-all duration-200 ease-out">
-                        Giriş Yap
-                      </Button>
-                    </Link>
-                    <Link to="/auth/sign-up" onClick={() => setMobileMenuOpen(false)}>
-                      <Button className="w-full transition-all duration-200 ease-out">
-                        Kayıt Ol
-                      </Button>
-                    </Link>
-                  </>
-                )}
-              </nav>
-            </SheetContent>
-          </Sheet>
+          {/* Mobile menu removed - using MobileBottomNav instead */}
         </div>
       </div>
     </header>
