@@ -1,9 +1,10 @@
-import { useMemo, lazy, Suspense } from "react";
+import { useMemo, lazy, Suspense, useState, useCallback, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowRight, BookOpen, Users } from "lucide-react";
+import { ArrowRight, ArrowLeft, BookOpen, Users, ChevronLeft, ChevronRight } from "lucide-react";
+import useEmblaCarousel from "embla-carousel-react";
 import { useMousePosition } from "@/hooks/useMousePosition";
 import { useScrollPosition } from "@/hooks/useScrollPosition";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,11 +12,126 @@ import { useHomeData } from "@/lib/queries";
 import { getOptimizedThumbnailUrl, getOptimizedCoverUrl } from "@/lib/imageOptimizer";
 import { ExpertsCarousel } from "@/components/ExpertsCarousel";
 import logoImage from "@/assets/logo.webp";
+import { Category } from "@/lib/supabase";
 
 // Lazy load ParticleBackground - it's heavy and not critical
 const ParticleBackground = lazy(() => import("@/components/ParticleBackground").then(m => ({
   default: m.ParticleBackground
 })));
+
+// Categories Carousel Component
+function CategoriesCarousel({ categories, isLoading }: { categories: Category[]; isLoading: boolean }) {
+  const [emblaRef, emblaApi] = useEmblaCarousel({
+    align: "start",
+    loop: false,
+    skipSnaps: false,
+    dragFree: true,
+  });
+
+  const [canScrollPrev, setCanScrollPrev] = useState(false);
+  const [canScrollNext, setCanScrollNext] = useState(false);
+
+  const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
+  const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
+
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return;
+    setCanScrollPrev(emblaApi.canScrollPrev());
+    setCanScrollNext(emblaApi.canScrollNext());
+  }, [emblaApi]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    onSelect();
+    emblaApi.on("select", onSelect);
+    emblaApi.on("reInit", onSelect);
+    return () => {
+      emblaApi.off("select", onSelect);
+    };
+  }, [emblaApi, onSelect]);
+
+  return (
+    <section className="container py-12 md:py-16 lg:py-24 px-4">
+      <div className="text-center mb-8 md:mb-12">
+        <h2 className="text-3xl md:text-4xl font-serif font-bold text-gradient-silver mb-2 uppercase">KATEGORİLER</h2>
+        <p className="text-sm md:text-base text-silver-muted">Uzmanlık Alanlarını Keşfedin! 🌼🤍🌕</p>
+      </div>
+
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+          {[1, 2, 3, 4].map(i => (
+            <Card key={i} className="overflow-hidden">
+              <Skeleton className="h-40 sm:h-44 md:h-48 w-full" />
+              <CardContent className="p-4 sm:p-5 md:p-6 pb-[12px]">
+                <Skeleton className="h-6 w-24" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="relative">
+          {/* Navigation Buttons */}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={scrollPrev}
+            disabled={!canScrollPrev}
+            className="hidden md:flex absolute -left-4 lg:-left-6 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full border-primary/30 bg-background/80 backdrop-blur-sm hover:bg-primary/10 hover:border-primary/50 shadow-elegant disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            <ChevronLeft className="h-5 w-5" />
+            <span className="sr-only">Previous</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={scrollNext}
+            disabled={!canScrollNext}
+            className="hidden md:flex absolute -right-4 lg:-right-6 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full border-primary/30 bg-background/80 backdrop-blur-sm hover:bg-primary/10 hover:border-primary/50 shadow-elegant disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            <ChevronRight className="h-5 w-5" />
+            <span className="sr-only">Next</span>
+          </Button>
+
+          {/* Carousel Container */}
+          <div className="overflow-hidden" ref={emblaRef}>
+            <div className="flex touch-pan-y -ml-4">
+              {categories.map(category => (
+                <div 
+                  key={category.id} 
+                  className="flex-[0_0_80%] sm:flex-[0_0_45%] md:flex-[0_0_30%] lg:flex-[0_0_24%] min-w-0 pl-4"
+                >
+                  <Link to={`/categories/${category.slug}`}>
+                    <Card className="group overflow-hidden h-full card-hover">
+                      {category.image_url && (
+                        <div className="relative h-40 sm:h-44 md:h-48 overflow-hidden">
+                          <img 
+                            src={getOptimizedThumbnailUrl(category.image_url)} 
+                            alt={category.name} 
+                            loading="lazy" 
+                            decoding="async" 
+                            className="w-full h-full object-cover card-image" 
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-card/50 to-transparent" />
+                        </div>
+                      )}
+                      <CardContent className="px-3 py-2 min-h-[48px] flex items-center">
+                        <h3 className="font-semibold text-base sm:text-lg text-silver group-hover:text-gradient-purple transition-all font-serif">
+                          {category.name.toLocaleUpperCase('tr-TR')}
+                        </h3>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function Index() {
   const {
     data,
@@ -146,33 +262,7 @@ export default function Index() {
       </section>
 
       {/* Categories Section */}
-      <section className="container py-12 md:py-16 lg:py-24 px-4">
-        <div className="text-center mb-8 md:mb-12">
-          <h2 className="text-3xl md:text-4xl font-serif font-bold text-gradient-silver mb-2 uppercase">KATEGORİLER</h2>
-          <p className="text-sm md:text-base text-silver-muted">Uzmanlık Alanlarını Keşfedin! 🌼🤍🌕</p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
-          {isLoading ? [1, 2, 3, 4].map(i => <Card key={i} className="overflow-hidden">
-                  <Skeleton className="h-40 sm:h-44 md:h-48 w-full" />
-                  <CardContent className="p-4 sm:p-5 md:p-6 pb-[12px]">
-                    <Skeleton className="h-6 w-24" />
-                  </CardContent>
-                </Card>) : categories.map(category => <Link key={category.id} to={`/categories/${category.slug}`}>
-                  <Card className="group overflow-hidden h-full card-hover">
-                    {category.image_url && <div className="relative h-40 sm:h-44 md:h-48 overflow-hidden">
-                        <img src={getOptimizedThumbnailUrl(category.image_url)} alt={category.name} loading="lazy" decoding="async" className="w-full h-full object-cover card-image" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-card/50 to-transparent" />
-                      </div>}
-                    <CardContent className="px-3 py-2 min-h-[48px] flex items-center">
-                      <h3 className="font-semibold text-base sm:text-lg text-silver group-hover:text-gradient-purple transition-all font-serif">
-                        {category.name.toLocaleUpperCase('tr-TR')}
-                      </h3>
-                    </CardContent>
-                  </Card>
-                </Link>)}
-        </div>
-      </section>
+      <CategoriesCarousel categories={categories} isLoading={isLoading} />
 
       {/* Experts Carousel Section */}
       <ExpertsCarousel />

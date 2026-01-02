@@ -248,7 +248,7 @@ export function useHomeData() {
     queryKey: ['home-data'],
     queryFn: async () => {
       const [categoriesResult, curiositiesResult] = await Promise.all([
-        supabase.from('categories').select('*').is('parent_id', null).order('display_order', { ascending: true }).limit(4),
+        supabase.from('categories').select('*').is('parent_id', null).order('display_order', { ascending: true }),
         supabase.from('curiosities').select('*').order('created_at', { ascending: false }).limit(3),
       ]);
       return {
