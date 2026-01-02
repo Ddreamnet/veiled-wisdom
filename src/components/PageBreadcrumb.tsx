@@ -8,6 +8,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { ChevronRight, Home } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const routeLabels: Record<string, string> = {
   "/": "Ana Sayfa",
@@ -33,6 +34,12 @@ interface PageBreadcrumbProps {
 
 export function PageBreadcrumb({ customItems }: PageBreadcrumbProps) {
   const location = useLocation();
+  const isMobile = useIsMobile();
+
+  // Hide breadcrumbs on mobile completely
+  if (isMobile) {
+    return null;
+  }
 
   // If custom items are provided, use them
   if (customItems && customItems.length > 0) {

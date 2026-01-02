@@ -118,8 +118,8 @@ const MobileBottomNavComponent = () => {
                   </span>
                 )}
                 
-                {/* Badge for unread messages */}
-                {item.badge && item.badge > 0 && !active && (
+                {/* Badge for unread messages - only show when count > 0 */}
+                {typeof item.badge === 'number' && item.badge > 0 && !active && (
                   <Badge 
                     variant="destructive" 
                     className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-0 px-1 text-xs"
@@ -128,8 +128,8 @@ const MobileBottomNavComponent = () => {
                   </Badge>
                 )}
                 
-                {/* Badge shown differently when active */}
-                {item.badge && item.badge > 0 && active && (
+                {/* Badge shown differently when active - only show when count > 0 */}
+                {typeof item.badge === 'number' && item.badge > 0 && active && (
                   <Badge 
                     variant="destructive" 
                     className="ml-2 h-5 min-w-5 flex items-center justify-center p-0 px-1 text-xs"
