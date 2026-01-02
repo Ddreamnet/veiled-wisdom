@@ -6,6 +6,7 @@ import { Toaster } from './components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
+import { MobileHeader, MobileBottomNav } from './components/mobile';
 import { Skeleton } from './components/ui/skeleton';
 import { prefetchCriticalRoutes } from './lib/routePrefetch';
 import './App.css';
@@ -104,57 +105,116 @@ function AppRoutes() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      <main className="flex-1">
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/auth/sign-in" element={user ? <Navigate to="/" replace /> : <SignIn />} />
-          <Route path="/auth/sign-up" element={user ? <Navigate to="/" replace /> : <SignUp />} />
-          <Route path="/explore" element={<Explore />} />
-          <Route path="/experts" element={<Experts />} />
-          
-          <Route path="/categories/:slug" element={<CategoryDetail />} />
-          <Route path="/categories/:slug/:subslug" element={<SubCategoryDetail />} />
-          <Route path="/curiosities/:slug" element={<CuriosityDetail />} />
-          <Route path="/listings/:id" element={<ListingDetail />} />
-          
-          <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
-          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-          <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-          <Route path="/profile/:id" element={<PublicProfile />} />
-          <Route path="/call/:conversationId" element={<ProtectedRoute><VideoCall /></ProtectedRoute>} />
-          <Route path="/appointments" element={<ProtectedRoute><Appointments /></ProtectedRoute>} />
-          
-          <Route path="/teacher/my-listings" element={<ProtectedRoute requiredRole={['teacher']}><MyListings /></ProtectedRoute>} />
-          <Route path="/teacher/earnings" element={<ProtectedRoute requiredRole={['teacher']}><TeacherEarnings /></ProtectedRoute>} />
-          
-          <Route path="/admin" element={<ProtectedRoute requiredRole={['admin']}><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/admin/dashboard" element={<ProtectedRoute requiredRole={['admin']}><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/admin/users" element={<ProtectedRoute requiredRole={['admin']}><UsersManagement /></ProtectedRoute>} />
-          <Route path="/admin/approvals" element={<ProtectedRoute requiredRole={['admin']}><Approvals /></ProtectedRoute>} />
-          <Route path="/admin/earnings" element={<ProtectedRoute requiredRole={['admin']}><AdminEarnings /></ProtectedRoute>} />
-          <Route path="/admin/teachers" element={<ProtectedRoute requiredRole={['admin']}><TeachersManagement /></ProtectedRoute>} />
-          <Route path="/admin/teachers/:id" element={<ProtectedRoute requiredRole={['admin']}><TeacherEdit /></ProtectedRoute>} />
-          <Route path="/admin/categories" element={<ProtectedRoute requiredRole={['admin']}><CategoriesManagement /></ProtectedRoute>} />
-          <Route path="/admin/pages" element={<ProtectedRoute requiredRole={['admin']}><PagesManagement /></ProtectedRoute>} />
-          <Route path="/admin/curiosities" element={<ProtectedRoute requiredRole={['admin']}><CuriositiesManagement /></ProtectedRoute>} />
-          
-          <Route path="/about" element={<About />} />
-          <Route path="/how-it-works" element={<HowItWorks />} />
-          <Route path="/production" element={<Production />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/terms" element={<Terms />} />
-          <Route path="/privacy" element={<Privacy />} />
-          <Route path="/faq" element={<FAQ />} />
-          
-          <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
-      </main>
-      <Footer />
-    </div>
+    <>
+      {/* Desktop & Tablet Layout */}
+      <div className="min-h-screen flex-col hidden md:flex">
+        <Header />
+        <main className="flex-1">
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/auth/sign-in" element={user ? <Navigate to="/" replace /> : <SignIn />} />
+              <Route path="/auth/sign-up" element={user ? <Navigate to="/" replace /> : <SignUp />} />
+              <Route path="/explore" element={<Explore />} />
+              <Route path="/experts" element={<Experts />} />
+              
+              <Route path="/categories/:slug" element={<CategoryDetail />} />
+              <Route path="/categories/:slug/:subslug" element={<SubCategoryDetail />} />
+              <Route path="/curiosities/:slug" element={<CuriosityDetail />} />
+              <Route path="/listings/:id" element={<ListingDetail />} />
+              
+              <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+              <Route path="/profile/:id" element={<PublicProfile />} />
+              <Route path="/call/:conversationId" element={<ProtectedRoute><VideoCall /></ProtectedRoute>} />
+              <Route path="/appointments" element={<ProtectedRoute><Appointments /></ProtectedRoute>} />
+              
+              <Route path="/teacher/my-listings" element={<ProtectedRoute requiredRole={['teacher']}><MyListings /></ProtectedRoute>} />
+              <Route path="/teacher/earnings" element={<ProtectedRoute requiredRole={['teacher']}><TeacherEarnings /></ProtectedRoute>} />
+              
+              <Route path="/admin" element={<ProtectedRoute requiredRole={['admin']}><AdminDashboard /></ProtectedRoute>} />
+              <Route path="/admin/dashboard" element={<ProtectedRoute requiredRole={['admin']}><AdminDashboard /></ProtectedRoute>} />
+              <Route path="/admin/users" element={<ProtectedRoute requiredRole={['admin']}><UsersManagement /></ProtectedRoute>} />
+              <Route path="/admin/approvals" element={<ProtectedRoute requiredRole={['admin']}><Approvals /></ProtectedRoute>} />
+              <Route path="/admin/earnings" element={<ProtectedRoute requiredRole={['admin']}><AdminEarnings /></ProtectedRoute>} />
+              <Route path="/admin/teachers" element={<ProtectedRoute requiredRole={['admin']}><TeachersManagement /></ProtectedRoute>} />
+              <Route path="/admin/teachers/:id" element={<ProtectedRoute requiredRole={['admin']}><TeacherEdit /></ProtectedRoute>} />
+              <Route path="/admin/categories" element={<ProtectedRoute requiredRole={['admin']}><CategoriesManagement /></ProtectedRoute>} />
+              <Route path="/admin/pages" element={<ProtectedRoute requiredRole={['admin']}><PagesManagement /></ProtectedRoute>} />
+              <Route path="/admin/curiosities" element={<ProtectedRoute requiredRole={['admin']}><CuriositiesManagement /></ProtectedRoute>} />
+              
+              <Route path="/about" element={<About />} />
+              <Route path="/how-it-works" element={<HowItWorks />} />
+              <Route path="/production" element={<Production />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/faq" element={<FAQ />} />
+              
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </main>
+        <Footer />
+      </div>
+
+      {/* Mobile Layout */}
+      <div className="min-h-screen flex flex-col md:hidden">
+        <MobileHeader />
+        <main 
+          className="flex-1"
+          style={{ paddingBottom: "calc(80px + env(safe-area-inset-bottom, 0px))" }}
+        >
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/auth/sign-in" element={user ? <Navigate to="/" replace /> : <SignIn />} />
+              <Route path="/auth/sign-up" element={user ? <Navigate to="/" replace /> : <SignUp />} />
+              <Route path="/explore" element={<Explore />} />
+              <Route path="/experts" element={<Experts />} />
+              
+              <Route path="/categories/:slug" element={<CategoryDetail />} />
+              <Route path="/categories/:slug/:subslug" element={<SubCategoryDetail />} />
+              <Route path="/curiosities/:slug" element={<CuriosityDetail />} />
+              <Route path="/listings/:id" element={<ListingDetail />} />
+              
+              <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+              <Route path="/profile/:id" element={<PublicProfile />} />
+              <Route path="/call/:conversationId" element={<ProtectedRoute><VideoCall /></ProtectedRoute>} />
+              <Route path="/appointments" element={<ProtectedRoute><Appointments /></ProtectedRoute>} />
+              
+              <Route path="/teacher/my-listings" element={<ProtectedRoute requiredRole={['teacher']}><MyListings /></ProtectedRoute>} />
+              <Route path="/teacher/earnings" element={<ProtectedRoute requiredRole={['teacher']}><TeacherEarnings /></ProtectedRoute>} />
+              
+              <Route path="/admin" element={<ProtectedRoute requiredRole={['admin']}><AdminDashboard /></ProtectedRoute>} />
+              <Route path="/admin/dashboard" element={<ProtectedRoute requiredRole={['admin']}><AdminDashboard /></ProtectedRoute>} />
+              <Route path="/admin/users" element={<ProtectedRoute requiredRole={['admin']}><UsersManagement /></ProtectedRoute>} />
+              <Route path="/admin/approvals" element={<ProtectedRoute requiredRole={['admin']}><Approvals /></ProtectedRoute>} />
+              <Route path="/admin/earnings" element={<ProtectedRoute requiredRole={['admin']}><AdminEarnings /></ProtectedRoute>} />
+              <Route path="/admin/teachers" element={<ProtectedRoute requiredRole={['admin']}><TeachersManagement /></ProtectedRoute>} />
+              <Route path="/admin/teachers/:id" element={<ProtectedRoute requiredRole={['admin']}><TeacherEdit /></ProtectedRoute>} />
+              <Route path="/admin/categories" element={<ProtectedRoute requiredRole={['admin']}><CategoriesManagement /></ProtectedRoute>} />
+              <Route path="/admin/pages" element={<ProtectedRoute requiredRole={['admin']}><PagesManagement /></ProtectedRoute>} />
+              <Route path="/admin/curiosities" element={<ProtectedRoute requiredRole={['admin']}><CuriositiesManagement /></ProtectedRoute>} />
+              
+              <Route path="/about" element={<About />} />
+              <Route path="/how-it-works" element={<HowItWorks />} />
+              <Route path="/production" element={<Production />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/faq" element={<FAQ />} />
+              
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </main>
+        <MobileBottomNav />
+      </div>
+    </>
   );
 }
 
