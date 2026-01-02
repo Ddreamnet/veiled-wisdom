@@ -23,7 +23,7 @@ const ParticleBackground = lazy(() => import("@/components/ParticleBackground").
 function CategoriesCarousel({ categories, isLoading }: { categories: Category[]; isLoading: boolean }) {
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: "start",
-    loop: false,
+    loop: true,
     skipSnaps: false,
     dragFree: true,
   });
