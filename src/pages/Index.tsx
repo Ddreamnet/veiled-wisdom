@@ -9,6 +9,7 @@ import { useScrollPosition } from "@/hooks/useScrollPosition";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHomeData } from "@/lib/queries";
 import { getOptimizedThumbnailUrl, getOptimizedCoverUrl } from "@/lib/imageOptimizer";
+import { ExpertsCarousel } from "@/components/ExpertsCarousel";
 import logoImage from "@/assets/logo.webp";
 
 // Lazy load ParticleBackground - it's heavy and not critical
@@ -172,5 +173,8 @@ export default function Index() {
                 </Link>)}
         </div>
       </section>
+
+      {/* Experts Carousel Section */}
+      <ExpertsCarousel />
     </div>;
 }
