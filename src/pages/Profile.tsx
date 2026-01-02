@@ -21,16 +21,31 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { AvatarUpload } from "@/components/AvatarUpload";
-import { User, Shield, Trash2, Calendar, GraduationCap } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { 
+  User, 
+  Shield, 
+  Trash2, 
+  Calendar, 
+  GraduationCap, 
+  MessageSquare, 
+  Settings, 
+  HelpCircle, 
+  FileText, 
+  LogOut,
+  ChevronRight,
+  DollarSign
+} from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { PageBreadcrumb } from "@/components/PageBreadcrumb";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function ProfilePage() {
   const { user, signOut, role } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [loading, setLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -43,6 +58,11 @@ export default function ProfilePage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/");
+  };
 
   useEffect(() => {
     if (user) {
@@ -226,6 +246,118 @@ export default function ProfilePage() {
     }
   };
 
+  // Mobile Profile Hub Menu Items
+  const getMobileMenuItems = () => {
+    const baseItems = [
+      { icon: User, label: "Profil Bilgileri", href: "/profile/edit", description: "Profil bilgilerinizi düzenleyin" },
+      { icon: Settings, label: "Ayarlar", href: "/settings", description: "Hesap ayarları ve tercihler" },
+    ];
+
+    // Admin-specific items - includes Messages access
+    if (role === "admin") {
+      return [
+        ...baseItems,
+        { icon: MessageSquare, label: "Destek Mesajları", href: "/messages", description: "Kullanıcı mesajları ve destek" },
+        { icon: HelpCircle, label: "Yardım", href: "/how-it-works", description: "Sık sorulan sorular" },
+      ];
+    }
+
+    // Teacher-specific items
+    if (role === "teacher") {
+      return [
+        ...baseItems,
+        { icon: FileText, label: "İlanlarım", href: "/teacher/my-listings", description: "İlanlarınızı yönetin" },
+        { icon: DollarSign, label: "Gelirlerim", href: "/teacher/earnings", description: "Gelir ve kazançlarınız" },
+        { icon: HelpCircle, label: "Destek", href: "/how-it-works", description: "Sık sorulan sorular" },
+      ];
+    }
+
+    // Regular user items
+    return [
+      ...baseItems,
+      { icon: HelpCircle, label: "Destek", href: "/how-it-works", description: "Sık sorulan sorular" },
+    ];
+  };
+
+  // Mobile Profile Hub View
+  if (isMobile) {
+    return (
+      <div className="container py-6 px-4 pb-24">
+        <div className="max-w-lg mx-auto space-y-6">
+          {/* Profile Header */}
+          <div className="flex flex-col items-center text-center space-y-4">
+            {dataLoading ? (
+              <>
+                <Skeleton variant="shimmer" className="h-24 w-24 rounded-full" />
+                <Skeleton variant="shimmer" className="h-6 w-32" />
+                <Skeleton variant="shimmer" className="h-4 w-48" />
+              </>
+            ) : (
+              <>
+                <div className="relative">
+                  <AvatarUpload
+                    currentAvatarUrl={avatarUrl}
+                    userId={user?.id || ""}
+                    onUploadComplete={handleAvatarUpload}
+                  />
+                  {role === "teacher" && (
+                    <Badge className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-gradient-primary text-primary-foreground border-0 shadow-glow gap-1 px-2 py-0.5 text-xs">
+                      <GraduationCap className="w-3 h-3" />
+                      Uzman
+                    </Badge>
+                  )}
+                  {role === "admin" && (
+                    <Badge className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-secondary text-secondary-foreground border-0 gap-1 px-2 py-0.5 text-xs">
+                      <Shield className="w-3 h-3" />
+                      Admin
+                    </Badge>
+                  )}
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-foreground">{username || "Kullanıcı"}</h2>
+                  <p className="text-sm text-muted-foreground">{user?.email}</p>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Menu Items */}
+          <div className="space-y-2">
+            {getMobileMenuItems().map((item) => (
+              <Link
+                key={item.href}
+                to={item.href}
+                className="flex items-center justify-between p-4 rounded-xl glass-effect border border-silver/10 hover:border-silver/20 transition-all group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-secondary/50 flex items-center justify-center">
+                    <item.icon className="w-5 h-5 text-foreground" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-foreground">{item.label}</p>
+                    <p className="text-xs text-muted-foreground">{item.description}</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+              </Link>
+            ))}
+          </div>
+
+          {/* Sign Out Button */}
+          <Button 
+            variant="outline" 
+            className="w-full gap-2 border-destructive/30 text-destructive hover:bg-destructive/10"
+            onClick={handleSignOut}
+          >
+            <LogOut className="w-4 h-4" />
+            Çıkış Yap
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop View - Original Tabs Layout
   return (
     <div className="container py-8 md:py-12 px-4">
       <div className="max-w-4xl mx-auto">
