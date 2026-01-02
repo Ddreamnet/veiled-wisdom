@@ -43,6 +43,7 @@ const Terms = lazy(() => import('./pages/static/Terms'));
 const Privacy = lazy(() => import('./pages/static/Privacy'));
 const FAQ = lazy(() => import('./pages/static/FAQ'));
 const Experts = lazy(() => import('./pages/Experts'));
+const Settings = lazy(() => import('./pages/Settings'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 // Loading component
@@ -121,6 +122,7 @@ function AppRoutes() {
           
           <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="/profile/:id" element={<PublicProfile />} />
           <Route path="/call/:conversationId" element={<ProtectedRoute><VideoCall /></ProtectedRoute>} />
           <Route path="/appointments" element={<ProtectedRoute><Appointments /></ProtectedRoute>} />

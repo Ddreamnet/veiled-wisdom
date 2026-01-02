@@ -1,8 +1,7 @@
-import { memo, useState } from "react";
+import { memo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { NavLink } from "@/components/NavLink";
 import logo from "@/assets/logo.webp";
 import {
   DropdownMenu,
@@ -13,20 +12,19 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
-  UserCircle,
+  User,
   LogOut,
   Settings,
-  Calendar,
   MessageSquare,
-  LayoutDashboard,
   BookOpen,
   DollarSign,
   Menu,
-  X,
 } from "lucide-react";
 import { useScrollPosition } from "@/hooks/useScrollPosition";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { supabase } from "@/lib/supabase";
 
 const HeaderComponent = () => {
   const { user, role, signOut } = useAuth();
@@ -34,6 +32,42 @@ const HeaderComponent = () => {
   const isScrolled = scrollPosition > 20;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { unreadCount } = useUnreadCount();
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  // Fetch user avatar
+  useEffect(() => {
+    const fetchAvatar = async () => {
+      if (!user) {
+        setAvatarUrl(null);
+        return;
+      }
+      const { data } = await supabase
+        .from("profiles")
+        .select("avatar_url")
+        .eq("id", user.id)
+        .maybeSingle();
+      setAvatarUrl(data?.avatar_url || null);
+    };
+    fetchAvatar();
+  }, [user]);
+
+  // Navigation items based on role
+  const getCenterNavItems = () => {
+    if (role === "admin") {
+      return [
+        { label: "Dashboard", href: "/admin/dashboard" },
+        { label: "Onaylamalar", href: "/admin/approvals" },
+        { label: "Gelirler", href: "/admin/earnings" },
+      ];
+    }
+    // For non-logged-in users, customers, and teachers
+    return [
+      { label: "Keşfet", href: "/explore" },
+      { label: "Uzmanlarımız", href: "/experts" },
+    ];
+  };
+
+  const centerNavItems = getCenterNavItems();
 
   return (
     <header
@@ -50,7 +84,8 @@ const HeaderComponent = () => {
             isScrolled ? "h-14" : "h-16"
           }`}
         >
-          <Link to="/" className="flex items-center gap-3 group">
+          {/* LEFT AREA - Logo */}
+          <Link to="/" className="flex items-center gap-3 group shrink-0">
             <div className="relative will-change-transform">
               <img
                 src={logo}
@@ -82,401 +117,260 @@ const HeaderComponent = () => {
             </div>
           </Link>
 
-          <nav className="hidden lg:flex items-center gap-1 ml-auto">
-            {!user && (
-              <>
-                <Link
-                  to="/explore"
-                  className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
-                >
-                  Keşfet
-                </Link>
-                <Link
-                  to="/experts"
-                  className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
-                >
-                  Uzmanlarımız
-                </Link>
-              </>
-            )}
-
-            {user && role === "customer" && (
-              <>
-                <Link
-                  to="/explore"
-                  className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
-                >
-                  Keşfet
-                </Link>
-                <Link
-                  to="/experts"
-                  className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
-                >
-                  Uzmanlarımız
-                </Link>
-                <Link to="/messages">
-                  <Button variant="ghost" size="icon" className="relative transition-all duration-200 ease-out">
-                    <MessageSquare className="h-5 w-5" />
-                    {unreadCount > 0 && (
-                      <Badge 
-                        variant="destructive" 
-                        className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-0 px-1 text-xs"
-                      >
-                        {unreadCount > 99 ? '99+' : unreadCount}
-                      </Badge>
-                    )}
-                  </Button>
-                </Link>
-              </>
-            )}
-
-            {user && role === "teacher" && (
-              <>
-                <Link
-                  to="/explore"
-                  className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
-                >
-                  Keşfet
-                </Link>
-                <Link
-                  to="/experts"
-                  className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
-                >
-                  Uzmanlarımız
-                </Link>
-                <Link to="/messages">
-                  <Button variant="ghost" size="icon" className="relative transition-all duration-200 ease-out">
-                    <MessageSquare className="h-5 w-5" />
-                    {unreadCount > 0 && (
-                      <Badge 
-                        variant="destructive" 
-                        className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-0 px-1 text-xs"
-                      >
-                        {unreadCount > 99 ? '99+' : unreadCount}
-                      </Badge>
-                    )}
-                  </Button>
-                </Link>
-              </>
-            )}
-
-            {user && role === "admin" && (
-              <>
-                <Link to="/admin/dashboard">
-                  <Button variant="ghost" className="transition-all duration-200 ease-out">Dashboard</Button>
-                </Link>
-                <Link to="/admin/approvals">
-                  <Button variant="ghost" className="transition-all duration-200 ease-out">Onaylamalar</Button>
-                </Link>
-                <Link to="/admin/earnings">
-                  <Button variant="ghost" className="transition-all duration-200 ease-out">Gelirler</Button>
-                </Link>
-              </>
-            )}
+          {/* CENTER AREA - Main Navigation (Desktop/Tablet) */}
+          <nav className="hidden md:flex items-center justify-center flex-1 gap-1">
+            {centerNavItems.map((item) => (
+              <Link
+                key={item.href}
+                to={item.href}
+                className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out font-medium"
+              >
+                {item.label}
+              </Link>
+            ))}
           </nav>
 
-          <div className="flex items-center gap-3">
+          {/* RIGHT AREA - Account & Personal Actions */}
+          <div className="hidden md:flex items-center gap-3 shrink-0">
             {user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="secondary" size="sm" className="gap-2 transition-all duration-200 ease-out">
-                    <UserCircle className="h-4 w-4" />
-                    <span className="hidden sm:inline">Hesabım</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent 
-                  align="end" 
-                  className="w-56 glass-effect border-silver/20 bg-background/95 backdrop-blur-xl z-[100]"
-                >
-                  <DropdownMenuItem asChild>
-                    <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
-                      <Settings className="h-4 w-4" />
-                      Profil
-                    </Link>
-                  </DropdownMenuItem>
+              <>
+                {/* Messages Icon - Only for non-admin users */}
+                {role !== "admin" && (
+                  <Link to="/messages">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="relative transition-all duration-200 ease-out"
+                    >
+                      <MessageSquare className="h-5 w-5" />
+                      {unreadCount > 0 && (
+                        <Badge 
+                          variant="destructive" 
+                          className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-0 px-1 text-xs"
+                        >
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </Badge>
+                      )}
+                    </Button>
+                  </Link>
+                )}
 
-                  {role === "customer" && (
-                    <>
-                      <DropdownMenuSeparator className="bg-silver/10" />
-                      <DropdownMenuItem asChild>
-                        <Link to="/messages" className="flex items-center gap-2 cursor-pointer">
-                          <MessageSquare className="h-4 w-4" />
-                          Mesajlar
-                          {unreadCount > 0 && (
-                            <Badge 
-                              variant="destructive" 
-                              className="ml-auto h-5 min-w-5 flex items-center justify-center p-0 px-1 text-xs"
-                            >
-                              {unreadCount > 99 ? '99+' : unreadCount}
-                            </Badge>
-                          )}
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/appointments" className="flex items-center gap-2 cursor-pointer">
-                          <Calendar className="h-4 w-4" />
-                          Randevularım
-                        </Link>
-                      </DropdownMenuItem>
-                    </>
-                  )}
-
-                  {role === "teacher" && (
-                    <>
-                      <DropdownMenuSeparator className="bg-silver/10" />
-                      <DropdownMenuItem asChild>
-                        <Link to="/teacher/my-listings" className="flex items-center gap-2 cursor-pointer">
-                          <BookOpen className="h-4 w-4" />
-                          İlanlarım
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/appointments" className="flex items-center gap-2 cursor-pointer">
-                          <Calendar className="h-4 w-4" />
-                          Randevularım
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/teacher/earnings" className="flex items-center gap-2 cursor-pointer">
-                          <DollarSign className="h-4 w-4" />
-                          Gelirlerim
-                        </Link>
-                      </DropdownMenuItem>
-                    </>
-                  )}
-
-                  <DropdownMenuSeparator className="bg-silver/10" />
-                  
-                  <DropdownMenuItem
-                    onClick={signOut}
-                    className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive"
+                {/* Profile Avatar Dropdown */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="rounded-full h-9 w-9 p-0 transition-all duration-200 ease-out hover:ring-2 hover:ring-primary/50"
+                    >
+                      <Avatar className="h-9 w-9">
+                        <AvatarImage src={avatarUrl || undefined} />
+                        <AvatarFallback className="bg-primary/20">
+                          <User className="h-4 w-4 text-primary" />
+                        </AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent 
+                    align="end" 
+                    className="w-56 glass-effect border-silver/20 bg-background/95 backdrop-blur-xl z-[100]"
                   >
-                    <LogOut className="h-4 w-4" />
-                    Çıkış Yap
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    {/* Common items for all logged-in users */}
+                    <DropdownMenuItem asChild>
+                      <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
+                        <User className="h-4 w-4" />
+                        Profil
+                      </Link>
+                    </DropdownMenuItem>
+
+                    {/* Teacher-specific items */}
+                    {role === "teacher" && (
+                      <>
+                        <DropdownMenuSeparator className="bg-silver/10" />
+                        <DropdownMenuItem asChild>
+                          <Link to="/teacher/my-listings" className="flex items-center gap-2 cursor-pointer">
+                            <BookOpen className="h-4 w-4" />
+                            İlanlarım
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link to="/teacher/earnings" className="flex items-center gap-2 cursor-pointer">
+                            <DollarSign className="h-4 w-4" />
+                            Gelirlerim
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
+                    )}
+
+                    {/* Settings - Only for non-admin users */}
+                    {role !== "admin" && (
+                      <>
+                        <DropdownMenuSeparator className="bg-silver/10" />
+                        <DropdownMenuItem asChild>
+                          <Link to="/settings" className="flex items-center gap-2 cursor-pointer">
+                            <Settings className="h-4 w-4" />
+                            Ayarlar
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
+                    )}
+
+                    <DropdownMenuSeparator className="bg-silver/10" />
+                    
+                    <DropdownMenuItem
+                      onClick={signOut}
+                      className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Çıkış Yap
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
             ) : (
-              <div className="hidden lg:flex items-center gap-3">
+              /* Non-logged-in users - Visible buttons */
+              <div className="flex items-center gap-3">
                 <Link to="/auth/sign-in">
-                  <Button variant="ghost" size="sm" className="transition-all duration-200 ease-out">
+                  <Button variant="secondary" size="sm" className="transition-all duration-200 ease-out">
                     Giriş Yap
                   </Button>
                 </Link>
                 <Link to="/auth/sign-up">
-                  <Button size="sm" className="transition-all duration-200 ease-out">Kayıt Ol</Button>
+                  <Button size="sm" className="transition-all duration-200 ease-out">
+                    Kayıt Ol
+                  </Button>
                 </Link>
               </div>
             )}
-
-            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="lg:hidden transition-all duration-200 ease-out">
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent 
-                side="right" 
-                className="w-[300px] sm:w-[400px] glass-effect border-silver/20 bg-background/95 backdrop-blur-xl"
-              >
-                <SheetHeader>
-                  <SheetTitle className="flex items-center gap-2">
-                    <img src={logo} alt="Leyl" className="h-8 w-8" />
-                    <span className="font-serif text-gradient-silver uppercase">MENÜ</span>
-                  </SheetTitle>
-                </SheetHeader>
-
-                <nav className="flex flex-col gap-4 mt-8">
-                  {!user && (
-                    <>
-                      <Link
-                        to="/"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out text-left"
-                      >
-                        Ana Sayfa
-                      </Link>
-                      <Link
-                        to="/explore"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out text-left"
-                      >
-                        Keşfet
-                      </Link>
-                      <Link
-                        to="/experts"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out text-left"
-                      >
-                        Uzmanlarımız
-                      </Link>
-                      <Link
-                        to="/about"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out text-left"
-                      >
-                        Hakkımızda
-                      </Link>
-                      <Link
-                        to="/how-it-works"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out text-left"
-                      >
-                        Nasıl Çalışır
-                      </Link>
-                      <Link
-                        to="/contact"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out text-left"
-                      >
-                        İletişim
-                      </Link>
-
-                      <div className="border-t border-silver/10 my-4" />
-
-                      <Link to="/auth/sign-in" onClick={() => setMobileMenuOpen(false)}>
-                        <Button variant="ghost" className="w-full justify-start transition-all duration-200 ease-out">
-                          Giriş Yap
-                        </Button>
-                      </Link>
-                      <Link to="/auth/sign-up" onClick={() => setMobileMenuOpen(false)}>
-                        <Button className="w-full transition-all duration-200 ease-out">Kayıt Ol</Button>
-                      </Link>
-                    </>
-                  )}
-
-                  {user && role === "customer" && (
-                    <>
-                      <Link
-                        to="/explore"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out text-left"
-                      >
-                        Keşfet
-                      </Link>
-                      <Link
-                        to="/experts"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out text-left"
-                      >
-                        Uzmanlarımız
-                      </Link>
-                      <Link
-                        to="/messages"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
-                      >
-                        <MessageSquare className="h-5 w-5" />
-                        Mesajlar
-                        {unreadCount > 0 && (
-                          <Badge 
-                            variant="destructive" 
-                            className="ml-auto h-5 min-w-5 flex items-center justify-center p-0 px-1 text-xs"
-                          >
-                            {unreadCount > 99 ? '99+' : unreadCount}
-                          </Badge>
-                        )}
-                      </Link>
-                      <Link
-                        to="/appointments"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
-                      >
-                        <Calendar className="h-5 w-5" />
-                        Randevularım
-                      </Link>
-                    </>
-                  )}
-
-                  {user && role === "teacher" && (
-                    <>
-                      <Link
-                        to="/explore"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out text-left"
-                      >
-                        Keşfet
-                      </Link>
-                      <Link
-                        to="/experts"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out text-left"
-                      >
-                        Uzmanlarımız
-                      </Link>
-                      <Link
-                        to="/teacher/my-listings"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
-                      >
-                        <BookOpen className="h-5 w-5" />
-                        İlanlarım
-                      </Link>
-                      <Link
-                        to="/appointments"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
-                      >
-                        <Calendar className="h-5 w-5" />
-                        Randevularım
-                      </Link>
-                      <Link
-                        to="/teacher/earnings"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
-                      >
-                        <DollarSign className="h-5 w-5" />
-                        Gelirlerim
-                      </Link>
-                      <Link
-                        to="/messages"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
-                      >
-                        <MessageSquare className="h-5 w-5" />
-                        Mesajlar
-                        {unreadCount > 0 && (
-                          <Badge 
-                            variant="destructive" 
-                            className="ml-auto h-5 min-w-5 flex items-center justify-center p-0 px-1 text-xs"
-                          >
-                            {unreadCount > 99 ? '99+' : unreadCount}
-                          </Badge>
-                        )}
-                      </Link>
-                    </>
-                  )}
-
-                  {user && role === "admin" && (
-                    <>
-                      <Link
-                        to="/admin/dashboard"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
-                      >
-                        <LayoutDashboard className="h-5 w-5" />
-                        Dashboard
-                      </Link>
-                      <Link
-                        to="/admin/approvals"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
-                      >
-                        Onaylamalar
-                      </Link>
-                      <Link
-                        to="/admin/earnings"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
-                      >
-                        Gelirler
-                      </Link>
-                    </>
-                  )}
-                </nav>
-              </SheetContent>
-            </Sheet>
           </div>
+
+          {/* MOBILE MENU - Only visible on mobile */}
+          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="md:hidden transition-all duration-200 ease-out">
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent 
+              side="right" 
+              className="w-[300px] sm:w-[400px] glass-effect border-silver/20 bg-background/95 backdrop-blur-xl"
+            >
+              <SheetHeader>
+                <SheetTitle className="flex items-center gap-2">
+                  <img src={logo} alt="Leyl" className="h-8 w-8" />
+                  <span className="font-serif text-gradient-silver uppercase">MENÜ</span>
+                </SheetTitle>
+              </SheetHeader>
+
+              <nav className="flex flex-col gap-4 mt-8">
+                {/* Center nav items for mobile */}
+                {centerNavItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    to={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out text-left"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+
+                {/* User-specific mobile items */}
+                {user && role !== "admin" && (
+                  <>
+                    <div className="border-t border-silver/10 my-2" />
+                    <Link
+                      to="/messages"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
+                    >
+                      <MessageSquare className="h-5 w-5" />
+                      Mesajlar
+                      {unreadCount > 0 && (
+                        <Badge 
+                          variant="destructive" 
+                          className="ml-auto h-5 min-w-5 flex items-center justify-center p-0 px-1 text-xs"
+                        >
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </Badge>
+                      )}
+                    </Link>
+                  </>
+                )}
+
+                {user && role === "teacher" && (
+                  <>
+                    <Link
+                      to="/teacher/my-listings"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
+                    >
+                      <BookOpen className="h-5 w-5" />
+                      İlanlarım
+                    </Link>
+                    <Link
+                      to="/teacher/earnings"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
+                    >
+                      <DollarSign className="h-5 w-5" />
+                      Gelirlerim
+                    </Link>
+                  </>
+                )}
+
+                {user && (
+                  <>
+                    <div className="border-t border-silver/10 my-2" />
+                    <Link
+                      to="/profile"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
+                    >
+                      <User className="h-5 w-5" />
+                      Profil
+                    </Link>
+                    {role !== "admin" && (
+                      <Link
+                        to="/settings"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out"
+                      >
+                        <Settings className="h-5 w-5" />
+                        Ayarlar
+                      </Link>
+                    )}
+                    <button
+                      onClick={() => {
+                        signOut();
+                        setMobileMenuOpen(false);
+                      }}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-destructive hover:bg-destructive/10 transition-all duration-200 ease-out text-left w-full"
+                    >
+                      <LogOut className="h-5 w-5" />
+                      Çıkış Yap
+                    </button>
+                  </>
+                )}
+
+                {!user && (
+                  <>
+                    <div className="border-t border-silver/10 my-4" />
+                    <Link to="/auth/sign-in" onClick={() => setMobileMenuOpen(false)}>
+                      <Button variant="secondary" className="w-full justify-center transition-all duration-200 ease-out">
+                        Giriş Yap
+                      </Button>
+                    </Link>
+                    <Link to="/auth/sign-up" onClick={() => setMobileMenuOpen(false)}>
+                      <Button className="w-full transition-all duration-200 ease-out">
+                        Kayıt Ol
+                      </Button>
+                    </Link>
+                  </>
+                )}
+              </nav>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
     </header>
