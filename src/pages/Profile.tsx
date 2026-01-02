@@ -48,6 +48,7 @@ export default function ProfilePage() {
   const isMobile = useIsMobile();
   const [loading, setLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
+  const [showMobileEdit, setShowMobileEdit] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
@@ -249,7 +250,6 @@ export default function ProfilePage() {
   // Mobile Profile Hub Menu Items
   const getMobileMenuItems = () => {
     const baseItems = [
-      { icon: User, label: "Profil Bilgileri", href: "/profile/edit", description: "Profil bilgilerinizi düzenleyin" },
       { icon: Settings, label: "Ayarlar", href: "/settings", description: "Hesap ayarları ve tercihler" },
     ];
 
@@ -318,6 +318,61 @@ export default function ProfilePage() {
                   <p className="text-sm text-muted-foreground">{user?.email}</p>
                 </div>
               </>
+            )}
+          </div>
+
+          {/* Profile Edit Section - Collapsible */}
+          <div className="space-y-2">
+            <button
+              onClick={() => setShowMobileEdit(!showMobileEdit)}
+              className="w-full flex items-center justify-between p-4 rounded-xl glass-effect border border-silver/10 hover:border-silver/20 transition-all group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-secondary/50 flex items-center justify-center">
+                  <User className="w-5 h-5 text-foreground" />
+                </div>
+                <div className="text-left">
+                  <p className="font-medium text-foreground">Profil Bilgileri</p>
+                  <p className="text-xs text-muted-foreground">Profil bilgilerinizi düzenleyin</p>
+                </div>
+              </div>
+              <ChevronRight className={`w-5 h-5 text-muted-foreground group-hover:text-foreground transition-all ${showMobileEdit ? 'rotate-90' : ''}`} />
+            </button>
+
+            {/* Expanded Edit Form */}
+            {showMobileEdit && (
+              <div className="p-4 rounded-xl glass-effect border border-silver/10 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="mobile-username" className="text-silver-muted">
+                    Kullanıcı Adı
+                  </Label>
+                  <Input
+                    id="mobile-username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="glass-effect border-silver/20"
+                    placeholder="Kullanıcı adınızı girin"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="mobile-bio" className="text-silver-muted">
+                    Biyografi
+                  </Label>
+                  <Textarea
+                    id="mobile-bio"
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    rows={3}
+                    className="glass-effect border-silver/20"
+                    placeholder="Kendinizden bahsedin..."
+                  />
+                </div>
+
+                <Button onClick={handleSave} disabled={loading} className="w-full">
+                  {loading ? "Kaydediliyor..." : "Değişiklikleri Kaydet"}
+                </Button>
+              </div>
             )}
           </div>
 
