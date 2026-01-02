@@ -268,18 +268,6 @@ export function ExpertsCarousel() {
         </div>
       )}
 
-      {/* CTA Button */}
-      {!isLoading && !error && experts.length > 0 && (
-        <div className="text-center mt-8">
-          <Link to="/experts">
-            <Button variant="secondary" size="lg" className="group">
-              <Users className="w-4 h-4 mr-2" />
-              Tüm Uzmanları Gör
-              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Button>
-          </Link>
-        </div>
-      )}
     </section>
   );
 }
