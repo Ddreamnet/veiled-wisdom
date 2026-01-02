@@ -28,27 +28,8 @@ function CategoriesCarousel({ categories, isLoading }: { categories: Category[];
     dragFree: true,
   });
 
-  const [canScrollPrev, setCanScrollPrev] = useState(false);
-  const [canScrollNext, setCanScrollNext] = useState(false);
-
   const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
   const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
-
-  const onSelect = useCallback(() => {
-    if (!emblaApi) return;
-    setCanScrollPrev(emblaApi.canScrollPrev());
-    setCanScrollNext(emblaApi.canScrollNext());
-  }, [emblaApi]);
-
-  useEffect(() => {
-    if (!emblaApi) return;
-    onSelect();
-    emblaApi.on("select", onSelect);
-    emblaApi.on("reInit", onSelect);
-    return () => {
-      emblaApi.off("select", onSelect);
-    };
-  }, [emblaApi, onSelect]);
 
   return (
     <section className="container py-12 md:py-16 lg:py-24 px-4">
@@ -75,8 +56,7 @@ function CategoriesCarousel({ categories, isLoading }: { categories: Category[];
             variant="outline"
             size="icon"
             onClick={scrollPrev}
-            disabled={!canScrollPrev}
-            className="hidden md:flex absolute -left-4 lg:-left-6 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full border-primary/30 bg-background/80 backdrop-blur-sm hover:bg-primary/10 hover:border-primary/50 shadow-elegant disabled:opacity-30 disabled:cursor-not-allowed"
+            className="hidden md:flex absolute -left-4 lg:-left-6 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full border-primary/30 bg-background/80 backdrop-blur-sm hover:bg-primary/10 hover:border-primary/50 shadow-elegant"
           >
             <ChevronLeft className="h-5 w-5" />
             <span className="sr-only">Previous</span>
@@ -86,8 +66,7 @@ function CategoriesCarousel({ categories, isLoading }: { categories: Category[];
             variant="outline"
             size="icon"
             onClick={scrollNext}
-            disabled={!canScrollNext}
-            className="hidden md:flex absolute -right-4 lg:-right-6 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full border-primary/30 bg-background/80 backdrop-blur-sm hover:bg-primary/10 hover:border-primary/50 shadow-elegant disabled:opacity-30 disabled:cursor-not-allowed"
+            className="hidden md:flex absolute -right-4 lg:-right-6 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full border-primary/30 bg-background/80 backdrop-blur-sm hover:bg-primary/10 hover:border-primary/50 shadow-elegant"
           >
             <ChevronRight className="h-5 w-5" />
             <span className="sr-only">Next</span>
