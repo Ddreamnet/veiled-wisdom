@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, FolderTree, FileText, Sparkles, TrendingUp, Calendar, TurkishLira, UserCheck } from "lucide-react";
+import { Users, FolderTree, FileText, Sparkles, TrendingUp, Calendar, UserCheck } from "lucide-react";
+import { TurkishLiraIcon } from "@/components/icons/TurkishLiraIcon";
 import { useEffect, useState, lazy, Suspense } from "react";
 import { supabase } from "@/lib/supabase";
 import { AdminBreadcrumb } from "@/components/AdminBreadcrumb";
@@ -174,7 +175,7 @@ export default function AdminDashboard() {
     {
       title: "Aylık Gelir",
       value: `₺${stats.monthlyRevenue.toFixed(2)}`,
-      icon: TurkishLira,
+      icon: TurkishLiraIcon,
       description: "Son 30 gün komisyon",
       color: "text-green-500",
     },

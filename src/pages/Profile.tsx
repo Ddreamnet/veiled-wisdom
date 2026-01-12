@@ -33,8 +33,8 @@ import {
   FileText,
   LogOut,
   ChevronRight,
-  TurkishLira,
 } from "lucide-react";
+import { TurkishLiraIcon } from "@/components/icons/TurkishLiraIcon";
 import { useNavigate, Link } from "react-router-dom";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -272,7 +272,7 @@ export default function ProfilePage() {
       return [
         ...baseItems,
         { icon: FileText, label: "İlanlarım", href: "/teacher/my-listings", description: "İlanlarınızı yönetin" },
-        { icon: TurkishLira, label: "Gelirlerim", href: "/teacher/earnings", description: "Gelir ve kazançlarınız" },
+        { icon: TurkishLiraIcon, label: "Gelirlerim", href: "/teacher/earnings", description: "Gelir ve kazançlarınız" },
         { icon: HelpCircle, label: "Destek", href: "/how-it-works", description: "Sık sorulan sorular" },
       ];
     }
