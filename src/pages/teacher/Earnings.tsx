@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Banknote, Calendar, CreditCard, Clock, ArrowLeft, Home } from "lucide-react";
+import { TurkishLira, Calendar, CreditCard, Clock, ArrowLeft, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -159,7 +159,7 @@ export default function TeacherEarnings() {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <Banknote className="h-4 w-4 flex-shrink-0" />
+                  <TurkishLira className="h-4 w-4 flex-shrink-0" />
                   <span className="truncate">Toplam Gelir</span>
                 </CardTitle>
               </CardHeader>

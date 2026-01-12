@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Banknote, TrendingUp, Calendar, Filter } from "lucide-react";
+import { TurkishLira, TrendingUp, Calendar, Filter } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -348,7 +348,7 @@ export default function AdminEarnings() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Toplam Komisyon</CardTitle>
-            <Banknote className="h-4 w-4 text-primary" />
+            <TurkishLira className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">₺{totalRevenue.toFixed(2)}</div>

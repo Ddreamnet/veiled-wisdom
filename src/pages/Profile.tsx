@@ -33,7 +33,7 @@ import {
   FileText,
   LogOut,
   ChevronRight,
-  Banknote,
+  TurkishLira,
 } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { format } from "date-fns";
@@ -272,7 +272,7 @@ export default function ProfilePage() {
       return [
         ...baseItems,
         { icon: FileText, label: "İlanlarım", href: "/teacher/my-listings", description: "İlanlarınızı yönetin" },
-        { icon: Banknote, label: "Gelirlerim", href: "/teacher/earnings", description: "Gelir ve kazançlarınız" },
+        { icon: TurkishLira, label: "Gelirlerim", href: "/teacher/earnings", description: "Gelir ve kazançlarınız" },
         { icon: HelpCircle, label: "Destek", href: "/how-it-works", description: "Sık sorulan sorular" },
       ];
     }

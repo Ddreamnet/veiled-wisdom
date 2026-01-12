@@ -11,7 +11,7 @@ import {
   LogIn,
   LayoutDashboard,
   CheckCircle,
-  Banknote,
+  TurkishLira,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -36,7 +36,7 @@ const MobileBottomNavComponent = () => {
       return [
         { icon: LayoutDashboard, label: "Dashboard", href: "/admin/dashboard" },
         { icon: CheckCircle, label: "Onaylar", href: "/admin/approvals" },
-        { icon: Banknote, label: "Gelirler", href: "/admin/earnings" },
+        { icon: TurkishLira, label: "Gelirler", href: "/admin/earnings" },
         { icon: User, label: "Profil", href: "/profile" },
       ];
     }
