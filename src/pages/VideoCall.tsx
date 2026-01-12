@@ -488,49 +488,27 @@ function CallUI({ callObject }: CallUIProps) {
         >
           <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
           <span className="text-sm text-green-400">Görüşme aktif</span>
-          <span className="text-sm text-muted-foreground">• {remoteParticipants.length + 1} katılımcı</span>
+          <span className="text-sm text-muted-foreground">• {participants.length} katılımcı</span>
         </motion.div>
 
-        {/* Main Video Area - Remote Participants Only */}
-        <div className="flex-1 p-4 relative">
-          {/* Remote participant(s) - Full screen or grid */}
-          <div className={cn(
-            "h-full grid gap-4",
-            remoteParticipants.length === 1 ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2"
-          )}>
-            <AnimatePresence>
-              {remoteParticipants.map((participant, index) => (
-                <motion.div
-                  key={participant.session_id}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="h-full"
-                >
-                  <VideoTile 
-                    participant={participant} 
-                    isLocal={false}
-                    isFullSize={remoteParticipants.length === 1}
-                  />
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
-
-          {/* Local participant - Small PiP window */}
-          {localParticipant && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8, x: 20, y: 20 }}
-              animate={{ opacity: 1, scale: 1, x: 0, y: 0 }}
-              className="absolute bottom-4 right-4 w-48 md:w-64 shadow-2xl rounded-xl overflow-hidden border-2 border-primary/30"
-            >
-              <LocalVideoTile 
-                participant={localParticipant}
-                isCameraOn={isCameraOn}
-              />
-            </motion.div>
-          )}
+        {/* Video Grid */}
+        <div className="flex-1 p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <AnimatePresence>
+            {participants.map((participant, index) => (
+              <motion.div
+                key={participant.session_id}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <VideoTile 
+                  participant={participant} 
+                  isLocal={participant.local || false} 
+                />
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
 
         {/* Controls */}
@@ -588,8 +566,7 @@ function CallUI({ callObject }: CallUIProps) {
   );
 }
 
-// Remote participant video tile - full size for main view
-function VideoTile({ participant, isLocal, isFullSize }: { participant: DailyParticipant; isLocal: boolean; isFullSize?: boolean }) {
+function VideoTile({ participant, isLocal }: { participant: DailyParticipant; isLocal: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -602,10 +579,7 @@ function VideoTile({ participant, isLocal, isFullSize }: { participant: DailyPar
   }, [participant.videoTrack, participant.session_id]);
 
   return (
-    <div className={cn(
-      "relative bg-card rounded-xl overflow-hidden border border-border shadow-lg group",
-      isFullSize ? "h-full" : "aspect-video"
-    )}>
+    <div className="relative bg-card rounded-xl overflow-hidden aspect-video border border-border shadow-lg group">
       <video
         ref={videoRef}
         autoPlay
@@ -621,8 +595,11 @@ function VideoTile({ participant, isLocal, isFullSize }: { participant: DailyPar
         className="absolute bottom-4 left-4 flex items-center gap-2"
       >
         <div className="px-3 py-1.5 bg-background/80 backdrop-blur-sm rounded-full border border-border flex items-center gap-2">
+          {isLocal && (
+            <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+          )}
           <span className="text-sm font-medium">
-            {participant.user_name || 'Katılımcı'}
+            {isLocal ? 'Siz' : (participant.user_name || 'Katılımcı')}
           </span>
         </div>
       </motion.div>
@@ -643,68 +620,17 @@ function VideoTile({ participant, isLocal, isFullSize }: { participant: DailyPar
             animate={{ scale: 1 }}
             className="text-center"
           >
-            <div className={cn(
-              "rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-3 ring-4 ring-primary/10",
-              isFullSize ? "h-32 w-32" : "h-20 w-20"
-            )}>
-              <span className={cn(
-                "font-bold text-primary",
-                isFullSize ? "text-5xl" : "text-3xl"
-              )}>
-                {participant.user_name?.charAt(0).toUpperCase() || 'K'}
+            <div className="h-20 w-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-3 ring-4 ring-primary/10">
+              <span className="text-3xl font-bold text-primary">
+                {isLocal ? 'S' : (participant.user_name?.charAt(0).toUpperCase() || 'K')}
               </span>
             </div>
-            <p className={cn(
-              "text-muted-foreground",
-              isFullSize ? "text-lg" : "text-sm"
-            )}>
-              {participant.user_name || 'Katılımcı'}
+            <p className="text-sm text-muted-foreground">
+              {isLocal ? 'Siz' : (participant.user_name || 'Katılımcı')}
             </p>
           </motion.div>
         </div>
       )}
-    </div>
-  );
-}
-
-// Local participant small PiP tile
-function LocalVideoTile({ participant, isCameraOn }: { participant: DailyParticipant; isCameraOn: boolean }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    if (!videoRef.current) return;
-    
-    if (participant.videoTrack) {
-      const stream = new MediaStream([participant.videoTrack]);
-      videoRef.current.srcObject = stream;
-    }
-  }, [participant.videoTrack, participant.session_id]);
-
-  return (
-    <div className="relative bg-card aspect-video">
-      {isCameraOn && participant.videoTrack ? (
-        <video
-          ref={videoRef}
-          autoPlay
-          muted
-          playsInline
-          className="w-full h-full object-cover"
-        />
-      ) : (
-        <div className="absolute inset-0 flex items-center justify-center bg-muted">
-          <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center">
-            <VideoOff className="h-6 w-6 text-primary" />
-          </div>
-        </div>
-      )}
-      
-      {/* "Siz" badge */}
-      <div className="absolute bottom-2 left-2">
-        <div className="px-2 py-1 bg-background/80 backdrop-blur-sm rounded-full border border-primary/30 flex items-center gap-1.5">
-          <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-          <span className="text-xs font-medium">Siz</span>
-        </div>
-      </div>
     </div>
   );
 }
