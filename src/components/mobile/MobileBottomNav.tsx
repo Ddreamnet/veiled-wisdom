@@ -1,5 +1,6 @@
-import { memo, useState } from "react";
+import { memo, useState, useRef, useEffect, useLayoutEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
 import {
@@ -23,11 +24,19 @@ interface NavItem {
   badge?: number;
 }
 
+interface PillPosition {
+  left: number;
+  width: number;
+}
+
 const MobileBottomNavComponent = () => {
   const { user, role } = useAuth();
   const location = useLocation();
   const { unreadCount } = useUnreadCount();
   const [pressedItem, setPressedItem] = useState<string | null>(null);
+  const [pillPosition, setPillPosition] = useState<PillPosition | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<Map<string, HTMLAnchorElement>>(new Map());
 
   // Get navigation items based on role
   const getNavItems = (): NavItem[] => {
@@ -69,6 +78,45 @@ const MobileBottomNavComponent = () => {
     return location.pathname.startsWith(href);
   };
 
+  const activeHref = navItems.find(item => isActive(item.href))?.href;
+
+  // Calculate pill position based on active item
+  useLayoutEffect(() => {
+    if (!activeHref || !containerRef.current) return;
+
+    const activeElement = itemRefs.current.get(activeHref);
+    if (!activeElement) return;
+
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const activeRect = activeElement.getBoundingClientRect();
+
+    setPillPosition({
+      left: activeRect.left - containerRect.left,
+      width: activeRect.width,
+    });
+  }, [activeHref, navItems.length]);
+
+  // Recalculate on resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (!activeHref || !containerRef.current) return;
+
+      const activeElement = itemRefs.current.get(activeHref);
+      if (!activeElement) return;
+
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const activeRect = activeElement.getBoundingClientRect();
+
+      setPillPosition({
+        left: activeRect.left - containerRect.left,
+        width: activeRect.width,
+      });
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [activeHref]);
+
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 md:hidden"
@@ -77,9 +125,35 @@ const MobileBottomNavComponent = () => {
       {/* Full-width bottom bar - docked to bottom */}
       <div className="bg-background-elevated/95 backdrop-blur-xl border-t border-border/50 shadow-[0_-4px_30px_rgba(0,0,0,0.3)]">
         <div
-          className="flex items-center justify-around px-3"
+          ref={containerRef}
+          className="relative flex items-center justify-around px-3"
           style={{ minHeight: "68px" }}
         >
+          {/* Sliding pill background */}
+          <AnimatePresence>
+            {pillPosition && (
+              <motion.div
+                layoutId="nav-pill"
+                className="absolute bg-primary/20 border border-primary/30 rounded-full"
+                initial={false}
+                animate={{
+                  left: pillPosition.left,
+                  width: pillPosition.width,
+                  height: 44,
+                }}
+                transition={{
+                  type: "spring",
+                  stiffness: 400,
+                  damping: 30,
+                }}
+                style={{
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                }}
+              />
+            )}
+          </AnimatePresence>
+
           {navItems.map((item) => {
             const active = isActive(item.href);
             const Icon = item.icon;
@@ -88,6 +162,9 @@ const MobileBottomNavComponent = () => {
             return (
               <Link
                 key={item.href}
+                ref={(el) => {
+                  if (el) itemRefs.current.set(item.href, el);
+                }}
                 to={item.href}
                 onTouchStart={() => setPressedItem(item.href)}
                 onTouchEnd={() => setPressedItem(null)}
@@ -95,20 +172,21 @@ const MobileBottomNavComponent = () => {
                 onMouseUp={() => setPressedItem(null)}
                 onMouseLeave={() => setPressedItem(null)}
                 className={cn(
-                  "relative flex items-center justify-center transition-all duration-300 ease-out",
+                  "relative z-10 flex items-center justify-center transition-all duration-300 ease-out",
                   "min-h-[48px] rounded-full",
                   // Active state: horizontal pill with icon + label side by side
                   active 
-                    ? "bg-primary/20 border border-primary/30 px-4 py-2 gap-2" 
+                    ? "px-4 py-2 gap-2" 
                     : "flex-col px-3 py-2 min-w-[52px]",
                   isPressed && "scale-95 opacity-80",
                 )}
               >
                 {/* Icon */}
-                <div className={cn(
-                  "relative transition-transform duration-300",
-                  active && "scale-105"
-                )}>
+                <motion.div 
+                  className="relative"
+                  animate={{ scale: active ? 1.05 : 1 }}
+                  transition={{ duration: 0.2 }}
+                >
                   <Icon
                     className={cn(
                       "h-5 w-5 transition-colors duration-300",
@@ -117,21 +195,28 @@ const MobileBottomNavComponent = () => {
                   />
                   {/* Subtle glow behind active icon */}
                   {active && (
-                    <div className="absolute inset-0 blur-lg bg-primary/50 -z-10" />
+                    <motion.div 
+                      className="absolute inset-0 blur-lg bg-primary/50 -z-10"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                    />
                   )}
-                </div>
+                </motion.div>
 
                 {/* Label - position changes based on active state */}
-                <span 
+                <motion.span 
                   className={cn(
-                    "font-medium transition-all duration-300 whitespace-nowrap",
+                    "font-medium whitespace-nowrap",
                     active 
                       ? "text-sm text-primary" 
                       : "text-[10px] text-silver-muted mt-1"
                   )}
+                  layout
+                  transition={{ duration: 0.2 }}
                 >
                   {item.label}
-                </span>
+                </motion.span>
 
                 {/* Badge for unread messages */}
                 {typeof item.badge === "number" && item.badge > 0 && (
