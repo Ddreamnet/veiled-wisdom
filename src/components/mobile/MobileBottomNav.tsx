@@ -77,8 +77,8 @@ const MobileBottomNavComponent = () => {
       {/* Full-width bottom bar - docked to bottom */}
       <div className="bg-background-elevated/95 backdrop-blur-xl border-t border-border/50 shadow-[0_-4px_30px_rgba(0,0,0,0.3)]">
         <div
-          className="flex items-center justify-around px-2"
-          style={{ minHeight: "64px" }}
+          className="flex items-center justify-around px-3"
+          style={{ minHeight: "68px" }}
         >
           {navItems.map((item) => {
             const active = isActive(item.href);
@@ -95,42 +95,54 @@ const MobileBottomNavComponent = () => {
                 onMouseUp={() => setPressedItem(null)}
                 onMouseLeave={() => setPressedItem(null)}
                 className={cn(
-                  "relative flex flex-col items-center justify-center transition-all duration-200",
-                  "min-w-[56px] min-h-[48px] py-1.5 px-2 rounded-xl",
-                  active && "bg-primary/15",
+                  "relative flex items-center justify-center transition-all duration-300 ease-out",
+                  "min-h-[48px] rounded-full",
+                  // Active state: horizontal pill with icon + label side by side
+                  active 
+                    ? "bg-primary/20 border border-primary/30 px-4 py-2 gap-2" 
+                    : "flex-col px-3 py-2 min-w-[52px]",
                   isPressed && "scale-95 opacity-80",
                 )}
               >
-                {/* Icon with glow effect when active */}
+                {/* Icon */}
                 <div className={cn(
-                  "relative transition-transform duration-200",
-                  active && "scale-110"
+                  "relative transition-transform duration-300",
+                  active && "scale-105"
                 )}>
                   <Icon
                     className={cn(
-                      "h-5 w-5 transition-colors duration-200",
+                      "h-5 w-5 transition-colors duration-300",
                       active ? "text-primary" : "text-silver-muted",
                     )}
                   />
                   {/* Subtle glow behind active icon */}
                   {active && (
-                    <div className="absolute inset-0 blur-md bg-primary/40 -z-10" />
+                    <div className="absolute inset-0 blur-lg bg-primary/50 -z-10" />
                   )}
                 </div>
 
-                {/* Label - always visible, highlighted when active */}
-                <span className={cn(
-                  "mt-1 text-[10px] font-medium transition-colors duration-200",
-                  active ? "text-primary" : "text-silver-muted"
-                )}>
+                {/* Label - position changes based on active state */}
+                <span 
+                  className={cn(
+                    "font-medium transition-all duration-300 whitespace-nowrap",
+                    active 
+                      ? "text-sm text-primary" 
+                      : "text-[10px] text-silver-muted mt-1"
+                  )}
+                >
                   {item.label}
                 </span>
 
-                {/* Badge for unread messages - only show when count > 0 */}
+                {/* Badge for unread messages */}
                 {typeof item.badge === "number" && item.badge > 0 && (
                   <Badge
                     variant="destructive"
-                    className="absolute top-0 right-0.5 h-4 min-w-4 flex items-center justify-center p-0 px-1 text-[10px]"
+                    className={cn(
+                      "h-4 min-w-4 flex items-center justify-center p-0 px-1 text-[10px]",
+                      active 
+                        ? "ml-1" 
+                        : "absolute -top-0.5 -right-0.5"
+                    )}
                   >
                     {item.badge > 99 ? "99+" : item.badge}
                   </Badge>
