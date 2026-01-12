@@ -63,7 +63,7 @@ serve(async (req) => {
       );
     }
 
-    // Create new Daily room
+    // Create new Daily room with optimized settings
     const roomResponse = await fetch('https://api.daily.co/v1/rooms', {
       method: 'POST',
       headers: {
@@ -72,12 +72,21 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         properties: {
+          // Participant limit (2 users + 1 potential admin spectator)
+          max_participants: 3,
+          // Room features
           enable_screenshare: true,
           enable_chat: false,
           enable_knocking: false,
           start_video_off: false,
           start_audio_off: false,
-          exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24), // 24 hours
+          // Enable adaptive streaming for optimal quality based on network
+          enable_advanced_chat: false,
+          enable_prejoin_ui: false,
+          // Owner metadata for debugging in Daily dashboard
+          owner_id: conversation.teacher_id || conversation.student_id || 'unknown',
+          // Room expiration (24 hours)
+          exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24),
         },
       }),
     });
