@@ -285,7 +285,21 @@ export default function ProfilePage() {
       <div className="container py-6 px-4 pb-24">
         <div className="max-w-lg mx-auto space-y-6">
           {/* Profile Header */}
-          <div className="flex flex-col items-center text-center space-y-4">
+          <div className="relative flex flex-col items-center text-center space-y-4">
+            {/* Role Badge - Top Right */}
+            {!dataLoading && role === "teacher" && (
+              <Badge className="absolute top-0 right-0 bg-gradient-primary text-primary-foreground border-0 shadow-glow gap-1 px-2 py-0.5 text-xs">
+                <GraduationCap className="w-3 h-3" />
+                Uzman
+              </Badge>
+            )}
+            {!dataLoading && role === "admin" && (
+              <Badge className="absolute top-0 right-0 bg-secondary text-secondary-foreground border-0 gap-1 px-2 py-0.5 text-xs">
+                <Shield className="w-3 h-3" />
+                Admin
+              </Badge>
+            )}
+            
             {dataLoading ? (
               <>
                 <Skeleton variant="shimmer" className="h-24 w-24 rounded-full" />
@@ -294,25 +308,11 @@ export default function ProfilePage() {
               </>
             ) : (
               <>
-                <div className="relative">
-                  <AvatarUpload
-                    currentAvatarUrl={avatarUrl}
-                    userId={user?.id || ""}
-                    onUploadComplete={handleAvatarUpload}
-                  />
-                  {role === "teacher" && (
-                    <Badge className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-gradient-primary text-primary-foreground border-0 shadow-glow gap-1 px-2 py-0.5 text-xs">
-                      <GraduationCap className="w-3 h-3" />
-                      Uzman
-                    </Badge>
-                  )}
-                  {role === "admin" && (
-                    <Badge className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-secondary text-secondary-foreground border-0 gap-1 px-2 py-0.5 text-xs">
-                      <Shield className="w-3 h-3" />
-                      Admin
-                    </Badge>
-                  )}
-                </div>
+                <AvatarUpload
+                  currentAvatarUrl={avatarUrl}
+                  userId={user?.id || ""}
+                  onUploadComplete={handleAvatarUpload}
+                />
                 <div>
                   <h2 className="text-xl font-semibold text-foreground">{username || "Kullanıcı"}</h2>
                   <p className="text-sm text-muted-foreground">{user?.email}</p>
