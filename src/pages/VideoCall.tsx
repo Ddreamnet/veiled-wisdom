@@ -219,9 +219,18 @@ export default function VideoCall() {
   const { toast } = useToast();
   const [callObject, setCallObject] = useState<DailyCall | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const callObjectRef = useRef<DailyCall | null>(null);
+  const isInitializingRef = useRef(false);
 
   useEffect(() => {
     const initializeCall = async () => {
+      // Prevent duplicate initialization (React StrictMode)
+      if (isInitializingRef.current || callObjectRef.current) {
+        console.log('Call already initializing or exists, skipping...');
+        return;
+      }
+      isInitializingRef.current = true;
+
       try {
         if (!conversationId) {
           throw new Error('Conversation ID is required');
@@ -241,8 +250,12 @@ export default function VideoCall() {
 
         console.log('Room data:', roomData);
 
-        // Create Daily call object
-        const call = Daily.createCallObject();
+        // Create Daily call object with allowMultipleCallInstances for safety
+        const call = Daily.createCallObject({
+          allowMultipleCallInstances: true
+        });
+        callObjectRef.current = call;
+        
         await call.join({ url: roomData.room_url });
         
         setCallObject(call);
@@ -250,6 +263,7 @@ export default function VideoCall() {
 
       } catch (error) {
         console.error('Error initializing call:', error);
+        isInitializingRef.current = false;
         toast({
           title: "Hata",
           description: "Video araması başlatılamadı.",
@@ -262,8 +276,11 @@ export default function VideoCall() {
     initializeCall();
 
     return () => {
-      if (callObject) {
-        callObject.destroy();
+      if (callObjectRef.current) {
+        console.log('Destroying call object...');
+        callObjectRef.current.destroy();
+        callObjectRef.current = null;
+        isInitializingRef.current = false;
       }
     };
   }, [conversationId, navigate, toast]);
