@@ -313,13 +313,27 @@ function CallUI({ callObject }: CallUIProps) {
     setWaitingTime(0);
   }, [participants, callState]);
 
+  // Track recent notifications to prevent duplicates (key = type-userName, value = timestamp)
+  const recentNotificationsRef = useRef<Map<string, number>>(new Map());
+
   const addNotification = useCallback((type: 'join' | 'leave', userName: string) => {
-    const id = `${Date.now()}-${Math.random()}`;
-    setNotifications(prev => [...prev, { id, type, userName }]);
+    const dedupeKey = `${type}-${userName || 'unknown'}`;
+    const now = Date.now();
+    const lastShown = recentNotificationsRef.current.get(dedupeKey) || 0;
+
+    // Ignore if same notification was shown within last 5 seconds
+    if (now - lastShown < 5000) {
+      console.log('[VideoCall] Duplicate notification suppressed:', dedupeKey);
+      return;
+    }
+
+    recentNotificationsRef.current.set(dedupeKey, now);
+    const id = `${now}-${Math.random()}`;
+    setNotifications((prev) => [...prev, { id, type, userName }]);
   }, []);
 
   const removeNotification = useCallback((id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
   }, []);
 
   useEffect(() => {
