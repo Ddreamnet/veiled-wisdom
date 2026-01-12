@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, Search, Filter, BookOpen, Home, Video, MessageSquare } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Filter, BookOpen, Home, Video, MessageSquare, Package } from 'lucide-react';
 import { NumberInput } from '@/components/ui/number-input';
 import {
   Breadcrumb,
@@ -68,6 +68,18 @@ const pricePackageSchema = z.object({
   }, { message: "Fiyat 1-10000 TL arasında olmalıdır" }),
 });
 
+// Product packages: quantity + price
+const productPackageSchema = z.object({
+  quantity: z.string().refine((val) => {
+    const num = parseInt(val);
+    return !isNaN(num) && num >= 1 && num <= 1000;
+  }, { message: "Adet 1-1000 arasında olmalıdır" }),
+  price: z.string().refine((val) => {
+    const num = parseFloat(val);
+    return !isNaN(num) && num >= 1 && num <= 100000;
+  }, { message: "Fiyat 1-100000 TL arasında olmalıdır" }),
+});
+
 const listingFormSchema = z.object({
   title: z.string()
     .min(5, { message: "Başlık en az 5 karakter olmalıdır" })
@@ -79,8 +91,11 @@ const listingFormSchema = z.object({
   subcategory_id: z.string().optional(),
   is_active: z.boolean().default(true),
   cover_url: z.string().optional(),
-  consultation_type: z.enum(['video', 'messaging']),
-  packages: z.array(pricePackageSchema).min(1, "En az bir paket eklemelisiniz"),
+  consultation_type: z.enum(['video', 'messaging', 'product']),
+  packages: z.array(pricePackageSchema).optional(),
+  // For product type
+  unit_price: z.string().optional(),
+  product_packages: z.array(productPackageSchema).optional(),
 });
 
 type ListingFormValues = z.infer<typeof listingFormSchema>;
@@ -111,12 +126,19 @@ export default function MyListings() {
       cover_url: '',
       consultation_type: 'video',
       packages: [{ duration: '30', price: '' }],
+      unit_price: '',
+      product_packages: [],
     },
   });
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "packages",
+  });
+
+  const { fields: productFields, append: appendProduct, remove: removeProduct } = useFieldArray({
+    control: form.control,
+    name: "product_packages",
   });
 
   const consultationType = form.watch('consultation_type');
@@ -208,11 +230,28 @@ export default function MyListings() {
 
     const parentCategory = categories.find(c => c.id === listing.category.parent_id);
     
-    // Convert existing prices to package format
-    const packages = listing.prices.map(p => ({
-      duration: p.duration_minutes.toString(),
-      price: p.price.toString(),
-    }));
+    const isProduct = listing.consultation_type === 'product';
+    
+    // For product type, first price is unit price, rest are packages
+    let unitPrice = '';
+    let productPackages: { quantity: string; price: string }[] = [];
+    let packages: { duration: string; price: string }[] = [];
+    
+    if (isProduct) {
+      const sortedPrices = [...listing.prices].sort((a, b) => a.duration_minutes - b.duration_minutes);
+      if (sortedPrices.length > 0) {
+        unitPrice = sortedPrices[0].price.toString();
+        productPackages = sortedPrices.slice(1).map(p => ({
+          quantity: p.duration_minutes.toString(),
+          price: p.price.toString(),
+        }));
+      }
+    } else {
+      packages = listing.prices.map(p => ({
+        duration: p.duration_minutes.toString(),
+        price: p.price.toString(),
+      }));
+    }
 
     form.reset({
       title: listing.title,
@@ -222,7 +261,9 @@ export default function MyListings() {
       is_active: listing.is_active,
       cover_url: listing.cover_url || '',
       consultation_type: listing.consultation_type || 'video',
-      packages: packages.length > 0 ? packages : [{ duration: '30', price: '' }],
+      packages: isProduct ? [{ duration: '30', price: '' }] : (packages.length > 0 ? packages : [{ duration: '30', price: '' }]),
+      unit_price: unitPrice,
+      product_packages: productPackages,
     });
 
     setOpen(true);
@@ -287,11 +328,35 @@ export default function MyListings() {
           throw deleteError;
         }
 
-        const prices = values.packages.map(pkg => ({
-          listing_id: listingId,
-          duration_minutes: parseInt(pkg.duration),
-          price: parseFloat(pkg.price),
-        }));
+        let prices: { listing_id: string; duration_minutes: number; price: number }[] = [];
+        
+        if (values.consultation_type === 'product') {
+          // For product type: unit price (quantity=1) + extra packages
+          if (values.unit_price) {
+            prices.push({
+              listing_id: listingId,
+              duration_minutes: 1, // 1 adet = birim fiyat
+              price: parseFloat(values.unit_price),
+            });
+          }
+          // Add extra packages
+          if (values.product_packages && values.product_packages.length > 0) {
+            values.product_packages.forEach(pkg => {
+              prices.push({
+                listing_id: listingId,
+                duration_minutes: parseInt(pkg.quantity),
+                price: parseFloat(pkg.price),
+              });
+            });
+          }
+        } else {
+          // For video/messaging types
+          prices = (values.packages || []).map(pkg => ({
+            listing_id: listingId,
+            duration_minutes: parseInt(pkg.duration),
+            price: parseFloat(pkg.price),
+          }));
+        }
 
         if (prices.length > 0) {
           const { error: insertError } = await supabase
@@ -357,10 +422,15 @@ export default function MyListings() {
       cover_url: '',
       consultation_type: 'video',
       packages: [{ duration: '30', price: '' }],
+      unit_price: '',
+      product_packages: [],
     });
   };
 
   const formatDurationLabel = (minutes: number, type: ConsultationType) => {
+    if (type === 'product') {
+      return `${minutes} adet`;
+    }
     if (minutes >= 60) {
       const hours = Math.floor(minutes / 60);
       const remainingMinutes = minutes % 60;
@@ -542,13 +612,13 @@ export default function MyListings() {
                     name="consultation_type"
                     render={({ field }) => (
                       <FormItem className="space-y-3">
-                        <FormLabel>Görüşme Türü *</FormLabel>
+                        <FormLabel>İlan Türü *</FormLabel>
                         <FormControl>
                           <RadioGroup
                             onValueChange={field.onChange}
                             value={field.value}
                             defaultValue={field.value}
-                            className="grid grid-cols-2 gap-4"
+                            className="grid grid-cols-3 gap-4"
                           >
                             <Label 
                               htmlFor="video"
@@ -561,7 +631,7 @@ export default function MyListings() {
                               <RadioGroupItem value="video" id="video" />
                               <div className="flex items-center gap-2">
                                 <Video className="h-5 w-5 text-primary" />
-                                <span className="font-medium">Görüntülü Görüşme</span>
+                                <span className="font-medium text-sm">Görüntülü</span>
                               </div>
                             </Label>
                             <Label 
@@ -575,7 +645,21 @@ export default function MyListings() {
                               <RadioGroupItem value="messaging" id="messaging" />
                               <div className="flex items-center gap-2">
                                 <MessageSquare className="h-5 w-5 text-primary" />
-                                <span className="font-medium">Mesajlaşma</span>
+                                <span className="font-medium text-sm">Mesajlaşma</span>
+                              </div>
+                            </Label>
+                            <Label 
+                              htmlFor="product"
+                              className={`flex items-center space-x-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                                field.value === 'product' 
+                                  ? 'border-primary bg-primary/5' 
+                                  : 'border-border hover:border-primary/50'
+                              }`}
+                            >
+                              <RadioGroupItem value="product" id="product" />
+                              <div className="flex items-center gap-2">
+                                <Package className="h-5 w-5 text-primary" />
+                                <span className="font-medium text-sm">Ürün</span>
                               </div>
                             </Label>
                           </RadioGroup>
@@ -622,105 +706,228 @@ export default function MyListings() {
                     )}
                   />
 
-                  {/* Dynamic Pricing Packages */}
-                  <div className="border-t pt-4 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-semibold mb-1">Paketler *</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {consultationType === 'video' 
-                            ? 'Görüntülü görüşme paketlerini belirleyin' 
-                            : 'Mesajlaşma paketlerini belirleyin'}
-                        </p>
+                  {/* Dynamic Pricing Packages - For Video/Messaging */}
+                  {consultationType !== 'product' && (
+                    <div className="border-t pt-4 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="font-semibold mb-1">Paketler *</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {consultationType === 'video' 
+                              ? 'Görüntülü görüşme paketlerini belirleyin' 
+                              : 'Mesajlaşma paketlerini belirleyin'}
+                          </p>
+                        </div>
+                        {fields.length < 5 && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => append({ duration: '', price: '' })}
+                          >
+                            <Plus className="h-4 w-4 mr-1" />
+                            Paket Ekle
+                          </Button>
+                        )}
                       </div>
-                      {fields.length < 5 && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => append({ duration: '', price: '' })}
-                        >
-                          <Plus className="h-4 w-4 mr-1" />
-                          Paket Ekle
-                        </Button>
+                      
+                      <div className="space-y-3">
+                        {fields.map((field, index) => (
+                          <div 
+                            key={field.id} 
+                            className="flex flex-col sm:flex-row gap-3 p-4 border rounded-xl bg-muted/30"
+                          >
+                            <FormField
+                              control={form.control}
+                              name={`packages.${index}.duration`}
+                              render={({ field }) => (
+                                <FormItem className="flex-1">
+                                  <FormLabel className="text-xs">
+                                    Süre (dakika)
+                                  </FormLabel>
+                                  <FormControl>
+                                    <NumberInput
+                                      value={field.value}
+                                      onChange={field.onChange}
+                                      min={1}
+                                      max={480}
+                                      step={5}
+                                      suffix="dk"
+                                      placeholder="30"
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={form.control}
+                              name={`packages.${index}.price`}
+                              render={({ field }) => (
+                                <FormItem className="flex-1">
+                                  <FormLabel className="text-xs">Fiyat (TL)</FormLabel>
+                                  <FormControl>
+                                    <NumberInput
+                                      value={field.value}
+                                      onChange={field.onChange}
+                                      min={1}
+                                      max={10000}
+                                      step={10}
+                                      suffix="₺"
+                                      placeholder="100"
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <div className="flex items-end pb-2 justify-end sm:justify-start">
+                              {fields.length > 1 && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => remove(index)}
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {form.formState.errors.packages && (
+                        <p className="text-sm text-destructive">
+                          {form.formState.errors.packages.message}
+                        </p>
                       )}
                     </div>
-                    
-                    <div className="space-y-3">
-                      {fields.map((field, index) => (
-                        <div 
-                          key={field.id} 
-                          className="flex flex-col sm:flex-row gap-3 p-4 border rounded-xl bg-muted/30"
-                        >
-                          <FormField
-                            control={form.control}
-                            name={`packages.${index}.duration`}
-                            render={({ field }) => (
-                              <FormItem className="flex-1">
-                                <FormLabel className="text-xs">
-                                  Süre (dakika)
-                                </FormLabel>
-                                <FormControl>
-                                  <NumberInput
-                                    value={field.value}
-                                    onChange={field.onChange}
-                                    min={1}
-                                    max={480}
-                                    step={5}
-                                    suffix="dk"
-                                    placeholder="30"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                  )}
 
-                          <FormField
-                            control={form.control}
-                            name={`packages.${index}.price`}
-                            render={({ field }) => (
-                              <FormItem className="flex-1">
-                                <FormLabel className="text-xs">Fiyat (TL)</FormLabel>
-                                <FormControl>
-                                  <NumberInput
-                                    value={field.value}
-                                    onChange={field.onChange}
-                                    min={1}
-                                    max={10000}
-                                    step={10}
-                                    suffix="₺"
-                                    placeholder="100"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                  {/* Product Pricing - For Product Type */}
+                  {consultationType === 'product' && (
+                    <div className="border-t pt-4 space-y-4">
+                      <div>
+                        <h3 className="font-semibold mb-1">Ürün Fiyatlandırması *</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Birim fiyat ve opsiyonel çoklu alım paketlerini belirleyin
+                        </p>
+                      </div>
+                      
+                      {/* Unit Price (Required) */}
+                      <FormField
+                        control={form.control}
+                        name="unit_price"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>1 Adet Fiyatı (Birim Fiyat) *</FormLabel>
+                            <FormControl>
+                              <NumberInput
+                                value={field.value || ''}
+                                onChange={field.onChange}
+                                min={1}
+                                max={100000}
+                                step={10}
+                                suffix="₺"
+                                placeholder="100"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                          <div className="flex items-end pb-2 justify-end sm:justify-start">
-                            {fields.length > 1 && (
+                      {/* Extra Packages (Optional) */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="font-medium text-sm">Ekstra Paketler (İsteğe Bağlı)</h4>
+                            <p className="text-xs text-muted-foreground">
+                              Çoklu alım indirimleri ekleyebilirsiniz
+                            </p>
+                          </div>
+                          {productFields.length < 5 && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => appendProduct({ quantity: '', price: '' })}
+                            >
+                              <Plus className="h-4 w-4 mr-1" />
+                              Paket Ekle
+                            </Button>
+                          )}
+                        </div>
+
+                        {productFields.map((field, index) => (
+                          <div 
+                            key={field.id} 
+                            className="flex flex-col sm:flex-row gap-3 p-4 border rounded-xl bg-muted/30"
+                          >
+                            <FormField
+                              control={form.control}
+                              name={`product_packages.${index}.quantity`}
+                              render={({ field }) => (
+                                <FormItem className="flex-1">
+                                  <FormLabel className="text-xs">Adet</FormLabel>
+                                  <FormControl>
+                                    <NumberInput
+                                      value={field.value}
+                                      onChange={field.onChange}
+                                      min={2}
+                                      max={1000}
+                                      step={1}
+                                      suffix="adet"
+                                      placeholder="3"
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={form.control}
+                              name={`product_packages.${index}.price`}
+                              render={({ field }) => (
+                                <FormItem className="flex-1">
+                                  <FormLabel className="text-xs">Toplam Fiyat (TL)</FormLabel>
+                                  <FormControl>
+                                    <NumberInput
+                                      value={field.value}
+                                      onChange={field.onChange}
+                                      min={1}
+                                      max={100000}
+                                      step={10}
+                                      suffix="₺"
+                                      placeholder="250"
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <div className="flex items-end pb-2 justify-end sm:justify-start">
                               <Button
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => remove(index)}
+                                onClick={() => removeProduct(index)}
                                 className="text-destructive hover:text-destructive hover:bg-destructive/10"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
-                            )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-
-                    {form.formState.errors.packages && (
-                      <p className="text-sm text-destructive">
-                        {form.formState.errors.packages.message}
-                      </p>
-                    )}
-                  </div>
+                  )}
 
                   <DialogFooter>
                     <Button type="submit" disabled={submitting}>

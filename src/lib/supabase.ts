@@ -50,7 +50,7 @@ export type Category = {
   created_at: string;
 };
 
-export type ConsultationType = 'video' | 'messaging';
+export type ConsultationType = 'video' | 'messaging' | 'product';
 
 export type Listing = {
   id: string;
