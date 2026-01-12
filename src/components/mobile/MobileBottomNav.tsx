@@ -134,7 +134,7 @@ const MobileBottomNavComponent = () => {
             {pillPosition && (
               <motion.div
                 layoutId="nav-pill"
-                className="absolute bg-primary/20 border border-primary/30 rounded-full top-1/2 -translate-y-1/2"
+                className="absolute bg-primary/20 border border-primary/30 rounded-full top-1/2"
                 initial={false}
                 animate={{
                   left: pillPosition.left,
@@ -146,6 +146,7 @@ const MobileBottomNavComponent = () => {
                   stiffness: 400,
                   damping: 30,
                 }}
+                style={{ marginTop: -22 }}
               />
             )}
           </AnimatePresence>
