@@ -2,16 +2,16 @@ import { memo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
-import { 
-  Home, 
-  Compass, 
-  MessageSquare, 
-  Calendar, 
-  User, 
+import {
+  Home,
+  Compass,
+  MessageSquare,
+  Calendar,
+  User,
   LogIn,
   LayoutDashboard,
   CheckCircle,
-  DollarSign
+  TurkishLira,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -36,7 +36,7 @@ const MobileBottomNavComponent = () => {
       return [
         { icon: LayoutDashboard, label: "Dashboard", href: "/admin/dashboard" },
         { icon: CheckCircle, label: "Onaylar", href: "/admin/approvals" },
-        { icon: DollarSign, label: "Gelirler", href: "/admin/earnings" },
+        { icon: TurkishLira, label: "Gelirler", href: "/admin/earnings" },
         { icon: User, label: "Profil", href: "/profile" },
       ];
     }
@@ -70,13 +70,13 @@ const MobileBottomNavComponent = () => {
   };
 
   return (
-    <nav 
+    <nav
       className="fixed bottom-0 left-0 right-0 z-50 md:hidden pointer-events-none"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
       {/* Floating pill container */}
       <div className="mx-4 mb-3 pointer-events-auto">
-        <div 
+        <div
           className="glass-effect rounded-full px-2 py-2 flex items-center justify-around shadow-elegant border border-silver/10"
           style={{ minHeight: "64px" }}
         >
@@ -84,7 +84,7 @@ const MobileBottomNavComponent = () => {
             const active = isActive(item.href);
             const Icon = item.icon;
             const isPressed = pressedItem === item.href;
-            
+
             return (
               <Link
                 key={item.href}
@@ -97,44 +97,40 @@ const MobileBottomNavComponent = () => {
                 className={cn(
                   "relative flex items-center justify-center transition-all duration-300 ease-out",
                   "min-w-[44px] min-h-[44px]",
-                  active 
-                    ? "px-4 py-2 rounded-full bg-primary/20 border border-primary/30" 
-                    : "px-3 py-2",
-                  isPressed && "scale-90 opacity-80"
+                  active ? "px-4 py-2 rounded-full bg-primary/20 border border-primary/30" : "px-3 py-2",
+                  isPressed && "scale-90 opacity-80",
                 )}
               >
                 {/* Icon */}
-                <Icon 
+                <Icon
                   className={cn(
                     "h-5 w-5 transition-colors duration-200",
-                    active ? "text-primary" : "text-silver-muted"
-                  )} 
+                    active ? "text-primary" : "text-silver-muted",
+                  )}
                 />
-                
+
                 {/* Active label - only shown when active */}
                 {active && (
-                  <span className="ml-2 text-sm font-medium text-primary whitespace-nowrap">
-                    {item.label}
-                  </span>
+                  <span className="ml-2 text-sm font-medium text-primary whitespace-nowrap">{item.label}</span>
                 )}
-                
+
                 {/* Badge for unread messages - only show when count > 0 */}
-                {typeof item.badge === 'number' && item.badge > 0 && !active && (
-                  <Badge 
-                    variant="destructive" 
+                {typeof item.badge === "number" && item.badge > 0 && !active && (
+                  <Badge
+                    variant="destructive"
                     className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-0 px-1 text-xs"
                   >
-                    {item.badge > 99 ? '99+' : item.badge}
+                    {item.badge > 99 ? "99+" : item.badge}
                   </Badge>
                 )}
-                
+
                 {/* Badge shown differently when active - only show when count > 0 */}
-                {typeof item.badge === 'number' && item.badge > 0 && active && (
-                  <Badge 
-                    variant="destructive" 
+                {typeof item.badge === "number" && item.badge > 0 && active && (
+                  <Badge
+                    variant="destructive"
                     className="ml-2 h-5 min-w-5 flex items-center justify-center p-0 px-1 text-xs"
                   >
-                    {item.badge > 99 ? '99+' : item.badge}
+                    {item.badge > 99 ? "99+" : item.badge}
                   </Badge>
                 )}
               </Link>

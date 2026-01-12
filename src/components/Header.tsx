@@ -10,14 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  User,
-  LogOut,
-  Settings,
-  MessageSquare,
-  BookOpen,
-  DollarSign,
-} from "lucide-react";
+import { User, LogOut, Settings, MessageSquare, BookOpen, TurkishLira } from "lucide-react";
 import { useScrollPosition } from "@/hooks/useScrollPosition";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
 import { Badge } from "@/components/ui/badge";
@@ -38,11 +31,7 @@ const HeaderComponent = () => {
         setAvatarUrl(null);
         return;
       }
-      const { data } = await supabase
-        .from("profiles")
-        .select("avatar_url")
-        .eq("id", user.id)
-        .maybeSingle();
+      const { data } = await supabase.from("profiles").select("avatar_url").eq("id", user.id).maybeSingle();
       setAvatarUrl(data?.avatar_url || null);
     };
     fetchAvatar();
@@ -69,11 +58,11 @@ const HeaderComponent = () => {
   return (
     <header
       className={`sticky top-0 z-50 w-full border-b transition-all duration-300 ease-out will-change-transform hidden md:block ${
-        isScrolled 
-          ? "backdrop-blur-xl bg-background/95 border-silver/20 shadow-lg" 
+        isScrolled
+          ? "backdrop-blur-xl bg-background/95 border-silver/20 shadow-lg"
           : "backdrop-blur-md bg-background/80 border-silver/10 shadow-sm"
       }`}
-      style={{ transform: 'translateZ(0)' }}
+      style={{ transform: "translateZ(0)" }}
     >
       <div className="container mx-auto px-4">
         <div
@@ -92,7 +81,7 @@ const HeaderComponent = () => {
                 className={`transition-all duration-300 ease-out group-hover:scale-105 ${
                   isScrolled ? "h-8 w-8" : "h-10 w-10"
                 }`}
-                style={{ transform: 'translateZ(0)' }}
+                style={{ transform: "translateZ(0)" }}
               />
               <div className="absolute inset-0 bg-primary/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
             </div>
@@ -134,18 +123,14 @@ const HeaderComponent = () => {
                 {/* Messages Icon - Only for non-admin users */}
                 {role !== "admin" && (
                   <Link to="/messages">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="relative transition-all duration-200 ease-out"
-                    >
+                    <Button variant="ghost" size="icon" className="relative transition-all duration-200 ease-out">
                       <MessageSquare className="h-5 w-5" />
                       {unreadCount > 0 && (
-                        <Badge 
-                          variant="destructive" 
+                        <Badge
+                          variant="destructive"
                           className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-0 px-1 text-xs"
                         >
-                          {unreadCount > 99 ? '99+' : unreadCount}
+                          {unreadCount > 99 ? "99+" : unreadCount}
                         </Badge>
                       )}
                     </Button>
@@ -155,9 +140,9 @@ const HeaderComponent = () => {
                 {/* Profile Avatar Dropdown */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       className="rounded-full h-9 w-9 p-0 transition-all duration-200 ease-out hover:ring-2 hover:ring-primary/50"
                     >
                       <Avatar className="h-9 w-9">
@@ -168,8 +153,8 @@ const HeaderComponent = () => {
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent 
-                    align="end" 
+                  <DropdownMenuContent
+                    align="end"
                     className="w-56 glass-effect border-silver/20 bg-background/95 backdrop-blur-xl z-[100]"
                   >
                     {/* Common items for all logged-in users */}
@@ -192,7 +177,7 @@ const HeaderComponent = () => {
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
                           <Link to="/teacher/earnings" className="flex items-center gap-2 cursor-pointer">
-                            <DollarSign className="h-4 w-4" />
+                            <TurkishLira className="h-4 w-4" />
                             Gelirlerim
                           </Link>
                         </DropdownMenuItem>
@@ -213,7 +198,7 @@ const HeaderComponent = () => {
                     )}
 
                     <DropdownMenuSeparator className="bg-silver/10" />
-                    
+
                     <DropdownMenuItem
                       onClick={signOut}
                       className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive"

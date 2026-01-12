@@ -1,19 +1,12 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { DollarSign, Calendar, CreditCard, Clock, ArrowLeft, Home } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { TurkishLira, Calendar, CreditCard, Clock, ArrowLeft, Home } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -62,20 +55,9 @@ export default function TeacherEarnings() {
     try {
       // Fetch all data in parallel
       const [completedResult, payoutSummaryResult, payoutHistoryResult] = await Promise.all([
-        supabase
-          .from('appointments')
-          .select('price_at_booking')
-          .eq('teacher_id', user.id)
-          .eq('status', 'completed'),
-        supabase
-          .from('teacher_payouts')
-          .select('appointment_count, amount')
-          .eq('teacher_id', user.id),
-        supabase
-          .from('teacher_payouts')
-          .select('*')
-          .eq('teacher_id', user.id)
-          .order('paid_at', { ascending: false }),
+        supabase.from("appointments").select("price_at_booking").eq("teacher_id", user.id).eq("status", "completed"),
+        supabase.from("teacher_payouts").select("appointment_count, amount").eq("teacher_id", user.id),
+        supabase.from("teacher_payouts").select("*").eq("teacher_id", user.id).order("paid_at", { ascending: false }),
       ]);
 
       const completed = completedResult.data || [];
@@ -98,7 +80,7 @@ export default function TeacherEarnings() {
         setPayouts(payoutHistoryResult.data);
       }
     } catch (error) {
-      console.error('Error fetching earnings:', error);
+      console.error("Error fetching earnings:", error);
     } finally {
       setLoading(false);
     }
@@ -129,12 +111,7 @@ export default function TeacherEarnings() {
       </div>
 
       {/* Back Button - Mobile only */}
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => navigate(-1)}
-        className="mb-4 md:hidden"
-      >
+      <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="mb-4 md:hidden">
         <ArrowLeft className="h-4 w-4 mr-2" />
         Geri
       </Button>
@@ -167,94 +144,92 @@ export default function TeacherEarnings() {
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Calendar className="h-4 w-4 flex-shrink-0" />
-              <span className="truncate">Tamamlanan Randevular</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl md:text-3xl font-bold">{summary.totalCompleted}</p>
-          </CardContent>
-        </Card>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  <Calendar className="h-4 w-4 flex-shrink-0" />
+                  <span className="truncate">Tamamlanan Randevular</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl md:text-3xl font-bold">{summary.totalCompleted}</p>
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <DollarSign className="h-4 w-4 flex-shrink-0" />
-              <span className="truncate">Toplam Gelir</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl md:text-3xl font-bold break-words">{summary.totalEarnings.toFixed(2)} TL</p>
-          </CardContent>
-        </Card>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  <TurkishLira className="h-4 w-4 flex-shrink-0" />
+                  <span className="truncate">Toplam Gelir</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl md:text-3xl font-bold break-words">{summary.totalEarnings.toFixed(2)} TL</p>
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Clock className="h-4 w-4 flex-shrink-0" />
-              <span className="truncate">Ödenecek Randevu</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl md:text-3xl font-bold">{summary.pendingCount}</p>
-          </CardContent>
-        </Card>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  <Clock className="h-4 w-4 flex-shrink-0" />
+                  <span className="truncate">Ödenecek Randevu</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl md:text-3xl font-bold">{summary.pendingCount}</p>
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <CreditCard className="h-4 w-4 flex-shrink-0" />
-              <span className="truncate">Ödenecek Miktar</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl md:text-3xl font-bold break-words">{summary.pendingAmount.toFixed(2)} TL</p>
-          </CardContent>
-        </Card>
-      </div>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 flex-shrink-0" />
+                  <span className="truncate">Ödenecek Miktar</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl md:text-3xl font-bold break-words">{summary.pendingAmount.toFixed(2)} TL</p>
+              </CardContent>
+            </Card>
+          </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg md:text-xl">Ödeme Geçmişi</CardTitle>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
-          {payouts.length === 0 ? (
-            <p className="text-center text-muted-foreground py-12">
-              Henüz ödeme geçmişiniz bulunmuyor.
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Ödenen Randevu Sayısı</TableHead>
-                  <TableHead>Ödeme Miktarı</TableHead>
-                  <TableHead>Ödeme Tarihi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {payouts.map((payout) => (
-                  <TableRow key={payout.id}>
-                    <TableCell>{payout.appointment_count}</TableCell>
-                    <TableCell>{Number(payout.amount).toFixed(2)} TL</TableCell>
-                    <TableCell>
-                      {new Date(payout.paid_at).toLocaleDateString('tr-TR', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg md:text-xl">Ödeme Geçmişi</CardTitle>
+            </CardHeader>
+            <CardContent className="overflow-x-auto">
+              {payouts.length === 0 ? (
+                <p className="text-center text-muted-foreground py-12">Henüz ödeme geçmişiniz bulunmuyor.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Ödenen Randevu Sayısı</TableHead>
+                      <TableHead>Ödeme Miktarı</TableHead>
+                      <TableHead>Ödeme Tarihi</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {payouts.map((payout) => (
+                      <TableRow key={payout.id}>
+                        <TableCell>{payout.appointment_count}</TableCell>
+                        <TableCell>{Number(payout.amount).toFixed(2)} TL</TableCell>
+                        <TableCell>
+                          {new Date(payout.paid_at).toLocaleDateString("tr-TR", {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
         </>
       )}
     </div>

@@ -8,7 +8,16 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { MessageSquare, Calendar as CalendarIcon, Clock, DollarSign, Star, Home, ChevronRight, Video } from "lucide-react";
+import {
+  MessageSquare,
+  Calendar as CalendarIcon,
+  Clock,
+  TurkishLira,
+  Star,
+  Home,
+  ChevronRight,
+  Video,
+} from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -67,24 +76,20 @@ export default function ListingDetail() {
 
   const reviews = listing?.reviews || [];
   const averageRating = listing?.averageRating || 0;
-  const consultationType: ConsultationType = listing?.consultation_type || 'video';
+  const consultationType: ConsultationType = listing?.consultation_type || "video";
 
   const formatDurationLabel = (minutes: number, type: ConsultationType) => {
     if (minutes >= 60) {
       const hours = Math.floor(minutes / 60);
       const remainingMinutes = minutes % 60;
       if (remainingMinutes === 0) {
-        return type === 'video' 
-          ? `${hours} saat görüntülü görüşme`
-          : `${hours} saat mesajlaşma`;
+        return type === "video" ? `${hours} saat görüntülü görüşme` : `${hours} saat mesajlaşma`;
       }
-      return type === 'video'
+      return type === "video"
         ? `${hours} saat ${remainingMinutes} dk görüntülü görüşme`
         : `${hours} saat ${remainingMinutes} dk mesajlaşma`;
     }
-    return type === 'video'
-      ? `${minutes} dakika görüntülü görüşme`
-      : `${minutes} dakika mesajlaşma`;
+    return type === "video" ? `${minutes} dakika görüntülü görüşme` : `${minutes} dakika mesajlaşma`;
   };
 
   const handleBooking = async () => {
@@ -270,12 +275,12 @@ export default function ListingDetail() {
           <div>
             <div className="flex items-center gap-3 mb-4">
               <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold">{listing.title}</h1>
-              <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${
-                consultationType === 'video' 
-                  ? 'bg-primary/10 text-primary' 
-                  : 'bg-secondary text-secondary-foreground'
-              }`}>
-                {consultationType === 'video' ? (
+              <span
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${
+                  consultationType === "video" ? "bg-primary/10 text-primary" : "bg-secondary text-secondary-foreground"
+                }`}
+              >
+                {consultationType === "video" ? (
                   <>
                     <Video className="h-4 w-4" />
                     Görüntülü
@@ -432,7 +437,7 @@ export default function ListingDetail() {
 
               <div className="border-t pt-5">
                 <Label className="text-base font-semibold mb-4 block">
-                  {consultationType === 'video' ? 'Görüntülü Görüşme Paketi' : 'Mesajlaşma Paketi'}
+                  {consultationType === "video" ? "Görüntülü Görüşme Paketi" : "Mesajlaşma Paketi"}
                 </Label>
                 <RadioGroup
                   value={selectedDuration?.toString()}
@@ -454,7 +459,7 @@ export default function ListingDetail() {
                           htmlFor={`duration-${price.duration_minutes}`}
                           className="cursor-pointer text-sm md:text-base font-medium flex items-center gap-2"
                         >
-                          {consultationType === 'video' ? (
+                          {consultationType === "video" ? (
                             <Video className="h-4 w-4 text-primary" />
                           ) : (
                             <MessageSquare className="h-4 w-4 text-primary" />
