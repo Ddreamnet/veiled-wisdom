@@ -301,15 +301,16 @@ function CallUI({ callObject }: CallUIProps) {
 
   // Waiting time counter
   useEffect(() => {
-    const remoteParticipants = participants.filter(p => !p.local);
+    // NOTE: participants state is sanitized (local + real unique remotes)
+    const remoteParticipants = participants.filter((p) => !p.local);
     if (remoteParticipants.length === 0 && callState === 'joined') {
       const interval = setInterval(() => {
-        setWaitingTime(prev => prev + 1);
+        setWaitingTime((prev) => prev + 1);
       }, 1000);
       return () => clearInterval(interval);
-    } else {
-      setWaitingTime(0);
     }
+
+    setWaitingTime(0);
   }, [participants, callState]);
 
   const addNotification = useCallback((type: 'join' | 'leave', userName: string) => {
@@ -325,10 +326,81 @@ function CallUI({ callObject }: CallUIProps) {
     const updateParticipants = () => {
       const participantObj = callObject.participants();
       const participantList = Object.values(participantObj);
-      const local = participantList.find(p => p.local);
-      
-      setLocalParticipant(local || null);
-      setParticipants(participantList);
+
+      // Daily can sometimes include a non-local "mirror" participant of yourself.
+      // We sanitize the list here so UI always renders 1 tile per real user.
+      const locals = participantList.filter((p) => p.local);
+      const local =
+        locals.find((p) => !!p.videoTrack) ||
+        locals.find((p) => !!p.audioTrack) ||
+        locals[0] ||
+        null;
+
+      const isMirrorOfLocal = (p: DailyParticipant) => {
+        if (!local || p.local) return false;
+        const lp: any = local;
+        const rp: any = p;
+
+        // Strongest signal: same underlying media track id
+        if (lp?.videoTrack?.id && rp?.videoTrack?.id && lp.videoTrack.id === rp.videoTrack.id) return true;
+        if (lp?.audioTrack?.id && rp?.audioTrack?.id && lp.audioTrack.id === rp.audioTrack.id) return true;
+
+        // App identity / user identity if present
+        if (lp?.userData?.appUserId && rp?.userData?.appUserId && lp.userData.appUserId === rp.userData.appUserId) return true;
+        if (lp?.user_id && rp?.user_id && lp.user_id === rp.user_id) return true;
+
+        // Name match (only if non-empty)
+        if (lp?.user_name && rp?.user_name && lp.user_name === rp.user_name) return true;
+
+        // If remote has *no* identifying info at all, treat it as a mirror candidate.
+        const hasAnyIdentity = !!(rp?.userData?.appUserId || rp?.user_id || rp?.user_name);
+        if (!hasAnyIdentity && (rp?.videoTrack || rp?.audioTrack)) return true;
+
+        return false;
+      };
+
+      const remoteCandidates = participantList.filter((p) => !p.local).filter((p) => !isMirrorOfLocal(p));
+
+      // Dedupe remotes: keep best tile per user key (prefer videoTrack)
+      const pickKey = (p: any) => p?.userData?.appUserId || p?.user_id || p?.user_name || p?.session_id;
+      const remoteMap = new Map<string, DailyParticipant>();
+      for (const p of remoteCandidates) {
+        const key = String(pickKey(p));
+        const existing = remoteMap.get(key);
+        if (!existing) {
+          remoteMap.set(key, p);
+          continue;
+        }
+        const existingHasVideo = !!(existing as any).videoTrack;
+        const pHasVideo = !!(p as any).videoTrack;
+        if (!existingHasVideo && pHasVideo) remoteMap.set(key, p);
+      }
+
+      const sanitizedParticipants: DailyParticipant[] = [
+        ...(local ? [local] : []),
+        ...Array.from(remoteMap.values()),
+      ];
+
+      setLocalParticipant(local);
+      setParticipants(sanitizedParticipants);
+
+      // Debug (helps verify duplicates/mirrors in real sessions)
+      console.log('[VideoCall] participants(raw)', participantList.map((p: any) => ({
+        session_id: p.session_id,
+        local: p.local,
+        user_id: p.user_id,
+        user_name: p.user_name,
+        appUserId: p?.userData?.appUserId,
+        videoTrackId: p?.videoTrack?.id,
+        audioTrackId: p?.audioTrack?.id,
+      })));
+      console.log('[VideoCall] participants(sanitized)', sanitizedParticipants.map((p: any) => ({
+        session_id: p.session_id,
+        local: p.local,
+        user_id: p.user_id,
+        user_name: p.user_name,
+        appUserId: p?.userData?.appUserId,
+      })));
     };
 
     const handleJoinedMeeting = () => {
@@ -441,27 +513,8 @@ function CallUI({ callObject }: CallUIProps) {
     );
   }
 
-  // Show waiting room if no *real* remote participants (Daily may include a non-local mirror of yourself)
-  const remoteParticipants = participants
-    .filter((p) => !p.local)
-    .filter((p) => {
-      if (!localParticipant) return true;
-      const lp: any = localParticipant;
-      const rp: any = p;
-
-      // Prefer app-level identity (we set this in join via userData)
-      const lpAppUserId = lp?.userData?.appUserId;
-      const rpAppUserId = rp?.userData?.appUserId;
-      if (lpAppUserId && rpAppUserId) return lpAppUserId !== rpAppUserId;
-
-      // Prefer stable ids when available
-      if (lp.user_id && rp.user_id) return lp.user_id !== rp.user_id;
-
-      // Fallback to name match (we set userName on join)
-      if (lp.user_name && rp.user_name) return lp.user_name !== rp.user_name;
-
-      return true;
-    });
+  // participants state is sanitized (1 local + real unique remotes)
+  const remoteParticipants = participants.filter((p) => !p.local);
   if (remoteParticipants.length === 0) {
     return (
       <>
