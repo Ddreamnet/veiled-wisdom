@@ -177,7 +177,7 @@ export default function TeacherEdit() {
 
   return (
     <div className="container py-8 md:py-12 px-4 md:px-6 lg:px-8">
-      <Button variant="ghost" className="mb-6" onClick={() => navigate("/admin/teachers")}>
+      <Button variant="ghost" className="mb-6 hidden md:flex" onClick={() => navigate("/admin/teachers")}>
         <ArrowLeft className="h-4 w-4 mr-2" />
         Geri Dön
       </Button>

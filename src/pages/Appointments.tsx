@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Check, X, ArrowLeft, Home } from 'lucide-react';
+import { Check, X, Home } from 'lucide-react';
 import { ReviewDialog } from '@/components/ReviewDialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -173,17 +173,6 @@ export default function Appointments() {
           </BreadcrumbList>
         </Breadcrumb>
       </div>
-
-      {/* Back Button - Mobile only */}
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => navigate(-1)}
-        className="mb-4 md:hidden"
-      >
-        <ArrowLeft className="h-4 w-4 mr-2" />
-        Geri
-      </Button>
 
       <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Randevularım</h1>
 

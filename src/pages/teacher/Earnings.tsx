@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Calendar, CreditCard, Clock, ArrowLeft, Home } from "lucide-react";
+import { Calendar, CreditCard, Clock, Home } from "lucide-react";
 import { TurkishLiraIcon } from "@/components/icons/TurkishLiraIcon";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -110,12 +110,6 @@ export default function TeacherEarnings() {
           </BreadcrumbList>
         </Breadcrumb>
       </div>
-
-      {/* Back Button - Mobile only */}
-      <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="mb-4 md:hidden">
-        <ArrowLeft className="h-4 w-4 mr-2" />
-        Geri
-      </Button>
 
       <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Gelirlerim</h1>
 
