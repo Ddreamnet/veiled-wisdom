@@ -287,6 +287,10 @@ function WaitingRoom({
   );
 }
 
+// Constants for timeouts
+const SOLO_TIMEOUT_SECONDS = 30 * 60; // 30 minutes alone = auto-leave
+const MAX_CALL_DURATION_SECONDS = 2 * 60 * 60; // 2 hours max = auto-leave
+
 function CallUI({ callObject }: CallUIProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -297,11 +301,24 @@ function CallUI({ callObject }: CallUIProps) {
   const [participants, setParticipants] = useState<DailyParticipant[]>([]);
   const [localParticipant, setLocalParticipant] = useState<DailyParticipant | null>(null);
   const [notifications, setNotifications] = useState<Array<{ id: string; type: 'join' | 'leave'; userName: string }>>([]);
+  
+  // Waiting time - continues from where it left off when participant leaves
   const [waitingTime, setWaitingTime] = useState(0);
+  // Call duration - starts when first remote joins, never resets
+  const [callDuration, setCallDuration] = useState(0);
+  const [callStartTime, setCallStartTime] = useState<number | null>(null);
+  // Total room time - starts on join, used for 2-hour max limit
+  const [roomJoinTime, setRoomJoinTime] = useState<number | null>(null);
 
-  // Waiting time counter
+  // Set room join time when joined
   useEffect(() => {
-    // NOTE: participants state is sanitized (local + real unique remotes)
+    if (callState === 'joined' && roomJoinTime === null) {
+      setRoomJoinTime(Date.now());
+    }
+  }, [callState, roomJoinTime]);
+
+  // Waiting time counter - continues from where it left off
+  useEffect(() => {
     const remoteParticipants = participants.filter((p) => !p.local);
     if (remoteParticipants.length === 0 && callState === 'joined') {
       const interval = setInterval(() => {
@@ -309,9 +326,55 @@ function CallUI({ callObject }: CallUIProps) {
       }, 1000);
       return () => clearInterval(interval);
     }
-
-    setWaitingTime(0);
+    // Don't reset waitingTime when remote joins - keep accumulated value
   }, [participants, callState]);
+
+  // Call duration counter - starts when first remote joins
+  useEffect(() => {
+    const remoteParticipants = participants.filter((p) => !p.local);
+    if (remoteParticipants.length > 0 && callState === 'joined') {
+      // Start call timer if not already started
+      if (callStartTime === null) {
+        setCallStartTime(Date.now());
+      }
+      const interval = setInterval(() => {
+        setCallDuration((prev) => prev + 1);
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [participants, callState, callStartTime]);
+
+  // 30 minute solo timeout - auto-leave if alone for too long
+  useEffect(() => {
+    if (waitingTime >= SOLO_TIMEOUT_SECONDS && callState === 'joined') {
+      toast({
+        title: "Oturum Sonlandırıldı",
+        description: "30 dakika boyunca yalnız kaldığınız için görüşme sonlandırıldı.",
+        variant: "destructive",
+      });
+      callObject.leave();
+    }
+  }, [waitingTime, callState, callObject, toast]);
+
+  // 2 hour max room duration - auto-leave
+  useEffect(() => {
+    if (!roomJoinTime || callState !== 'joined') return;
+    
+    const checkMaxDuration = () => {
+      const elapsed = (Date.now() - roomJoinTime) / 1000;
+      if (elapsed >= MAX_CALL_DURATION_SECONDS) {
+        toast({
+          title: "Maksimum Süre Doldu",
+          description: "Görüşme 2 saatlik maksimum süreye ulaştığı için sonlandırıldı.",
+          variant: "destructive",
+        });
+        callObject.leave();
+      }
+    };
+
+    const interval = setInterval(checkMaxDuration, 10000); // Check every 10 seconds
+    return () => clearInterval(interval);
+  }, [roomJoinTime, callState, callObject, toast]);
 
   // Track recent notifications to prevent duplicates (key = type-userName, value = timestamp)
   const recentNotificationsRef = useRef<Map<string, number>>(new Map());
@@ -570,17 +633,23 @@ function CallUI({ callObject }: CallUIProps) {
         animate={{ opacity: 1 }}
         className="h-screen bg-gradient-to-br from-background via-purple-950/20 to-background flex flex-col"
       >
-        {/* Connection status bar */}
+        {/* Connection status bar with call duration */}
         <motion.div
           initial={{ y: -50 }}
           animate={{ y: 0 }}
-          className="px-4 py-2 bg-green-500/10 border-b border-green-500/20 flex items-center justify-center gap-2"
+          className="px-4 py-2 bg-green-500/10 border-b border-green-500/20 flex items-center justify-center gap-3"
         >
           <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
           <span className="text-sm text-green-400">Görüşme aktif</span>
           <span className="text-sm text-muted-foreground">
             • {(localParticipant ? 1 : 0) + remoteParticipants.length} katılımcı
           </span>
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-background/50">
+            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-sm font-medium">
+              {Math.floor(callDuration / 60)}:{(callDuration % 60).toString().padStart(2, '0')}
+            </span>
+          </div>
         </motion.div>
 
         {/* Video Grid - Only show local participant once and remote participants */}
