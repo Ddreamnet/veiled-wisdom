@@ -21,19 +21,19 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { AvatarUpload } from "@/components/AvatarUpload";
-import { 
-  User, 
-  Shield, 
-  Trash2, 
-  Calendar, 
-  GraduationCap, 
-  MessageSquare, 
-  Settings, 
-  HelpCircle, 
-  FileText, 
+import {
+  User,
+  Shield,
+  Trash2,
+  Calendar,
+  GraduationCap,
+  MessageSquare,
+  Settings,
+  HelpCircle,
+  FileText,
   LogOut,
   ChevronRight,
-  DollarSign
+  TurkishLira,
 } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { format } from "date-fns";
@@ -257,7 +257,12 @@ export default function ProfilePage() {
     if (role === "admin") {
       return [
         ...baseItems,
-        { icon: MessageSquare, label: "Destek Mesajları", href: "/messages", description: "Kullanıcı mesajları ve destek" },
+        {
+          icon: MessageSquare,
+          label: "Destek Mesajları",
+          href: "/messages",
+          description: "Kullanıcı mesajları ve destek",
+        },
         { icon: HelpCircle, label: "Yardım", href: "/how-it-works", description: "Sık sorulan sorular" },
       ];
     }
@@ -267,7 +272,7 @@ export default function ProfilePage() {
       return [
         ...baseItems,
         { icon: FileText, label: "İlanlarım", href: "/teacher/my-listings", description: "İlanlarınızı yönetin" },
-        { icon: DollarSign, label: "Gelirlerim", href: "/teacher/earnings", description: "Gelir ve kazançlarınız" },
+        { icon: TurkishLira, label: "Gelirlerim", href: "/teacher/earnings", description: "Gelir ve kazançlarınız" },
         { icon: HelpCircle, label: "Destek", href: "/how-it-works", description: "Sık sorulan sorular" },
       ];
     }
@@ -299,7 +304,7 @@ export default function ProfilePage() {
                 Admin
               </Badge>
             )}
-            
+
             {dataLoading ? (
               <>
                 <Skeleton variant="shimmer" className="h-24 w-24 rounded-full" />
@@ -336,7 +341,9 @@ export default function ProfilePage() {
                   <p className="text-xs text-muted-foreground">Profil bilgilerinizi düzenleyin</p>
                 </div>
               </div>
-              <ChevronRight className={`w-5 h-5 text-muted-foreground group-hover:text-foreground transition-all ${showMobileEdit ? 'rotate-90' : ''}`} />
+              <ChevronRight
+                className={`w-5 h-5 text-muted-foreground group-hover:text-foreground transition-all ${showMobileEdit ? "rotate-90" : ""}`}
+              />
             </button>
 
             {/* Expanded Edit Form */}
@@ -399,8 +406,8 @@ export default function ProfilePage() {
           </div>
 
           {/* Sign Out Button */}
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="w-full gap-2 border-destructive/30 text-destructive hover:bg-destructive/10"
             onClick={handleSignOut}
           >
