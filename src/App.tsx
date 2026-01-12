@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import ScrollToTop from './components/ScrollToTop';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Toaster } from './components/ui/toaster';
@@ -228,6 +229,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <BrowserRouter>
+          <ScrollToTop />
           <AuthProvider>
             <AppRoutes />
             <Toaster />
