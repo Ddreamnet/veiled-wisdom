@@ -20,14 +20,19 @@ const ParticleBackground = lazy(() => import("@/components/ParticleBackground").
 })));
 
 // Categories Carousel Component
-function CategoriesCarousel({ categories, isLoading }: { categories: Category[]; isLoading: boolean }) {
+function CategoriesCarousel({
+  categories,
+  isLoading
+}: {
+  categories: Category[];
+  isLoading: boolean;
+}) {
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: "start",
     loop: true,
     skipSnaps: false,
-    dragFree: true,
+    dragFree: true
   });
-
   const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
   const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
 
@@ -42,43 +47,27 @@ function CategoriesCarousel({ categories, isLoading }: { categories: Category[];
     while (result.length < targetMin) result = result.concat(categories);
     return result;
   }, [categories]);
-  return (
-    <section className="container py-12 md:py-16 lg:py-24 px-4">
+  return <section className="container py-12 md:py-16 lg:py-24 px-4">
       <div className="text-center mb-8 md:mb-12">
         <h2 className="text-3xl md:text-4xl font-serif font-bold text-gradient-silver mb-2 uppercase">KATEGORİLER</h2>
         <p className="text-sm md:text-base text-silver-muted">Uzmanlık Alanlarını Keşfedin! 🌼🤍🌕</p>
       </div>
 
-      {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
-          {[1, 2, 3, 4].map(i => (
-            <Card key={i} className="overflow-hidden">
+      {isLoading ? <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+          {[1, 2, 3, 4].map(i => <Card key={i} className="overflow-hidden">
               <Skeleton className="h-40 sm:h-44 md:h-48 w-full" />
               <CardContent className="p-4 sm:p-5 md:p-6 pb-[12px]">
                 <Skeleton className="h-6 w-24" />
               </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <div className="relative">
+            </Card>)}
+        </div> : <div className="relative">
           {/* Navigation Buttons */}
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={scrollPrev}
-            className="hidden md:flex absolute -left-4 lg:-left-6 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full border-primary/30 bg-background/80 backdrop-blur-sm hover:bg-primary/10 hover:border-primary/50 shadow-elegant"
-          >
+          <Button variant="outline" size="icon" onClick={scrollPrev} className="hidden md:flex absolute -left-4 lg:-left-6 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full border-primary/30 bg-background/80 backdrop-blur-sm hover:bg-primary/10 hover:border-primary/50 shadow-elegant">
             <ChevronLeft className="h-5 w-5" />
             <span className="sr-only">Previous</span>
           </Button>
 
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={scrollNext}
-            className="hidden md:flex absolute -right-4 lg:-right-6 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full border-primary/30 bg-background/80 backdrop-blur-sm hover:bg-primary/10 hover:border-primary/50 shadow-elegant"
-          >
+          <Button variant="outline" size="icon" onClick={scrollNext} className="hidden md:flex absolute -right-4 lg:-right-6 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full border-primary/30 bg-background/80 backdrop-blur-sm hover:bg-primary/10 hover:border-primary/50 shadow-elegant">
             <ChevronRight className="h-5 w-5" />
             <span className="sr-only">Next</span>
           </Button>
@@ -86,25 +75,13 @@ function CategoriesCarousel({ categories, isLoading }: { categories: Category[];
           {/* Carousel Container */}
           <div className="overflow-hidden" ref={emblaRef}>
             <div className="flex touch-pan-y -ml-4">
-              {loopSlides.map((category, idx) => (
-                <div
-                  key={`${category.id}-${idx}`}
-                  className="flex-[0_0_80%] sm:flex-[0_0_45%] md:flex-[0_0_30%] lg:flex-[0_0_24%] min-w-0 pl-4"
-                >
+              {loopSlides.map((category, idx) => <div key={`${category.id}-${idx}`} className="flex-[0_0_80%] sm:flex-[0_0_45%] md:flex-[0_0_30%] lg:flex-[0_0_24%] min-w-0 pl-4">
                   <Link to={`/categories/${category.slug}`}>
                     <Card className="group overflow-hidden h-full card-hover">
-                      {category.image_url && (
-                        <div className="relative h-40 sm:h-44 md:h-48 overflow-hidden">
-                          <img
-                            src={getOptimizedThumbnailUrl(category.image_url)}
-                            alt={category.name}
-                            loading="lazy"
-                            decoding="async"
-                            className="w-full h-full object-cover card-image"
-                          />
+                      {category.image_url && <div className="relative h-40 sm:h-44 md:h-48 overflow-hidden">
+                          <img src={getOptimizedThumbnailUrl(category.image_url)} alt={category.name} loading="lazy" decoding="async" className="w-full h-full object-cover card-image" />
                           <div className="absolute inset-0 bg-gradient-to-t from-card/50 to-transparent" />
-                        </div>
-                      )}
+                        </div>}
                       <CardContent className="px-3 py-2 min-h-[48px] flex items-center">
                         <h3 className="font-semibold text-base sm:text-lg text-silver group-hover:text-gradient-purple transition-all font-serif">
                           {category.name.toLocaleUpperCase("tr-TR")}
@@ -112,16 +89,12 @@ function CategoriesCarousel({ categories, isLoading }: { categories: Category[];
                       </CardContent>
                     </Card>
                   </Link>
-                </div>
-              ))}
+                </div>)}
             </div>
           </div>
-        </div>
-      )}
-    </section>
-  );
+        </div>}
+    </section>;
 }
-
 export default function Index() {
   const {
     data,
@@ -176,18 +149,8 @@ export default function Index() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center pt-2 md:pt-4">
-              <Link to="/explore" className="w-full sm:w-auto">
-                <Button size="lg" className="w-full sm:w-auto">
-                  <BookOpen className="w-4 h-4 md:w-5 md:h-5 mr-2" />
-                  Keşfet
-                </Button>
-              </Link>
-              {!user && <Link to="/auth/sign-up" className="w-full sm:w-auto">
-                  <Button size="lg" variant="secondary" className="w-full sm:w-auto">
-                    <Users className="w-4 h-4 md:w-5 md:h-5 mr-2" />
-                    Kayıt Ol
-                  </Button>
-                </Link>}
+              
+              {!user}
             </div>
           </div>
         </div>
