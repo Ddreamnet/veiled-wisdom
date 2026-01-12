@@ -501,16 +501,16 @@ export default function MyListings() {
                 Yeni İlan
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>{editingId ? 'İlanı Düzenle' : 'Yeni İlan Oluştur'}</DialogTitle>
-                <DialogDescription>
-                  İlan bilgilerini ve fiyatlandırmanı belirle. Tüm alanlar zorunludur.
+            <DialogContent className="w-[95vw] max-w-3xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+              <DialogHeader className="space-y-1.5">
+                <DialogTitle className="text-lg sm:text-xl">{editingId ? 'İlanı Düzenle' : 'Yeni İlan Oluştur'}</DialogTitle>
+                <DialogDescription className="text-sm">
+                  İlan bilgilerini ve fiyatlandırmanı belirle.
                 </DialogDescription>
               </DialogHeader>
               
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+                <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 sm:space-y-6">
                   {/* Title */}
                   <FormField
                     control={form.control}
@@ -618,49 +618,43 @@ export default function MyListings() {
                             onValueChange={field.onChange}
                             value={field.value}
                             defaultValue={field.value}
-                            className="grid grid-cols-3 gap-4"
+                            className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3"
                           >
                             <Label 
                               htmlFor="video"
-                              className={`flex items-center space-x-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                              className={`flex items-center gap-2 sm:gap-3 p-3 sm:p-4 border-2 rounded-xl cursor-pointer transition-all ${
                                 field.value === 'video' 
                                   ? 'border-primary bg-primary/5' 
                                   : 'border-border hover:border-primary/50'
                               }`}
                             >
-                              <RadioGroupItem value="video" id="video" />
-                              <div className="flex items-center gap-2">
-                                <Video className="h-5 w-5 text-primary" />
-                                <span className="font-medium text-sm">Görüntülü</span>
-                              </div>
+                              <RadioGroupItem value="video" id="video" className="shrink-0" />
+                              <Video className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
+                              <span className="font-medium text-sm">Görüntülü</span>
                             </Label>
                             <Label 
                               htmlFor="messaging"
-                              className={`flex items-center space-x-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                              className={`flex items-center gap-2 sm:gap-3 p-3 sm:p-4 border-2 rounded-xl cursor-pointer transition-all ${
                                 field.value === 'messaging' 
                                   ? 'border-primary bg-primary/5' 
                                   : 'border-border hover:border-primary/50'
                               }`}
                             >
-                              <RadioGroupItem value="messaging" id="messaging" />
-                              <div className="flex items-center gap-2">
-                                <MessageSquare className="h-5 w-5 text-primary" />
-                                <span className="font-medium text-sm">Mesajlaşma</span>
-                              </div>
+                              <RadioGroupItem value="messaging" id="messaging" className="shrink-0" />
+                              <MessageSquare className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
+                              <span className="font-medium text-sm">Mesajlaşma</span>
                             </Label>
                             <Label 
                               htmlFor="product"
-                              className={`flex items-center space-x-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                              className={`flex items-center gap-2 sm:gap-3 p-3 sm:p-4 border-2 rounded-xl cursor-pointer transition-all ${
                                 field.value === 'product' 
                                   ? 'border-primary bg-primary/5' 
                                   : 'border-border hover:border-primary/50'
                               }`}
                             >
-                              <RadioGroupItem value="product" id="product" />
-                              <div className="flex items-center gap-2">
-                                <Package className="h-5 w-5 text-primary" />
-                                <span className="font-medium text-sm">Ürün</span>
-                              </div>
+                              <RadioGroupItem value="product" id="product" className="shrink-0" />
+                              <Package className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
+                              <span className="font-medium text-sm">Ürün</span>
                             </Label>
                           </RadioGroup>
                         </FormControl>
@@ -708,11 +702,11 @@ export default function MyListings() {
 
                   {/* Dynamic Pricing Packages - For Video/Messaging */}
                   {consultationType !== 'product' && (
-                    <div className="border-t pt-4 space-y-4">
-                      <div className="flex items-center justify-between">
+                    <div className="border-t pt-4 space-y-3 sm:space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <div>
-                          <h3 className="font-semibold mb-1">Paketler *</h3>
-                          <p className="text-sm text-muted-foreground">
+                          <h3 className="font-semibold text-sm sm:text-base">Paketler *</h3>
+                          <p className="text-xs sm:text-sm text-muted-foreground">
                             {consultationType === 'video' 
                               ? 'Görüntülü görüşme paketlerini belirleyin' 
                               : 'Mesajlaşma paketlerini belirleyin'}
@@ -724,6 +718,7 @@ export default function MyListings() {
                             variant="outline"
                             size="sm"
                             onClick={() => append({ duration: '', price: '' })}
+                            className="self-start sm:self-auto"
                           >
                             <Plus className="h-4 w-4 mr-1" />
                             Paket Ekle
@@ -810,10 +805,10 @@ export default function MyListings() {
 
                   {/* Product Pricing - For Product Type */}
                   {consultationType === 'product' && (
-                    <div className="border-t pt-4 space-y-4">
+                    <div className="border-t pt-4 space-y-3 sm:space-y-4">
                       <div>
-                        <h3 className="font-semibold mb-1">Ürün Fiyatlandırması *</h3>
-                        <p className="text-sm text-muted-foreground">
+                        <h3 className="font-semibold text-sm sm:text-base">Ürün Fiyatlandırması *</h3>
+                        <p className="text-xs sm:text-sm text-muted-foreground">
                           Birim fiyat ve opsiyonel çoklu alım paketlerini belirleyin
                         </p>
                       </div>
@@ -824,7 +819,7 @@ export default function MyListings() {
                         name="unit_price"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>1 Adet Fiyatı (Birim Fiyat) *</FormLabel>
+                            <FormLabel className="text-sm">1 Adet Fiyatı (Birim Fiyat) *</FormLabel>
                             <FormControl>
                               <NumberInput
                                 value={field.value || ''}
@@ -843,7 +838,7 @@ export default function MyListings() {
 
                       {/* Extra Packages (Optional) */}
                       <div className="space-y-3">
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                           <div>
                             <h4 className="font-medium text-sm">Ekstra Paketler (İsteğe Bağlı)</h4>
                             <p className="text-xs text-muted-foreground">
@@ -856,6 +851,7 @@ export default function MyListings() {
                               variant="outline"
                               size="sm"
                               onClick={() => appendProduct({ quantity: '', price: '' })}
+                              className="self-start sm:self-auto"
                             >
                               <Plus className="h-4 w-4 mr-1" />
                               Paket Ekle
@@ -929,8 +925,8 @@ export default function MyListings() {
                     </div>
                   )}
 
-                  <DialogFooter>
-                    <Button type="submit" disabled={submitting}>
+                  <DialogFooter className="mt-4 sm:mt-6">
+                    <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
                       {submitting ? 'Kaydediliyor...' : (editingId ? 'Güncelle' : 'Oluştur')}
                     </Button>
                   </DialogFooter>
