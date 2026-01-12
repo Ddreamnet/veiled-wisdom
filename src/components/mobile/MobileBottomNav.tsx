@@ -134,7 +134,7 @@ const MobileBottomNavComponent = () => {
             {pillPosition && (
               <motion.div
                 layoutId="nav-pill"
-                className="absolute bg-primary/20 border border-primary/30 rounded-full"
+                className="absolute bg-primary/20 border border-primary/30 rounded-full top-1/2 -translate-y-1/2"
                 initial={false}
                 animate={{
                   left: pillPosition.left,
@@ -145,10 +145,6 @@ const MobileBottomNavComponent = () => {
                   type: "spring",
                   stiffness: 400,
                   damping: 30,
-                }}
-                style={{
-                  top: "50%",
-                  transform: "translateY(-50%)",
                 }}
               />
             )}
