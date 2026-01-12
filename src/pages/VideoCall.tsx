@@ -491,20 +491,36 @@ function CallUI({ callObject }: CallUIProps) {
           <span className="text-sm text-muted-foreground">• {participants.length} katılımcı</span>
         </motion.div>
 
-        {/* Video Grid */}
+        {/* Video Grid - Only show local participant once and remote participants */}
         <div className="flex-1 p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
           <AnimatePresence>
-            {participants.map((participant, index) => (
+            {/* Local participant (only one) */}
+            {localParticipant && (
+              <motion.div
+                key={localParticipant.session_id}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ delay: 0 }}
+              >
+                <VideoTile 
+                  participant={localParticipant} 
+                  isLocal={true} 
+                />
+              </motion.div>
+            )}
+            {/* Remote participants */}
+            {remoteParticipants.map((participant, index) => (
               <motion.div
                 key={participant.session_id}
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ delay: index * 0.1 }}
+                transition={{ delay: (index + 1) * 0.1 }}
               >
                 <VideoTile 
                   participant={participant} 
-                  isLocal={participant.local || false} 
+                  isLocal={false} 
                 />
               </motion.div>
             ))}
