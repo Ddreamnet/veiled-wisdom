@@ -71,13 +71,13 @@ const MobileBottomNavComponent = () => {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 md:hidden pointer-events-none"
+      className="fixed bottom-0 left-0 right-0 z-50 md:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
-      {/* Floating pill container */}
-      <div className="mx-4 mb-3 pointer-events-auto">
+      {/* Full-width bottom bar - docked to bottom */}
+      <div className="bg-background-elevated/95 backdrop-blur-xl border-t border-border/50 shadow-[0_-4px_30px_rgba(0,0,0,0.3)]">
         <div
-          className="glass-effect rounded-full px-2 py-2 flex items-center justify-around shadow-elegant border border-silver/10"
+          className="flex items-center justify-around px-2"
           style={{ minHeight: "64px" }}
         >
           {navItems.map((item) => {
@@ -95,40 +95,42 @@ const MobileBottomNavComponent = () => {
                 onMouseUp={() => setPressedItem(null)}
                 onMouseLeave={() => setPressedItem(null)}
                 className={cn(
-                  "relative flex items-center justify-center transition-all duration-300 ease-out",
-                  "min-w-[44px] min-h-[44px]",
-                  active ? "px-4 py-2 rounded-full bg-primary/20 border border-primary/30" : "px-3 py-2",
-                  isPressed && "scale-90 opacity-80",
+                  "relative flex flex-col items-center justify-center transition-all duration-200",
+                  "min-w-[56px] min-h-[48px] py-1.5 px-2 rounded-xl",
+                  active && "bg-primary/15",
+                  isPressed && "scale-95 opacity-80",
                 )}
               >
-                {/* Icon */}
-                <Icon
-                  className={cn(
-                    "h-5 w-5 transition-colors duration-200",
-                    active ? "text-primary" : "text-silver-muted",
+                {/* Icon with glow effect when active */}
+                <div className={cn(
+                  "relative transition-transform duration-200",
+                  active && "scale-110"
+                )}>
+                  <Icon
+                    className={cn(
+                      "h-5 w-5 transition-colors duration-200",
+                      active ? "text-primary" : "text-silver-muted",
+                    )}
+                  />
+                  {/* Subtle glow behind active icon */}
+                  {active && (
+                    <div className="absolute inset-0 blur-md bg-primary/40 -z-10" />
                   )}
-                />
+                </div>
 
-                {/* Active label - only shown when active */}
-                {active && (
-                  <span className="ml-2 text-sm font-medium text-primary whitespace-nowrap">{item.label}</span>
-                )}
+                {/* Label - always visible, highlighted when active */}
+                <span className={cn(
+                  "mt-1 text-[10px] font-medium transition-colors duration-200",
+                  active ? "text-primary" : "text-silver-muted"
+                )}>
+                  {item.label}
+                </span>
 
                 {/* Badge for unread messages - only show when count > 0 */}
-                {typeof item.badge === "number" && item.badge > 0 && !active && (
+                {typeof item.badge === "number" && item.badge > 0 && (
                   <Badge
                     variant="destructive"
-                    className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-0 px-1 text-xs"
-                  >
-                    {item.badge > 99 ? "99+" : item.badge}
-                  </Badge>
-                )}
-
-                {/* Badge shown differently when active - only show when count > 0 */}
-                {typeof item.badge === "number" && item.badge > 0 && active && (
-                  <Badge
-                    variant="destructive"
-                    className="ml-2 h-5 min-w-5 flex items-center justify-center p-0 px-1 text-xs"
+                    className="absolute top-0 right-0.5 h-4 min-w-4 flex items-center justify-center p-0 px-1 text-[10px]"
                   >
                     {item.badge > 99 ? "99+" : item.badge}
                   </Badge>
