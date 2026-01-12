@@ -441,8 +441,27 @@ function CallUI({ callObject }: CallUIProps) {
     );
   }
 
-  // Show waiting room if no remote participants
-  const remoteParticipants = participants.filter(p => !p.local);
+  // Show waiting room if no *real* remote participants (Daily may include a non-local mirror of yourself)
+  const remoteParticipants = participants
+    .filter((p) => !p.local)
+    .filter((p) => {
+      if (!localParticipant) return true;
+      const lp: any = localParticipant;
+      const rp: any = p;
+
+      // Prefer app-level identity (we set this in join via userData)
+      const lpAppUserId = lp?.userData?.appUserId;
+      const rpAppUserId = rp?.userData?.appUserId;
+      if (lpAppUserId && rpAppUserId) return lpAppUserId !== rpAppUserId;
+
+      // Prefer stable ids when available
+      if (lp.user_id && rp.user_id) return lp.user_id !== rp.user_id;
+
+      // Fallback to name match (we set userName on join)
+      if (lp.user_name && rp.user_name) return lp.user_name !== rp.user_name;
+
+      return true;
+    });
   if (remoteParticipants.length === 0) {
     return (
       <>
@@ -488,7 +507,9 @@ function CallUI({ callObject }: CallUIProps) {
         >
           <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
           <span className="text-sm text-green-400">Görüşme aktif</span>
-          <span className="text-sm text-muted-foreground">• {participants.length} katılımcı</span>
+          <span className="text-sm text-muted-foreground">
+            • {(localParticipant ? 1 : 0) + remoteParticipants.length} katılımcı
+          </span>
         </motion.div>
 
         {/* Video Grid - Only show local participant once and remote participants */}
@@ -738,7 +759,19 @@ export default function VideoCall() {
         });
 
         // Join in background (CallUI will transition out of loading when joined-meeting fires)
-        await call.join({ url: roomData.room_url });
+        const { data: authData } = await supabase.auth.getUser();
+        const user = authData?.user ?? null;
+        const displayName =
+          (user?.user_metadata as any)?.username ||
+          (user?.user_metadata as any)?.full_name ||
+          user?.email?.split('@')[0] ||
+          'Kullanıcı';
+
+        await call.join({
+          url: roomData.room_url,
+          userName: displayName,
+          userData: user?.id ? { appUserId: user.id } : undefined,
+        });
       } catch (err) {
         console.error('Error initializing call:', err);
         if (!isMounted) return;
