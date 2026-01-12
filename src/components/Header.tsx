@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { User, LogOut, Settings, MessageSquare, BookOpen, Banknote } from "lucide-react";
+import { User, LogOut, Settings, MessageSquare, BookOpen, TurkishLira } from "lucide-react";
 import { useScrollPosition } from "@/hooks/useScrollPosition";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
 import { Badge } from "@/components/ui/badge";
@@ -177,7 +177,7 @@ const HeaderComponent = () => {
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
                           <Link to="/teacher/earnings" className="flex items-center gap-2 cursor-pointer">
-                            <Banknote className="h-4 w-4" />
+                            <TurkishLira className="h-4 w-4" />
                             Gelirlerim
                           </Link>
                         </DropdownMenuItem>
