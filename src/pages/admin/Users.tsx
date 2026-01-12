@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AdminBreadcrumb } from "@/components/AdminBreadcrumb";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   AlertDialog,
@@ -18,7 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Users as UsersIcon, Shield, GraduationCap, User, CheckCircle, XCircle, Clock, AlertTriangle, Wrench, Mail } from "lucide-react";
+import { Users as UsersIcon, Shield, GraduationCap, User, CheckCircle, XCircle, Clock, AlertTriangle, Wrench, Mail, Trash2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type UserData = {
@@ -43,8 +42,8 @@ export default function UsersManagement() {
   const [repairing, setRepairing] = useState<string | null>(null);
   const [repairingAll, setRepairingAll] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
-  const [newRole, setNewRole] = useState<UserRole | null>(null);
-  const [showRoleDialog, setShowRoleDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -243,57 +242,48 @@ export default function UsersManagement() {
     fetchUsers();
   };
 
-  const handleRoleChange = (user: UserData) => {
+  const handleDeleteUser = (user: UserData) => {
     setSelectedUser(user);
-    setNewRole(user.role);
-    setShowRoleDialog(true);
+    setShowDeleteDialog(true);
   };
 
-  const confirmRoleChange = async () => {
-    if (!selectedUser || !newRole) return;
+  const confirmDeleteUser = async () => {
+    if (!selectedUser) return;
 
+    setDeleting(true);
     try {
-      await supabase.from("user_roles").delete().eq("user_id", selectedUser.id);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
 
-      const { error } = await supabase.from("user_roles").insert([{ user_id: selectedUser.id, role: newRole }]);
+      if (!accessToken) {
+        throw new Error("Oturum bulunamadı");
+      }
 
-      if (error) throw error;
+      const response = await supabase.functions.invoke("delete-user", {
+        body: { user_id: selectedUser.id },
+      });
 
-      if (newRole === "teacher") {
-        const { data: existingApproval } = await supabase
-          .from("teacher_approvals")
-          .select("id")
-          .eq("user_id", selectedUser.id)
-          .maybeSingle();
-
-        if (!existingApproval) {
-          await supabase.from("teacher_approvals").insert([
-            {
-              user_id: selectedUser.id,
-              status: "approved",
-            },
-          ]);
-        } else {
-          await supabase.from("teacher_approvals").update({ status: "approved" }).eq("user_id", selectedUser.id);
-        }
-
-        await supabase.from("profiles").update({ is_teacher_approved: true }).eq("id", selectedUser.id);
+      if (response.error) {
+        throw new Error(response.error.message || "Kullanıcı silinemedi");
       }
 
       toast({
         title: "Başarılı",
-        description: `Kullanıcı rolü ${getRoleLabel(newRole)} olarak güncellendi.`,
+        description: `${selectedUser.username || "Kullanıcı"} başarıyla silindi.`,
       });
 
-      setShowRoleDialog(false);
+      setShowDeleteDialog(false);
+      setSelectedUser(null);
       fetchUsers();
     } catch (error: any) {
-      console.error("Error updating role:", error);
+      console.error("Error deleting user:", error);
       toast({
         title: "Hata",
-        description: "Rol güncellenemedi.",
+        description: error.message || "Kullanıcı silinemedi.",
         variant: "destructive",
       });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -473,8 +463,14 @@ export default function UsersManagement() {
                       {repairing === user.id ? "..." : "Onar"}
                     </Button>
                   )}
-                  <Button variant="outline" size="sm" onClick={() => handleRoleChange(user)}>
-                    Rol Değiştir
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => handleDeleteUser(user)}
+                    className="text-destructive hover:bg-destructive/10 border-destructive/50"
+                  >
+                    <Trash2 className="w-3 h-3 mr-1" />
+                    Sil
                   </Button>
                 </div>
               </TableCell>
@@ -592,46 +588,29 @@ export default function UsersManagement() {
         </TabsContent>
       </Tabs>
 
-      {/* Role Change Dialog */}
-      <AlertDialog open={showRoleDialog} onOpenChange={setShowRoleDialog}>
+      {/* Delete User Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Kullanıcı Rolünü Değiştir</AlertDialogTitle>
-            <AlertDialogDescription>
-              <strong>{selectedUser?.username || selectedUser?.email || "İsimsiz"}</strong> kullanıcısının rolünü değiştirmek üzeresiniz.
+            <AlertDialogTitle className="text-destructive">Kullanıcıyı Sil</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                <strong>{selectedUser?.username || "İsimsiz"}</strong> kullanıcısını silmek üzeresiniz.
+              </p>
+              <p className="text-destructive font-medium">
+                Bu işlem geri alınamaz! Kullanıcının tüm verileri (profil, ilanlar, mesajlar, randevular vb.) kalıcı olarak silinecektir.
+              </p>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="py-4">
-            <label className="text-sm font-medium mb-2 block">Yeni Rol</label>
-            <Select value={newRole || undefined} onValueChange={(value) => setNewRole(value as UserRole)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Rol seçin" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="admin">
-                  <div className="flex items-center gap-2">
-                    <Shield className="w-4 h-4" />
-                    Admin
-                  </div>
-                </SelectItem>
-                <SelectItem value="teacher">
-                  <div className="flex items-center gap-2">
-                    <GraduationCap className="w-4 h-4" />
-                    Uzman
-                  </div>
-                </SelectItem>
-                <SelectItem value="customer">
-                  <div className="flex items-center gap-2">
-                    <User className="w-4 h-4" />
-                    Danışan
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
           <AlertDialogFooter>
-            <AlertDialogCancel>İptal</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmRoleChange}>Güncelle</AlertDialogAction>
+            <AlertDialogCancel disabled={deleting}>İptal</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteUser}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Siliniyor..." : "Evet, Sil"}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
