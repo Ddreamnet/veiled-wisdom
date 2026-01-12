@@ -219,18 +219,20 @@ export default function VideoCall() {
   const { toast } = useToast();
   const [callObject, setCallObject] = useState<DailyCall | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const callObjectRef = useRef<DailyCall | null>(null);
-  const isInitializingRef = useRef(false);
+  const [error, setError] = useState<string | null>(null);
+  const initAttemptedRef = useRef(false);
 
   useEffect(() => {
-    const initializeCall = async () => {
-      // Prevent duplicate initialization (React StrictMode)
-      if (isInitializingRef.current || callObjectRef.current) {
-        console.log('Call already initializing or exists, skipping...');
-        return;
-      }
-      isInitializingRef.current = true;
+    // Strict check - only initialize once per mount
+    if (initAttemptedRef.current) {
+      return;
+    }
+    initAttemptedRef.current = true;
 
+    let isMounted = true;
+    let localCallObject: DailyCall | null = null;
+
+    const initializeCall = async () => {
       try {
         if (!conversationId) {
           throw new Error('Conversation ID is required');
@@ -243,6 +245,8 @@ export default function VideoCall() {
           body: { conversation_id: conversationId }
         });
 
+        if (!isMounted) return;
+
         if (roomError) {
           console.error('Error creating room:', roomError);
           throw new Error('Failed to create video room');
@@ -250,37 +254,56 @@ export default function VideoCall() {
 
         console.log('Room data:', roomData);
 
-        // Create Daily call object with allowMultipleCallInstances for safety
+        // Create Daily call object
         const call = Daily.createCallObject({
           allowMultipleCallInstances: true
         });
-        callObjectRef.current = call;
-        
+        localCallObject = call;
+
+        // Listen for joined-meeting event to confirm connection
+        call.on('joined-meeting', () => {
+          console.log('Successfully joined meeting');
+          if (isMounted) {
+            setIsLoading(false);
+          }
+        });
+
+        call.on('error', (e) => {
+          console.error('Daily call error:', e);
+          if (isMounted) {
+            setError('Bağlantı hatası oluştu');
+            setIsLoading(false);
+          }
+        });
+
         await call.join({ url: roomData.room_url });
         
-        setCallObject(call);
-        setIsLoading(false);
+        if (isMounted) {
+          setCallObject(call);
+          // Also set loading false here as backup
+          setIsLoading(false);
+        }
 
-      } catch (error) {
-        console.error('Error initializing call:', error);
-        isInitializingRef.current = false;
-        toast({
-          title: "Hata",
-          description: "Video araması başlatılamadı.",
-          variant: "destructive",
-        });
-        navigate('/messages');
+      } catch (err) {
+        console.error('Error initializing call:', err);
+        if (isMounted) {
+          toast({
+            title: "Hata",
+            description: "Video araması başlatılamadı.",
+            variant: "destructive",
+          });
+          navigate('/messages');
+        }
       }
     };
 
     initializeCall();
 
     return () => {
-      if (callObjectRef.current) {
-        console.log('Destroying call object...');
-        callObjectRef.current.destroy();
-        callObjectRef.current = null;
-        isInitializingRef.current = false;
+      isMounted = false;
+      if (localCallObject) {
+        console.log('Destroying call object on unmount...');
+        localCallObject.destroy();
       }
     };
   }, [conversationId, navigate, toast]);
