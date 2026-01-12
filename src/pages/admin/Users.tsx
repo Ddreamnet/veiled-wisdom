@@ -593,13 +593,15 @@ export default function UsersManagement() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="text-destructive">Kullanıcıyı Sil</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
-              <p>
-                <strong>{selectedUser?.username || "İsimsiz"}</strong> kullanıcısını silmek üzeresiniz.
-              </p>
-              <p className="text-destructive font-medium">
-                Bu işlem geri alınamaz! Kullanıcının tüm verileri (profil, ilanlar, mesajlar, randevular vb.) kalıcı olarak silinecektir.
-              </p>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  <strong>{selectedUser?.username || "İsimsiz"}</strong> kullanıcısını silmek üzeresiniz.
+                </p>
+                <p className="text-destructive font-medium">
+                  Bu işlem geri alınamaz! Kullanıcının tüm verileri (profil, ilanlar, mesajlar, randevular vb.) kalıcı olarak silinecektir.
+                </p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
