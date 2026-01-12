@@ -639,36 +639,45 @@ export default function VideoCall() {
   const { conversationId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+
   const [callObject, setCallObject] = useState<DailyCall | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
   const initAttemptedRef = useRef(false);
 
   useEffect(() => {
     // Strict check - only initialize once per mount
-    if (initAttemptedRef.current) {
-      return;
-    }
+    if (initAttemptedRef.current) return;
     initAttemptedRef.current = true;
 
     let isMounted = true;
     let localCallObject: DailyCall | null = null;
+    let joinTimeout: number | null = null;
+
+    const cleanup = () => {
+      if (joinTimeout) window.clearTimeout(joinTimeout);
+      joinTimeout = null;
+
+      if (localCallObject) {
+        console.log('Destroying call object on unmount...');
+        localCallObject.destroy();
+        localCallObject = null;
+      }
+    };
 
     const initializeCall = async () => {
       try {
-        if (!conversationId) {
-          throw new Error('Conversation ID is required');
-        }
+        if (!conversationId) throw new Error('Conversation ID is required');
 
         console.log('Initializing call for conversation:', conversationId);
 
         // Get or create Daily room
         const { data: roomData, error: roomError } = await supabase.functions.invoke('create-daily-room', {
-          body: { conversation_id: conversationId }
+          body: { conversation_id: conversationId },
         });
 
         if (!isMounted) return;
-
         if (roomError) {
           console.error('Error creating room:', roomError);
           throw new Error('Failed to create video room');
@@ -678,44 +687,52 @@ export default function VideoCall() {
 
         // Create Daily call object
         const call = Daily.createCallObject({
-          allowMultipleCallInstances: true
+          // Robustness guard. We still destroy on unmount.
+          allowMultipleCallInstances: true,
         });
+
         localCallObject = call;
 
-        // Listen for joined-meeting event to confirm connection
+        // IMPORTANT: render UI immediately so user can see self preview (camera) while joining
+        setCallObject(call);
+        setIsLoading(false);
+
+        // Start camera early to enable local preview ASAP
+        try {
+          await call.startCamera();
+        } catch (e) {
+          console.warn('startCamera failed:', e);
+        }
+
+        joinTimeout = window.setTimeout(() => {
+          if (!isMounted) return;
+          setError('Bağlantı zaman aşımına uğradı. Lütfen tekrar deneyin.');
+        }, 20000);
+
         call.on('joined-meeting', () => {
           console.log('Successfully joined meeting');
-          if (isMounted) {
-            setIsLoading(false);
-          }
+          if (joinTimeout) window.clearTimeout(joinTimeout);
         });
 
         call.on('error', (e) => {
           console.error('Daily call error:', e);
-          if (isMounted) {
-            setError('Bağlantı hatası oluştu');
-            setIsLoading(false);
-          }
+          if (joinTimeout) window.clearTimeout(joinTimeout);
+          if (!isMounted) return;
+          setError('Bağlantı hatası oluştu');
         });
 
+        // Join in background (CallUI will transition out of loading when joined-meeting fires)
         await call.join({ url: roomData.room_url });
-        
-        if (isMounted) {
-          setCallObject(call);
-          // Also set loading false here as backup
-          setIsLoading(false);
-        }
-
       } catch (err) {
         console.error('Error initializing call:', err);
-        if (isMounted) {
-          toast({
-            title: "Hata",
-            description: "Video araması başlatılamadı.",
-            variant: "destructive",
-          });
-          navigate('/messages');
-        }
+        if (!isMounted) return;
+
+        toast({
+          title: 'Hata',
+          description: 'Video araması başlatılamadı.',
+          variant: 'destructive',
+        });
+        navigate('/messages');
       }
     };
 
@@ -723,22 +740,29 @@ export default function VideoCall() {
 
     return () => {
       isMounted = false;
-      if (localCallObject) {
-        console.log('Destroying call object on unmount...');
-        localCallObject.destroy();
-      }
+      cleanup();
     };
   }, [conversationId, navigate, toast]);
 
+  if (error) {
+    return (
+      <div className="h-screen bg-gradient-to-br from-background via-purple-950/20 to-background flex items-center justify-center p-4">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-4 max-w-sm">
+          <p className="text-lg font-semibold">Görüşmeye bağlanılamadı</p>
+          <p className="text-sm text-muted-foreground">{error}</p>
+          <div className="flex items-center justify-center gap-2">
+            <Button onClick={() => navigate('/messages')}>Mesajlara Dön</Button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // Very first paint while callObject is being created
   if (isLoading || !callObject) {
     return (
       <div className="h-screen bg-gradient-to-br from-background via-purple-950/20 to-background flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="text-center space-y-6"
-        >
-          {/* Animated rings */}
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center space-y-6">
           <div className="relative h-24 w-24 mx-auto">
             <motion.div
               className="absolute inset-0 rounded-full border-2 border-primary/30"
@@ -756,7 +780,7 @@ export default function VideoCall() {
               </div>
             </div>
           </div>
-          
+
           <div className="space-y-2">
             <p className="text-lg font-medium">Görüşme hazırlanıyor</p>
             <p className="text-sm text-muted-foreground">Lütfen bekleyin...</p>
