@@ -12,7 +12,7 @@ import {
   MessageSquare,
   Calendar as CalendarIcon,
   Clock,
-  TurkishLira,
+  Banknote,
   Star,
   Home,
   ChevronRight,
