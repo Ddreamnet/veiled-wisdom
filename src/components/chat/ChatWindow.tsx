@@ -4,7 +4,7 @@ import { MessageInput } from './MessageInput';
 import { useMessages } from '@/hooks/useMessages';
 import { ConversationWithParticipant } from '@/hooks/useConversations';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft, Video } from 'lucide-react';
+import { Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -37,12 +37,7 @@ export function ChatWindow({ conversation, onBack, onMessagesRead }: ChatWindowP
       {/* Header */}
       <div className="border-b border-border bg-background p-4">
         <div className="flex items-center space-x-3">
-          {onBack && (
-            <Button variant="ghost" size="icon" onClick={onBack} className="md:hidden">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          )}
-          <Link 
+          <Link
             to={`/profile/${conversation.other_participant.id}`}
             className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
           >

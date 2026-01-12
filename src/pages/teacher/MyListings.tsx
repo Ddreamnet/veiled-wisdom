@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, Search, Filter, BookOpen, ArrowLeft, Home, Video, MessageSquare } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Filter, BookOpen, Home, Video, MessageSquare } from 'lucide-react';
 import { NumberInput } from '@/components/ui/number-input';
 import {
   Breadcrumb,
@@ -419,17 +419,6 @@ export default function MyListings() {
           </BreadcrumbList>
         </Breadcrumb>
       </div>
-
-      {/* Back Button - Mobile only */}
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => navigate(-1)}
-        className="mb-4 md:hidden"
-      >
-        <ArrowLeft className="h-4 w-4 mr-2" />
-        Geri
-      </Button>
 
       {/* Header */}
       <div className="flex flex-col gap-4 mb-6 md:mb-8">

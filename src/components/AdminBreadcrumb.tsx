@@ -8,6 +8,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { ChevronRight, Home } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const routeLabels: Record<string, string> = {
   "/admin": "Admin Paneli",
@@ -23,7 +24,13 @@ const routeLabels: Record<string, string> = {
 
 export function AdminBreadcrumb() {
   const location = useLocation();
+  const isMobile = useIsMobile();
   const pathSegments = location.pathname.split("/").filter(Boolean);
+
+  // Hide breadcrumb on mobile
+  if (isMobile) {
+    return null;
+  }
 
   const breadcrumbItems = pathSegments.map((segment, index) => {
     const path = "/" + pathSegments.slice(0, index + 1).join("/");
