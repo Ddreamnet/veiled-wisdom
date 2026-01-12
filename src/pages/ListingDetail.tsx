@@ -215,8 +215,8 @@ export default function ListingDetail() {
 
   return (
     <div className="container py-8 md:py-12 px-4">
-      {/* Breadcrumb */}
-      <Breadcrumb className="mb-6">
+      {/* Breadcrumb - Desktop only */}
+      <Breadcrumb className="mb-6 hidden md:flex">
         <BreadcrumbList>
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
