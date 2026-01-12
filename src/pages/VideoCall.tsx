@@ -323,7 +323,9 @@ function CallUI({ callObject }: CallUIProps) {
 
     // Ignore if same notification was shown within last 5 seconds
     if (now - lastShown < 5000) {
-      console.log('[VideoCall] Duplicate notification suppressed:', dedupeKey);
+      if (import.meta.env.DEV) {
+        console.log('[VideoCall] Duplicate notification suppressed:', dedupeKey);
+      }
       return;
     }
 
@@ -398,23 +400,25 @@ function CallUI({ callObject }: CallUIProps) {
       setLocalParticipant(local);
       setParticipants(sanitizedParticipants);
 
-      // Debug (helps verify duplicates/mirrors in real sessions)
-      console.log('[VideoCall] participants(raw)', participantList.map((p: any) => ({
-        session_id: p.session_id,
-        local: p.local,
-        user_id: p.user_id,
-        user_name: p.user_name,
-        appUserId: p?.userData?.appUserId,
-        videoTrackId: p?.videoTrack?.id,
-        audioTrackId: p?.audioTrack?.id,
-      })));
-      console.log('[VideoCall] participants(sanitized)', sanitizedParticipants.map((p: any) => ({
-        session_id: p.session_id,
-        local: p.local,
-        user_id: p.user_id,
-        user_name: p.user_name,
-        appUserId: p?.userData?.appUserId,
-      })));
+      // Debug (only in development to reduce production noise)
+      if (import.meta.env.DEV) {
+        console.log('[VideoCall] participants(raw)', participantList.map((p: any) => ({
+          session_id: p.session_id,
+          local: p.local,
+          user_id: p.user_id,
+          user_name: p.user_name,
+          appUserId: p?.userData?.appUserId,
+          videoTrackId: p?.videoTrack?.id,
+          audioTrackId: p?.audioTrack?.id,
+        })));
+        console.log('[VideoCall] participants(sanitized)', sanitizedParticipants.map((p: any) => ({
+          session_id: p.session_id,
+          local: p.local,
+          user_id: p.user_id,
+          user_name: p.user_name,
+          appUserId: p?.userData?.appUserId,
+        })));
+      }
     };
 
     const handleJoinedMeeting = () => {
@@ -789,11 +793,8 @@ export default function VideoCall() {
 
         console.log('Room data:', roomData);
 
-        // Create Daily call object
-        const call = Daily.createCallObject({
-          // Robustness guard. We still destroy on unmount.
-          allowMultipleCallInstances: true,
-        });
+        // Create Daily call object (single instance per page to prevent duplicate participants)
+        const call = Daily.createCallObject();
 
         localCallObject = call;
 
@@ -838,6 +839,13 @@ export default function VideoCall() {
           url: roomData.room_url,
           userName: displayName,
           userData: user?.id ? { appUserId: user.id } : undefined,
+          // Enable adaptive video quality based on network conditions
+          sendSettings: {
+            video: {
+              // Daily will automatically downgrade to 360p/180p on poor connections
+              maxQuality: 'high', // Starts at 1080p, adapts down based on bandwidth
+            },
+          },
         });
       } catch (err) {
         console.error('Error initializing call:', err);
