@@ -753,24 +753,29 @@ export default function VideoCall() {
   const [error, setError] = useState<string | null>(null);
 
   const initAttemptedRef = useRef(false);
+  const callObjectRef = useRef<DailyCall | null>(null);
 
   useEffect(() => {
-    // Strict check - only initialize once per mount
+    // Strict check - only initialize once per component lifecycle
     if (initAttemptedRef.current) return;
     initAttemptedRef.current = true;
 
     let isMounted = true;
-    let localCallObject: DailyCall | null = null;
     let joinTimeout: number | null = null;
 
     const cleanup = () => {
       if (joinTimeout) window.clearTimeout(joinTimeout);
       joinTimeout = null;
 
-      if (localCallObject) {
+      // Only destroy if we own this call object
+      if (callObjectRef.current) {
         console.log('Destroying call object on unmount...');
-        localCallObject.destroy();
-        localCallObject = null;
+        try {
+          callObjectRef.current.destroy();
+        } catch (e) {
+          console.warn('Failed to destroy call object:', e);
+        }
+        callObjectRef.current = null;
       }
     };
 
@@ -793,10 +798,14 @@ export default function VideoCall() {
 
         console.log('Room data:', roomData);
 
-        // Create Daily call object (single instance per page to prevent duplicate participants)
-        const call = Daily.createCallObject();
+        // Create Daily call object
+        // allowMultipleCallInstances needed for React Strict Mode (double-mount in dev)
+        // We still properly cleanup on unmount to prevent duplicate participants in production
+        const call = Daily.createCallObject({
+          allowMultipleCallInstances: true,
+        });
 
-        localCallObject = call;
+        callObjectRef.current = call;
 
         // IMPORTANT: render UI immediately so user can see self preview (camera) while joining
         setCallObject(call);
