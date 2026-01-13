@@ -162,7 +162,7 @@ export function MessageInput({ onSendMessage, sending }: MessageInputProps) {
       <div className="px-3 pt-3">
         <div className="flex items-end gap-2">
           {/* Text Input Container with Mic inside */}
-          <div className="flex-1 relative">
+          <div className="flex-1 relative flex items-center">
             <textarea
               ref={textareaRef}
               value={message}
@@ -176,31 +176,36 @@ export function MessageInput({ onSendMessage, sending }: MessageInputProps) {
                 "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50",
                 "transition-all duration-200",
                 "min-h-[44px] max-h-[120px]",
-                // Custom scrollbar - only shows when needed, thin purple bar
-                "overflow-y-auto",
-                "[&::-webkit-scrollbar]:w-1.5",
+                // Scrollbar only when content overflows max-height
+                "overflow-y-hidden",
+                // Custom scrollbar styling - thinner, shorter, inside rounded area
+                "[&::-webkit-scrollbar]:w-1",
                 "[&::-webkit-scrollbar-track]:bg-transparent",
-                "[&::-webkit-scrollbar-thumb]:bg-primary/40",
+                "[&::-webkit-scrollbar-track]:my-3",
+                "[&::-webkit-scrollbar-thumb]:bg-primary/50",
                 "[&::-webkit-scrollbar-thumb]:rounded-full",
-                "[&::-webkit-scrollbar-thumb]:hover:bg-primary/60",
+                "[&::-webkit-scrollbar-thumb]:hover:bg-primary/70",
                 // Firefox scrollbar
-                "scrollbar-thin scrollbar-track-transparent scrollbar-thumb-primary/40"
+                "scrollbar-thin scrollbar-track-transparent scrollbar-thumb-primary/50"
               )}
+              style={{
+                overflowY: textareaRef.current && textareaRef.current.scrollHeight > 120 ? 'auto' : 'hidden'
+              }}
               disabled={sending}
             />
-            {/* Mic Button - Inside textarea, right side */}
+            {/* Mic Button - Inside textarea, vertically centered */}
             <Button
               variant="ghost"
               size="icon"
               onClick={startRecording}
               disabled={sending}
               className={cn(
-                "absolute right-1.5 bottom-1.5 h-8 w-8 rounded-full",
+                "absolute right-2 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full",
                 "text-muted-foreground hover:text-primary hover:bg-primary/10",
                 "transition-colors"
               )}
             >
-              <Mic className="h-4 w-4" />
+              <Mic className="h-5 w-5" />
             </Button>
           </div>
 
