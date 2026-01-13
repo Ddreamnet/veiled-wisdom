@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSetAtom } from 'jotai';
 import { useAuth } from '@/contexts/AuthContext';
 import { useConversations } from '@/hooks/useConversations';
 import { useUnreadCount } from '@/hooks/useUnreadCount';
@@ -8,6 +9,7 @@ import { ChatWindow } from '@/components/chat/ChatWindow';
 import { toast } from '@/hooks/use-toast';
 import { PageBreadcrumb } from '@/components/PageBreadcrumb';
 import { MessageCircle } from 'lucide-react';
+import { isChatOpenAtom } from '@/atoms/chatAtoms';
 
 export default function Messages() {
   const navigate = useNavigate();
@@ -17,6 +19,7 @@ export default function Messages() {
   const { refetch: refetchUnreadCount } = useUnreadCount();
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [showMobileChat, setShowMobileChat] = useState(false);
+  const setIsChatOpen = useSetAtom(isChatOpenAtom);
 
   // URL'den userId parametresi varsa yeni konuşma başlat
   useEffect(() => {
@@ -53,12 +56,21 @@ export default function Messages() {
   const handleSelectConversation = (conversationId: string) => {
     setSelectedConversationId(conversationId);
     setShowMobileChat(true);
+    setIsChatOpen(true);
   };
 
   const handleBackToList = () => {
     setShowMobileChat(false);
     setSelectedConversationId(null);
+    setIsChatOpen(false);
   };
+
+  // Cleanup when component unmounts
+  useEffect(() => {
+    return () => {
+      setIsChatOpen(false);
+    };
+  }, [setIsChatOpen]);
 
   const handleMessagesRead = async () => {
     console.log('handleMessagesRead - Refetching conversations and unread count');
@@ -122,7 +134,7 @@ export default function Messages() {
       </div>
 
       {/* Mobile Layout - Full Screen Chat Experience */}
-      <div className="md:hidden flex flex-col h-[calc(100vh-80px-env(safe-area-inset-bottom))] overflow-hidden">
+      <div className="md:hidden flex flex-col overflow-hidden" style={{ height: showMobileChat ? '100dvh' : 'calc(100dvh - 80px - env(safe-area-inset-bottom))' }}>
         {!showMobileChat ? (
           <div className="flex-1 flex flex-col bg-background min-h-0 overflow-hidden">
             {/* Mobile Header */}
