@@ -1,6 +1,7 @@
 import { memo, useState, useRef, useEffect, useLayoutEffect, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { useAtomValue } from "jotai";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
 import {
@@ -16,6 +17,7 @@ import {
 import { TurkishLiraIcon } from "@/components/icons/TurkishLiraIcon";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { isChatOpenAtom } from "@/atoms/chatAtoms";
 
 interface NavItem {
   icon: React.ElementType;
@@ -35,6 +37,7 @@ const MobileBottomNavComponent = () => {
   const { user, role } = useAuth();
   const location = useLocation();
   const { unreadCount } = useUnreadCount();
+  const isChatOpen = useAtomValue(isChatOpenAtom);
   const [pressedItem, setPressedItem] = useState<string | null>(null);
   const [pillPosition, setPillPosition] = useState<PillPosition | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -229,6 +232,11 @@ const MobileBottomNavComponent = () => {
       return () => window.cancelAnimationFrame(raf);
     }
   }, [pressedItem]);
+
+  // Hide navbar when chat is open
+  if (isChatOpen) {
+    return null;
+  }
 
   return (
     <nav

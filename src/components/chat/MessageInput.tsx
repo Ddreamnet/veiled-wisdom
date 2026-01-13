@@ -157,12 +157,27 @@ export function MessageInput({ onSendMessage, sending }: MessageInputProps) {
   return (
     <div 
       className="border-t border-border bg-background/95 backdrop-blur-sm"
-      style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}
+      style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
     >
       <div className="px-3 pt-3">
         <div className="flex items-end gap-2">
+          {/* Mic Button - Left side, balanced size */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={startRecording}
+            disabled={sending}
+            className={cn(
+              "h-11 w-11 rounded-full flex-shrink-0",
+              "text-muted-foreground hover:text-primary hover:bg-primary/10",
+              "transition-colors"
+            )}
+          >
+            <Mic className="h-5 w-5" />
+          </Button>
+
           {/* Text Input Container */}
-          <div className="flex-1 relative">
+          <div className="flex-1">
             <textarea
               ref={textareaRef}
               value={message}
@@ -171,39 +186,25 @@ export function MessageInput({ onSendMessage, sending }: MessageInputProps) {
               placeholder="Mesajınızı yazın..."
               rows={1}
               className={cn(
-                "w-full resize-none rounded-2xl border border-input bg-muted/30 px-4 py-3 pr-12",
+                "w-full resize-none rounded-2xl border border-input bg-muted/30 px-4 py-3",
                 "text-sm placeholder:text-muted-foreground",
                 "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50",
                 "transition-all duration-200",
-                "min-h-[48px] max-h-[120px]"
+                "min-h-[44px] max-h-[120px]"
               )}
               disabled={sending}
             />
-            {/* Mic Button Inside Input */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={startRecording}
-              disabled={sending}
-              className={cn(
-                "absolute right-2 bottom-1.5 h-9 w-9 rounded-full",
-                "text-muted-foreground hover:text-primary hover:bg-primary/10",
-                "transition-colors"
-              )}
-            >
-              <Mic className="h-5 w-5" />
-            </Button>
           </div>
 
-          {/* Send Button */}
+          {/* Send Button - Right side, same size as mic */}
           <Button
             onClick={handleSend}
             disabled={!message.trim() || sending}
             size="icon"
             className={cn(
-              "h-12 w-12 rounded-full flex-shrink-0",
+              "h-11 w-11 rounded-full flex-shrink-0",
               "bg-primary hover:bg-primary/90",
-              "shadow-lg shadow-primary/25",
+              "shadow-md shadow-primary/20",
               "transition-all duration-200",
               !message.trim() && "opacity-50"
             )}
