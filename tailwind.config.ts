@@ -79,6 +79,9 @@ export default {
         xl: "1.5rem",
         "2xl": "2rem",
       },
+      spacing: {
+        "13": "3.25rem",
+      },
       boxShadow: {
         elegant: "0 4px 24px hsl(270 60% 8% / 0.5), 0 2px 8px hsl(270 60% 8% / 0.3), inset 0 1px 0 hsl(220 20% 85% / 0.05)",
         glow: "0 0 32px hsl(280 90% 70% / 0.3), 0 8px 24px hsl(270 60% 8% / 0.4), inset 0 1px 0 hsl(220 20% 85% / 0.1)",

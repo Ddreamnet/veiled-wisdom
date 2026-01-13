@@ -7,6 +7,7 @@ import { Message } from '@/hooks/useMessages';
 import { cn } from '@/lib/utils';
 import { markMessagesAsRead } from '@/lib/messageHelpers';
 import { AudioMessage } from './AudioMessage';
+import { MessageCircle, Check, CheckCheck } from 'lucide-react';
 
 type MessageListProps = {
   messages: Message[];
@@ -16,7 +17,7 @@ type MessageListProps = {
   onMessagesRead?: () => void;
 };
 
-// Tarih formatını belirle (WhatsApp tarzı)
+// WhatsApp style date format
 function formatDateSeparator(date: Date): string {
   if (isToday(date)) {
     return 'Bugün';
@@ -25,12 +26,12 @@ function formatDateSeparator(date: Date): string {
     return 'Dün';
   }
   if (isThisWeek(date, { weekStartsOn: 1 })) {
-    return format(date, 'EEEE', { locale: tr }); // "Salı", "Çarşamba" vb.
+    return format(date, 'EEEE', { locale: tr });
   }
-  return format(date, 'd MMMM yyyy', { locale: tr }); // "12 Ocak 2025"
+  return format(date, 'd MMMM yyyy', { locale: tr });
 }
 
-// Mesajları tarihe göre gruplandır
+// Group messages by date
 function groupMessagesByDate(messages: Message[]): { date: Date; messages: Message[] }[] {
   const groups: { date: Date; messages: Message[] }[] = [];
   
@@ -51,11 +52,11 @@ function groupMessagesByDate(messages: Message[]): { date: Date; messages: Messa
   return groups;
 }
 
-// Tarih ayracı komponenti
+// Date Separator Component
 function DateSeparator({ date }: { date: Date }) {
   return (
-    <div className="flex items-center justify-center my-4">
-      <div className="bg-muted/80 backdrop-blur-sm text-muted-foreground text-xs font-medium px-3 py-1.5 rounded-full shadow-sm">
+    <div className="flex items-center justify-center my-6">
+      <div className="bg-muted/80 backdrop-blur-sm text-muted-foreground text-xs font-medium px-4 py-1.5 rounded-full shadow-sm border border-border/50">
         {formatDateSeparator(date)}
       </div>
     </div>
@@ -67,37 +68,31 @@ export function MessageList({ messages, loading, currentUserId, conversationId, 
   const bottomRef = useRef<HTMLDivElement>(null);
   const hasMarkedAsRead = useRef(false);
 
-  // Mesajları tarihe göre gruplandır
   const groupedMessages = useMemo(() => groupMessagesByDate(messages), [messages]);
 
-  // Yeni mesaj geldiğinde otomatik scroll
+  // Auto-scroll on new messages
   useEffect(() => {
     if (bottomRef.current && messages.length > 0) {
       bottomRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
   }, [messages]);
 
-  // Mesajlar görüntülendiğinde okundu olarak işaretle (sadece bir kere)
+  // Reset read status on conversation change
   useEffect(() => {
-    // Konuşma değiştiğinde reset et
     hasMarkedAsRead.current = false;
   }, [conversationId]);
 
+  // Mark messages as read
   useEffect(() => {
     if (conversationId && currentUserId && !hasMarkedAsRead.current) {
-      // Okunmamış mesaj var mı kontrol et
       const hasUnreadMessages = messages.some(
         (msg) => msg.sender_id !== currentUserId && !msg.read
       );
 
       if (hasUnreadMessages) {
         hasMarkedAsRead.current = true;
-        // Kısa bir gecikme sonrası okundu olarak işaretle
         const timer = setTimeout(async () => {
-          console.log('Marking messages as read for conversation:', conversationId);
           await markMessagesAsRead(conversationId, currentUserId);
-          console.log('Messages marked as read, triggering onMessagesRead callback');
-          // Mesajlar okunduktan sonra sayaçları güncelle
           onMessagesRead?.();
         }, 500);
 
@@ -106,14 +101,19 @@ export function MessageList({ messages, loading, currentUserId, conversationId, 
     }
   }, [conversationId, currentUserId, messages.length, onMessagesRead]);
 
+  // Loading State
   if (loading) {
     return (
       <div className="flex-1 p-4 space-y-4">
-        {[1, 2, 3].map((i) => (
+        {[1, 2, 3, 4].map((i) => (
           <div key={i} className={cn('flex', i % 2 === 0 ? 'justify-end' : 'justify-start')}>
-            <div className="space-y-2 max-w-[70%]">
-              <Skeleton className="h-16 w-full rounded-lg" />
-              <Skeleton className="h-3 w-20" />
+            <div className={cn("space-y-2", i % 2 === 0 ? 'items-end' : 'items-start')}>
+              <Skeleton className={cn(
+                "rounded-2xl",
+                i % 2 === 0 ? "rounded-tr-sm" : "rounded-tl-sm",
+                i === 1 ? "h-12 w-48" : i === 2 ? "h-16 w-56" : i === 3 ? "h-10 w-32" : "h-14 w-44"
+              )} />
+              <Skeleton className="h-3 w-12" />
             </div>
           </div>
         ))}
@@ -121,59 +121,92 @@ export function MessageList({ messages, loading, currentUserId, conversationId, 
     );
   }
 
+  // Empty State
   if (messages.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
-        <p className="text-muted-foreground text-center">
-          Henüz mesaj yok. İlk mesajı gönderin!
-        </p>
+        <div className="text-center max-w-[280px]">
+          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+            <MessageCircle className="w-8 h-8 text-primary" />
+          </div>
+          <p className="text-muted-foreground font-medium mb-1">Henüz mesaj yok</p>
+          <p className="text-sm text-muted-foreground/70">
+            Sohbete başlamak için bir mesaj gönderin!
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-      <div className="space-y-2">
-        {groupedMessages.map((group, groupIndex) => (
+    <ScrollArea className="flex-1" ref={scrollRef}>
+      <div className="p-4 space-y-1">
+        {groupedMessages.map((group) => (
           <div key={group.date.toISOString()}>
-            {/* Tarih Ayracı */}
             <DateSeparator date={group.date} />
             
-            {/* O güne ait mesajlar */}
-            <div className="space-y-3">
-              {group.messages.map((message) => {
+            <div className="space-y-2">
+              {group.messages.map((message, index) => {
                 const isOwnMessage = message.sender_id === currentUserId;
                 const time = format(new Date(message.created_at), 'HH:mm', { locale: tr });
+                
+                // Check if consecutive message from same sender
+                const prevMessage = group.messages[index - 1];
+                const isConsecutive = prevMessage && prevMessage.sender_id === message.sender_id;
 
                 return (
                   <div
                     key={message.id}
-                    className={cn('flex', isOwnMessage ? 'justify-end' : 'justify-start')}
+                    className={cn(
+                      'flex',
+                      isOwnMessage ? 'justify-end' : 'justify-start',
+                      isConsecutive ? 'mt-0.5' : 'mt-3'
+                    )}
                   >
-                    <div className={cn('max-w-[70%] space-y-1', isOwnMessage ? 'items-end' : 'items-start')}>
-                      {/* Sesli mesaj */}
+                    <div className={cn(
+                      'max-w-[80%] sm:max-w-[70%]',
+                      isOwnMessage ? 'items-end' : 'items-start'
+                    )}>
+                      {/* Audio Message */}
                       {message.audio_url ? (
-                        <AudioMessage audioUrl={message.audio_url} isOwnMessage={isOwnMessage} />
+                        <div className="space-y-1">
+                          <AudioMessage audioUrl={message.audio_url} isOwnMessage={isOwnMessage} />
+                          <div className={cn(
+                            "flex items-center gap-1 px-1",
+                            isOwnMessage ? "justify-end" : "justify-start"
+                          )}>
+                            <span className="text-[11px] text-muted-foreground">{time}</span>
+                            {isOwnMessage && (
+                              <CheckCheck className="h-3.5 w-3.5 text-primary" />
+                            )}
+                          </div>
+                        </div>
                       ) : (
-                        <div
-                          className={cn(
-                            'rounded-2xl px-4 py-2.5 break-words',
-                            isOwnMessage
-                              ? 'bg-primary text-primary-foreground rounded-tr-sm'
-                              : 'bg-muted text-foreground rounded-tl-sm'
-                          )}
-                        >
-                          <p className="text-sm whitespace-pre-wrap">{message.body}</p>
+                        /* Text Message */
+                        <div className="space-y-1">
+                          <div
+                            className={cn(
+                              'px-4 py-2.5 break-words shadow-sm',
+                              isOwnMessage
+                                ? 'bg-primary text-primary-foreground rounded-2xl rounded-tr-md'
+                                : 'bg-muted text-foreground rounded-2xl rounded-tl-md',
+                              // Add subtle gradient for own messages
+                              isOwnMessage && 'bg-gradient-to-br from-primary to-primary/90'
+                            )}
+                          >
+                            <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.body}</p>
+                          </div>
+                          <div className={cn(
+                            "flex items-center gap-1 px-1",
+                            isOwnMessage ? "justify-end" : "justify-start"
+                          )}>
+                            <span className="text-[11px] text-muted-foreground">{time}</span>
+                            {isOwnMessage && (
+                              <CheckCheck className="h-3.5 w-3.5 text-primary" />
+                            )}
+                          </div>
                         </div>
                       )}
-                      <span
-                        className={cn(
-                          'text-xs text-muted-foreground px-1 block',
-                          isOwnMessage ? 'text-right' : 'text-left'
-                        )}
-                      >
-                        {time}
-                      </span>
                     </div>
                   </div>
                 );
@@ -181,7 +214,7 @@ export function MessageList({ messages, loading, currentUserId, conversationId, 
             </div>
           </div>
         ))}
-        <div ref={bottomRef} />
+        <div ref={bottomRef} className="h-2" />
       </div>
     </ScrollArea>
   );

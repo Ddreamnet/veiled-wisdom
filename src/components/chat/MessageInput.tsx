@@ -1,7 +1,6 @@
-import { useState, KeyboardEvent } from 'react';
+import { useState, KeyboardEvent, useRef, useEffect } from 'react';
 import { Send, Mic, Square, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { useAudioRecorder } from '@/hooks/useAudioRecorder';
 import { cn } from '@/lib/utils';
 
@@ -13,6 +12,7 @@ type MessageInputProps = {
 export function MessageInput({ onSendMessage, sending }: MessageInputProps) {
   const [message, setMessage] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   const {
     recordingState,
@@ -25,12 +25,24 @@ export function MessageInput({ onSendMessage, sending }: MessageInputProps) {
     uploadAudio,
   } = useAudioRecorder();
 
+  // Auto-resize textarea
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+    }
+  }, [message]);
+
   const handleSend = async () => {
     if (!message.trim() || sending) return;
 
     const success = await onSendMessage(message);
     if (success) {
       setMessage('');
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+      }
     }
   };
 
@@ -43,7 +55,7 @@ export function MessageInput({ onSendMessage, sending }: MessageInputProps) {
       if (uploadedUrl) {
         const success = await onSendMessage('🎤 Sesli mesaj', uploadedUrl);
         if (success) {
-          cancelRecording(); // Reset recorder
+          cancelRecording();
         }
       }
     } finally {
@@ -52,118 +64,162 @@ export function MessageInput({ onSendMessage, sending }: MessageInputProps) {
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    // Enter ile gönder, Shift+Enter ile yeni satır
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
   };
 
-  // Kayıt modundayken
+  // Recording State UI
   if (recordingState === 'recording') {
     return (
-      <div className="border-t border-border bg-background p-4">
-        <div className="flex items-center justify-between bg-destructive/10 rounded-xl p-4">
-          <div className="flex items-center gap-3">
-            <div className="h-3 w-3 rounded-full bg-destructive animate-pulse" />
-            <span className="text-sm font-medium">Kayıt yapılıyor...</span>
-            <span className="text-sm text-muted-foreground font-mono">{formattedDuration}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={cancelRecording}
-              className="h-10 w-10 text-destructive hover:text-destructive hover:bg-destructive/20"
-            >
-              <X className="h-5 w-5" />
-            </Button>
-            <Button
-              variant="default"
-              size="icon"
-              onClick={stopRecording}
-              className="h-10 w-10"
-            >
-              <Square className="h-4 w-4 fill-current" />
-            </Button>
+      <div 
+        className="border-t border-border bg-background/95 backdrop-blur-sm"
+        style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}
+      >
+        <div className="px-3 pt-3">
+          <div className="flex items-center justify-between bg-destructive/10 rounded-2xl p-4 border border-destructive/20">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="h-4 w-4 rounded-full bg-destructive animate-pulse" />
+                <div className="absolute inset-0 rounded-full bg-destructive/50 animate-ping" />
+              </div>
+              <div>
+                <span className="text-sm font-medium text-destructive">Kayıt yapılıyor</span>
+                <span className="text-sm text-muted-foreground ml-2 font-mono">{formattedDuration}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={cancelRecording}
+                className="h-10 w-10 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+              <Button
+                size="icon"
+                onClick={stopRecording}
+                className="h-10 w-10 rounded-full bg-destructive hover:bg-destructive/90"
+              >
+                <Square className="h-4 w-4 fill-current" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  // Kayıt tamamlandığında
+  // Recorded State UI
   if (recordingState === 'recorded' && audioUrl) {
     return (
-      <div className="border-t border-border bg-background p-4">
-        <div className="flex items-center gap-3 bg-muted/50 rounded-xl p-4">
-          <audio src={audioUrl} controls className="flex-1 h-10" />
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={cancelRecording}
-              className="h-10 w-10 text-destructive hover:text-destructive hover:bg-destructive/20"
-            >
-              <X className="h-5 w-5" />
-            </Button>
-            <Button
-              variant="default"
-              size="icon"
-              onClick={handleSendAudio}
-              disabled={isUploading || sending}
-              className="h-10 w-10"
-            >
-              {isUploading ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <Send className="h-5 w-5" />
-              )}
-            </Button>
+      <div 
+        className="border-t border-border bg-background/95 backdrop-blur-sm"
+        style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}
+      >
+        <div className="px-3 pt-3">
+          <div className="flex items-center gap-3 bg-muted/50 rounded-2xl p-3 border border-border">
+            <audio src={audioUrl} controls className="flex-1 h-10 rounded-lg" />
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={cancelRecording}
+                className="h-10 w-10 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+              <Button
+                size="icon"
+                onClick={handleSendAudio}
+                disabled={isUploading || sending}
+                className="h-10 w-10 rounded-full"
+              >
+                {isUploading ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Send className="h-5 w-5" />
+                )}
+              </Button>
+            </div>
           </div>
+          {recordingError && (
+            <p className="text-destructive text-xs mt-2 px-1">{recordingError}</p>
+          )}
         </div>
-        {recordingError && (
-          <p className="text-destructive text-xs mt-2">{recordingError}</p>
-        )}
       </div>
     );
   }
 
-  // Normal mesaj modu
+  // Normal Input UI
   return (
-    <div className="border-t border-border bg-background p-4">
-      <div className="flex items-end space-x-2">
-        <Textarea
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Mesajınızı yazın... (Enter ile gönder)"
-          className="min-h-[60px] max-h-[120px] resize-none"
-          disabled={sending}
-        />
-        <div className="flex flex-col gap-2">
-          <Button
-            onClick={startRecording}
-            disabled={sending}
-            size="icon"
-            variant="outline"
-            className="h-[28px] w-[60px] flex-shrink-0"
-          >
-            <Mic className="h-4 w-4" />
-          </Button>
+    <div 
+      className="border-t border-border bg-background/95 backdrop-blur-sm"
+      style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}
+    >
+      <div className="px-3 pt-3">
+        <div className="flex items-end gap-2">
+          {/* Text Input Container */}
+          <div className="flex-1 relative">
+            <textarea
+              ref={textareaRef}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Mesajınızı yazın..."
+              rows={1}
+              className={cn(
+                "w-full resize-none rounded-2xl border border-input bg-muted/30 px-4 py-3 pr-12",
+                "text-sm placeholder:text-muted-foreground",
+                "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50",
+                "transition-all duration-200",
+                "min-h-[48px] max-h-[120px]"
+              )}
+              disabled={sending}
+            />
+            {/* Mic Button Inside Input */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={startRecording}
+              disabled={sending}
+              className={cn(
+                "absolute right-2 bottom-1.5 h-9 w-9 rounded-full",
+                "text-muted-foreground hover:text-primary hover:bg-primary/10",
+                "transition-colors"
+              )}
+            >
+              <Mic className="h-5 w-5" />
+            </Button>
+          </div>
+
+          {/* Send Button */}
           <Button
             onClick={handleSend}
             disabled={!message.trim() || sending}
             size="icon"
-            className="h-[28px] w-[60px] flex-shrink-0"
+            className={cn(
+              "h-12 w-12 rounded-full flex-shrink-0",
+              "bg-primary hover:bg-primary/90",
+              "shadow-lg shadow-primary/25",
+              "transition-all duration-200",
+              !message.trim() && "opacity-50"
+            )}
           >
-            <Send className="h-4 w-4" />
+            {sending ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Send className="h-5 w-5" />
+            )}
           </Button>
         </div>
+        
+        {recordingError && (
+          <p className="text-destructive text-xs mt-2 px-1">{recordingError}</p>
+        )}
       </div>
-      {recordingError && (
-        <p className="text-destructive text-xs mt-2">{recordingError}</p>
-      )}
     </div>
   );
 }
