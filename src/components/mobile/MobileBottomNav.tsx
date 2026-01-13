@@ -82,10 +82,17 @@ const MobileBottomNavComponent = () => {
 
   // Calculate pill position based on active item
   useLayoutEffect(() => {
-    if (!activeHref || !containerRef.current) return;
+    // If no active item in current nav, hide the pill
+    if (!activeHref || !containerRef.current) {
+      setPillPosition(null);
+      return;
+    }
 
     const activeElement = itemRefs.current.get(activeHref);
-    if (!activeElement) return;
+    if (!activeElement) {
+      setPillPosition(null);
+      return;
+    }
 
     const containerRect = containerRef.current.getBoundingClientRect();
     const activeRect = activeElement.getBoundingClientRect();
@@ -99,10 +106,16 @@ const MobileBottomNavComponent = () => {
   // Recalculate on resize
   useEffect(() => {
     const handleResize = () => {
-      if (!activeHref || !containerRef.current) return;
+      if (!activeHref || !containerRef.current) {
+        setPillPosition(null);
+        return;
+      }
 
       const activeElement = itemRefs.current.get(activeHref);
-      if (!activeElement) return;
+      if (!activeElement) {
+        setPillPosition(null);
+        return;
+      }
 
       const containerRect = containerRef.current.getBoundingClientRect();
       const activeRect = activeElement.getBoundingClientRect();

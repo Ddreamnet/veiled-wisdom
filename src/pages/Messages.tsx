@@ -122,22 +122,24 @@ export default function Messages() {
       </div>
 
       {/* Mobile Layout - Full Screen Chat Experience */}
-      <div className="md:hidden h-[calc(100vh-80px-env(safe-area-inset-bottom))]">
+      <div className="md:hidden flex flex-col h-[calc(100vh-80px-env(safe-area-inset-bottom))] overflow-hidden">
         {!showMobileChat ? (
-          <div className="h-full flex flex-col bg-background">
+          <div className="flex-1 flex flex-col bg-background min-h-0 overflow-hidden">
             {/* Mobile Header */}
-            <div className="px-4 py-4 border-b border-border bg-background/95 backdrop-blur-sm">
+            <div className="flex-shrink-0 px-4 py-4 border-b border-border bg-background/95 backdrop-blur-sm">
               <h1 className="text-xl font-semibold">Mesajlar</h1>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {conversations.length} konuşma
               </p>
             </div>
-            <ConversationList
-              conversations={conversations}
-              loading={loading}
-              selectedConversationId={selectedConversationId}
-              onSelectConversation={handleSelectConversation}
-            />
+            <div className="flex-1 min-h-0 overflow-hidden">
+              <ConversationList
+                conversations={conversations}
+                loading={loading}
+                selectedConversationId={selectedConversationId}
+                onSelectConversation={handleSelectConversation}
+              />
+            </div>
           </div>
         ) : (
           <ChatWindow 
