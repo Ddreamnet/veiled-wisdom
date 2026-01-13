@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { ConversationWithParticipant } from "@/hooks/useConversations";
 import { cn } from "@/lib/utils";
+import { formatPresenceStatus } from "@/hooks/usePresence";
 
 type ConversationListProps = {
   conversations: ConversationWithParticipant[];
@@ -52,9 +53,10 @@ export function ConversationList({
       <div className="space-y-1 p-2">
         {conversations.map((conversation) => {
           const isSelected = conversation.id === selectedConversationId;
+          const presenceStatus = formatPresenceStatus(conversation.other_participant.last_seen);
           const truncatedMessage = conversation.last_message?.body
-            ? conversation.last_message.body.length > 20
-              ? conversation.last_message.body.substring(0, 20) + "..."
+            ? conversation.last_message.body.length > 25
+              ? conversation.last_message.body.substring(0, 25) + "..."
               : conversation.last_message.body
             : "Henüz mesaj yok";
 
@@ -74,10 +76,15 @@ export function ConversationList({
                 isSelected ? "bg-primary/10 border border-primary/20" : "hover:bg-accent/50 border border-transparent",
               )}
             >
-              <Avatar className="h-12 w-12">
-                <AvatarImage src={conversation.other_participant.avatar_url || undefined} />
-                <AvatarFallback>{conversation.other_participant.username?.[0]?.toUpperCase() || "U"}</AvatarFallback>
-              </Avatar>
+              <div className="relative">
+                <Avatar className="h-12 w-12">
+                  <AvatarImage src={conversation.other_participant.avatar_url || undefined} />
+                  <AvatarFallback>{conversation.other_participant.username?.[0]?.toUpperCase() || "U"}</AvatarFallback>
+                </Avatar>
+                {presenceStatus.isOnline && (
+                  <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-green-500 border-2 border-background" />
+                )}
+              </div>
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-1">

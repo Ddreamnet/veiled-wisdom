@@ -10,6 +10,7 @@ import { Footer } from './components/Footer';
 import { MobileHeader, MobileBottomNav } from './components/mobile';
 import { Skeleton } from './components/ui/skeleton';
 import { prefetchCriticalRoutes } from './lib/routePrefetch';
+import { usePresence } from './hooks/usePresence';
 import './App.css';
 
 // Lazy load pages for better performance
@@ -94,6 +95,9 @@ function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode;
 function AppRoutes() {
   const { user, loading } = useAuth();
   const hasRenderedRef = useRef(false);
+  
+  // Kullanıcı aktifliğini takip et (heartbeat)
+  usePresence();
 
   // Once routes have rendered once, never show loading screen again to prevent remounting
   if (!loading) {

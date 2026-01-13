@@ -11,6 +11,7 @@ export type ConversationWithParticipant = {
     id: string;
     username: string | null;
     avatar_url: string | null;
+    last_seen: string | null;
   };
   last_message: {
     body: string;
@@ -87,6 +88,7 @@ export function useConversations() {
           id: row.other_user_id,
           username: row.other_username,
           avatar_url: row.other_avatar_url,
+          last_seen: row.other_last_seen || null,
         },
         last_message: row.last_message_body ? {
           body: row.last_message_body,

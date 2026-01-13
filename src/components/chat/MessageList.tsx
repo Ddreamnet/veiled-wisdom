@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Message } from '@/hooks/useMessages';
 import { cn } from '@/lib/utils';
 import { markMessagesAsRead } from '@/lib/messageHelpers';
+import { AudioMessage } from './AudioMessage';
 
 type MessageListProps = {
   messages: Message[];
@@ -150,19 +151,24 @@ export function MessageList({ messages, loading, currentUserId, conversationId, 
                     className={cn('flex', isOwnMessage ? 'justify-end' : 'justify-start')}
                   >
                     <div className={cn('max-w-[70%] space-y-1', isOwnMessage ? 'items-end' : 'items-start')}>
-                      <div
-                        className={cn(
-                          'rounded-2xl px-4 py-2.5 break-words',
-                          isOwnMessage
-                            ? 'bg-primary text-primary-foreground rounded-tr-sm'
-                            : 'bg-muted text-foreground rounded-tl-sm'
-                        )}
-                      >
-                        <p className="text-sm whitespace-pre-wrap">{message.body}</p>
-                      </div>
+                      {/* Sesli mesaj */}
+                      {message.audio_url ? (
+                        <AudioMessage audioUrl={message.audio_url} isOwnMessage={isOwnMessage} />
+                      ) : (
+                        <div
+                          className={cn(
+                            'rounded-2xl px-4 py-2.5 break-words',
+                            isOwnMessage
+                              ? 'bg-primary text-primary-foreground rounded-tr-sm'
+                              : 'bg-muted text-foreground rounded-tl-sm'
+                          )}
+                        >
+                          <p className="text-sm whitespace-pre-wrap">{message.body}</p>
+                        </div>
+                      )}
                       <span
                         className={cn(
-                          'text-xs text-muted-foreground px-1',
+                          'text-xs text-muted-foreground px-1 block',
                           isOwnMessage ? 'text-right' : 'text-left'
                         )}
                       >
