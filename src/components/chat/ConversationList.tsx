@@ -63,8 +63,8 @@ export function ConversationList({
   }
 
   return (
-    <ScrollArea className="flex-1">
-      <div className="p-2 space-y-1">
+    <ScrollArea className="flex-1 h-full">
+      <div className="p-2 space-y-1 pb-4">
         {conversations.map((conversation) => {
           const isSelected = conversation.id === selectedConversationId;
           const presenceStatus = formatPresenceStatus(conversation.other_participant.last_seen);
