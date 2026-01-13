@@ -22,6 +22,8 @@ interface NavItem {
   label: string;
   href: string;
   badge?: number;
+  /** Additional route prefixes that should keep this tab active */
+  matchPrefixes?: string[];
 }
 
 interface PillPosition {
@@ -40,13 +42,29 @@ const MobileBottomNavComponent = () => {
 
   // Get navigation items based on role
   const getNavItems = (): NavItem[] => {
+    const profileMatchPrefixes = [
+      "/profile",
+      "/settings",
+      "/how-it-works",
+      "/faq",
+      "/contact",
+    ];
+
+    const exploreMatchPrefixes = ["/explore", "/categories", "/curiosities", "/listings", "/experts"];
+
     // Admin navigation - NO Home, NO Messages in bottom nav
     if (role === "admin") {
       return [
-        { icon: LayoutDashboard, label: "Dashboard", href: "/admin/dashboard" },
-        { icon: CheckCircle, label: "Onaylar", href: "/admin/approvals" },
-        { icon: TurkishLiraIcon, label: "Gelirler", href: "/admin/earnings" },
-        { icon: User, label: "Profil", href: "/profile" },
+        { icon: LayoutDashboard, label: "Dashboard", href: "/admin/dashboard", matchPrefixes: ["/admin"] },
+        { icon: CheckCircle, label: "Onaylar", href: "/admin/approvals", matchPrefixes: ["/admin/approvals"] },
+        { icon: TurkishLiraIcon, label: "Gelirler", href: "/admin/earnings", matchPrefixes: ["/admin/earnings"] },
+        {
+          icon: User,
+          label: "Profil",
+          href: "/profile",
+          // Admin reaches support messages through profile; keep profile highlighted on those pages.
+          matchPrefixes: [...profileMatchPrefixes, "/messages", "/call"],
+        },
       ];
     }
 
@@ -54,67 +72,64 @@ const MobileBottomNavComponent = () => {
     if (user) {
       return [
         { icon: Home, label: "Ana Sayfa", href: "/" },
-        { icon: Compass, label: "Keşfet", href: "/explore" },
-        { icon: MessageSquare, label: "Mesajlar", href: "/messages", badge: unreadCount },
-        { icon: Calendar, label: "Randevular", href: "/appointments" },
-        { icon: User, label: "Profil", href: "/profile" },
+        { icon: Compass, label: "Keşfet", href: "/explore", matchPrefixes: exploreMatchPrefixes },
+        { icon: MessageSquare, label: "Mesajlar", href: "/messages", badge: unreadCount, matchPrefixes: ["/messages", "/call"] },
+        { icon: Calendar, label: "Randevular", href: "/appointments", matchPrefixes: ["/appointments"] },
+        { icon: User, label: "Profil", href: "/profile", matchPrefixes: [...profileMatchPrefixes, "/teacher"] },
       ];
     }
 
     // Non-logged-in users
     return [
       { icon: Home, label: "Ana Sayfa", href: "/" },
-      { icon: Compass, label: "Keşfet", href: "/explore" },
+      { icon: Compass, label: "Keşfet", href: "/explore", matchPrefixes: exploreMatchPrefixes },
       { icon: LogIn, label: "Giriş", href: "/auth/sign-in" },
     ];
   };
 
   const navItems = getNavItems();
 
-  // Find the best matching nav item for current path
-  // Priority: exact match > startsWith match > fallback parent route
-  const findActiveHref = (): string | undefined => {
-    const pathname = location.pathname;
-    
-    // First, check for exact match
-    const exactMatch = navItems.find(item => item.href === pathname);
-    if (exactMatch) return exactMatch.href;
-    
-    // Second, check for startsWith match (but not "/" which would match everything)
-    const startsWithMatch = navItems.find(item => 
-      item.href !== "/" && pathname.startsWith(item.href)
-    );
-    if (startsWithMatch) return startsWithMatch.href;
-    
-    // Third, if we're on a page not in navbar, find the most likely parent
-    // For admin: /messages should highlight /profile (since they access it from profile menu)
-    // For other users: /messages is in navbar, so this won't apply
-    const parentRouteMap: Record<string, string> = {
-      "/messages": "/profile",
-      "/settings": "/profile",
-    };
-    
-    for (const [childRoute, parentRoute] of Object.entries(parentRouteMap)) {
-      if (pathname.startsWith(childRoute)) {
-        const parentItem = navItems.find(item => item.href === parentRoute);
-        if (parentItem) return parentItem.href;
+  const getItemMatchLength = (item: NavItem, pathname: string): number => {
+    // Home should only be active on exact "/"
+    if (item.href === "/") {
+      return pathname === "/" ? 1 : 0;
+    }
+
+    const prefixes = [item.href, ...(item.matchPrefixes ?? [])];
+    let best = 0;
+
+    for (const prefix of prefixes) {
+      if (!prefix) continue;
+      if (prefix === "/") {
+        if (pathname === "/") best = Math.max(best, 1);
+        continue;
+      }
+      if (pathname === prefix || pathname.startsWith(prefix)) {
+        best = Math.max(best, prefix.length);
       }
     }
-    
-    // Check if it's the home page
-    if (pathname === "/") {
-      const homeItem = navItems.find(item => item.href === "/");
-      if (homeItem) return homeItem.href;
+
+    return best;
+  };
+
+  // Pick the most specific matching tab (longest prefix wins)
+  const activeHref = (() => {
+    const pathname = location.pathname;
+    let bestHref: string | undefined;
+    let bestLen = 0;
+
+    for (const item of navItems) {
+      const len = getItemMatchLength(item, pathname);
+      if (len > bestLen) {
+        bestLen = len;
+        bestHref = item.href;
+      }
     }
-    
-    return undefined;
-  };
 
-  const activeHref = findActiveHref();
+    return bestHref;
+  })();
 
-  const isActive = (href: string) => {
-    return activeHref === href;
-  };
+  const isActive = (href: string) => activeHref === href;
 
   // Calculate pill position based on active item
   useLayoutEffect(() => {
