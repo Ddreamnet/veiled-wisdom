@@ -7,6 +7,7 @@ import { ConversationList } from '@/components/chat/ConversationList';
 import { ChatWindow } from '@/components/chat/ChatWindow';
 import { toast } from '@/hooks/use-toast';
 import { PageBreadcrumb } from '@/components/PageBreadcrumb';
+import { MessageCircle } from 'lucide-react';
 
 export default function Messages() {
   const navigate = useNavigate();
@@ -73,7 +74,10 @@ export default function Messages() {
     return (
       <div className="container py-12">
         <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-          <h1 className="text-3xl font-bold mb-4">Mesajlar</h1>
+          <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-6">
+            <MessageCircle className="w-10 h-10 text-primary" />
+          </div>
+          <h1 className="text-2xl font-bold mb-3">Mesajlar</h1>
           <p className="text-muted-foreground max-w-md">
             Mesajlaşmak için giriş yapmalısınız.
           </p>
@@ -85,37 +89,22 @@ export default function Messages() {
   const selectedConversation = conversations.find((c) => c.id === selectedConversationId) || null;
 
   return (
-    <div className="h-[calc(100vh-4rem)]">
-      <div className="container h-full py-4 md:py-6 px-2 sm:px-4">
-        <div className="mb-4 hidden md:block">
-          <PageBreadcrumb />
-        </div>
-        <div className="h-full bg-card rounded-lg border border-border overflow-hidden shadow-sm">
-          {/* Desktop Layout */}
-          <div className="hidden md:flex h-full">
-            {/* Sol Panel - Konuşma Listesi */}
-            <div className="w-80 lg:w-96 border-r border-border flex flex-col">
-              <div className="p-4 border-b border-border">
-                <h2 className="text-xl font-semibold">Mesajlar</h2>
-              </div>
-              <ConversationList
-                conversations={conversations}
-                loading={loading}
-                selectedConversationId={selectedConversationId}
-                onSelectConversation={handleSelectConversation}
-              />
-            </div>
-
-            {/* Sağ Panel - Chat Penceresi */}
-            <ChatWindow conversation={selectedConversation} onMessagesRead={handleMessagesRead} />
+    <>
+      {/* Desktop Layout */}
+      <div className="hidden md:block h-[calc(100vh-4rem)]">
+        <div className="container h-full py-4 md:py-6 px-2 sm:px-4">
+          <div className="mb-4">
+            <PageBreadcrumb />
           </div>
-
-          {/* Mobile Layout */}
-          <div className="md:hidden h-full">
-            {!showMobileChat ? (
-              <div className="h-full flex flex-col">
-                <div className="p-3 sm:p-4 border-b border-border">
-                  <h2 className="text-lg sm:text-xl font-semibold">Mesajlar</h2>
+          <div className="h-[calc(100%-3rem)] bg-card rounded-xl border border-border overflow-hidden shadow-elegant">
+            <div className="flex h-full">
+              {/* Sol Panel - Konuşma Listesi */}
+              <div className="w-80 lg:w-96 border-r border-border flex flex-col bg-background/50">
+                <div className="p-5 border-b border-border">
+                  <h2 className="text-xl font-semibold">Mesajlar</h2>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {conversations.length} konuşma
+                  </p>
                 </div>
                 <ConversationList
                   conversations={conversations}
@@ -124,12 +113,40 @@ export default function Messages() {
                   onSelectConversation={handleSelectConversation}
                 />
               </div>
-            ) : (
-              <ChatWindow conversation={selectedConversation} onBack={handleBackToList} onMessagesRead={handleMessagesRead} />
-            )}
+
+              {/* Sağ Panel - Chat Penceresi */}
+              <ChatWindow conversation={selectedConversation} onMessagesRead={handleMessagesRead} />
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Mobile Layout - Full Screen Chat Experience */}
+      <div className="md:hidden h-[calc(100vh-80px-env(safe-area-inset-bottom))]">
+        {!showMobileChat ? (
+          <div className="h-full flex flex-col bg-background">
+            {/* Mobile Header */}
+            <div className="px-4 py-4 border-b border-border bg-background/95 backdrop-blur-sm">
+              <h1 className="text-xl font-semibold">Mesajlar</h1>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {conversations.length} konuşma
+              </p>
+            </div>
+            <ConversationList
+              conversations={conversations}
+              loading={loading}
+              selectedConversationId={selectedConversationId}
+              onSelectConversation={handleSelectConversation}
+            />
+          </div>
+        ) : (
+          <ChatWindow 
+            conversation={selectedConversation} 
+            onBack={handleBackToList} 
+            onMessagesRead={handleMessagesRead} 
+          />
+        )}
+      </div>
+    </>
   );
 }

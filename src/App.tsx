@@ -166,7 +166,11 @@ function AppRoutes() {
 
       {/* Mobile Layout */}
       <div className="min-h-screen flex flex-col md:hidden">
-        <MobileHeader />
+        {/* Hide MobileHeader on Messages page - it has its own header */}
+        <Routes>
+          <Route path="/messages" element={null} />
+          <Route path="*" element={<MobileHeader />} />
+        </Routes>
         <main 
           className="flex-1"
           style={{ paddingBottom: "calc(80px + env(safe-area-inset-bottom, 0px))" }}
