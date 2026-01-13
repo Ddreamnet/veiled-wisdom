@@ -161,23 +161,8 @@ export function MessageInput({ onSendMessage, sending }: MessageInputProps) {
     >
       <div className="px-3 pt-3">
         <div className="flex items-end gap-2">
-          {/* Mic Button - Left side, balanced size */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={startRecording}
-            disabled={sending}
-            className={cn(
-              "h-11 w-11 rounded-full flex-shrink-0",
-              "text-muted-foreground hover:text-primary hover:bg-primary/10",
-              "transition-colors"
-            )}
-          >
-            <Mic className="h-5 w-5" />
-          </Button>
-
-          {/* Text Input Container */}
-          <div className="flex-1">
+          {/* Text Input Container with Mic inside */}
+          <div className="flex-1 relative">
             <textarea
               ref={textareaRef}
               value={message}
@@ -186,17 +171,40 @@ export function MessageInput({ onSendMessage, sending }: MessageInputProps) {
               placeholder="Mesajınızı yazın..."
               rows={1}
               className={cn(
-                "w-full resize-none rounded-2xl border border-input bg-muted/30 px-4 py-3",
+                "w-full resize-none rounded-2xl border border-input bg-muted/30 pl-4 pr-12 py-3",
                 "text-sm placeholder:text-muted-foreground",
                 "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50",
                 "transition-all duration-200",
-                "min-h-[44px] max-h-[120px]"
+                "min-h-[44px] max-h-[120px]",
+                // Custom scrollbar - only shows when needed, thin purple bar
+                "overflow-y-auto",
+                "[&::-webkit-scrollbar]:w-1.5",
+                "[&::-webkit-scrollbar-track]:bg-transparent",
+                "[&::-webkit-scrollbar-thumb]:bg-primary/40",
+                "[&::-webkit-scrollbar-thumb]:rounded-full",
+                "[&::-webkit-scrollbar-thumb]:hover:bg-primary/60",
+                // Firefox scrollbar
+                "scrollbar-thin scrollbar-track-transparent scrollbar-thumb-primary/40"
               )}
               disabled={sending}
             />
+            {/* Mic Button - Inside textarea, right side */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={startRecording}
+              disabled={sending}
+              className={cn(
+                "absolute right-1.5 bottom-1.5 h-8 w-8 rounded-full",
+                "text-muted-foreground hover:text-primary hover:bg-primary/10",
+                "transition-colors"
+              )}
+            >
+              <Mic className="h-4 w-4" />
+            </Button>
           </div>
 
-          {/* Send Button - Right side, same size as mic */}
+          {/* Send Button - Right side */}
           <Button
             onClick={handleSend}
             disabled={!message.trim() || sending}
