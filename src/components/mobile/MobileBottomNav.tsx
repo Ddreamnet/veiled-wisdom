@@ -71,14 +71,50 @@ const MobileBottomNavComponent = () => {
 
   const navItems = getNavItems();
 
-  const isActive = (href: string) => {
-    if (href === "/") {
-      return location.pathname === "/";
+  // Find the best matching nav item for current path
+  // Priority: exact match > startsWith match > fallback parent route
+  const findActiveHref = (): string | undefined => {
+    const pathname = location.pathname;
+    
+    // First, check for exact match
+    const exactMatch = navItems.find(item => item.href === pathname);
+    if (exactMatch) return exactMatch.href;
+    
+    // Second, check for startsWith match (but not "/" which would match everything)
+    const startsWithMatch = navItems.find(item => 
+      item.href !== "/" && pathname.startsWith(item.href)
+    );
+    if (startsWithMatch) return startsWithMatch.href;
+    
+    // Third, if we're on a page not in navbar, find the most likely parent
+    // For admin: /messages should highlight /profile (since they access it from profile menu)
+    // For other users: /messages is in navbar, so this won't apply
+    const parentRouteMap: Record<string, string> = {
+      "/messages": "/profile",
+      "/settings": "/profile",
+    };
+    
+    for (const [childRoute, parentRoute] of Object.entries(parentRouteMap)) {
+      if (pathname.startsWith(childRoute)) {
+        const parentItem = navItems.find(item => item.href === parentRoute);
+        if (parentItem) return parentItem.href;
+      }
     }
-    return location.pathname.startsWith(href);
+    
+    // Check if it's the home page
+    if (pathname === "/") {
+      const homeItem = navItems.find(item => item.href === "/");
+      if (homeItem) return homeItem.href;
+    }
+    
+    return undefined;
   };
 
-  const activeHref = navItems.find(item => isActive(item.href))?.href;
+  const activeHref = findActiveHref();
+
+  const isActive = (href: string) => {
+    return activeHref === href;
+  };
 
   // Calculate pill position based on active item
   useLayoutEffect(() => {
