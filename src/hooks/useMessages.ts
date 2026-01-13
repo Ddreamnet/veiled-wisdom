@@ -8,6 +8,7 @@ export type Message = {
   conversation_id: string;
   sender_id: string;
   body: string;
+  audio_url: string | null;
   created_at: string;
   read: boolean;
 };
@@ -108,8 +109,8 @@ export function useMessages(conversationId: string | null) {
     channelRef.current = channel;
   };
 
-  const sendMessage = async (body: string): Promise<boolean> => {
-    if (!conversationId || !user || !body.trim()) return false;
+  const sendMessage = async (body: string, audioUrl?: string): Promise<boolean> => {
+    if (!conversationId || !user || (!body.trim() && !audioUrl)) return false;
 
     // Optimistic update: mesajı hemen ekle
     const optimisticMessage: Message = {
@@ -117,6 +118,7 @@ export function useMessages(conversationId: string | null) {
       conversation_id: conversationId,
       sender_id: user.id,
       body: body.trim(),
+      audio_url: audioUrl || null,
       created_at: new Date().toISOString(),
       read: true, // Kendi mesajımız okunmuş sayılır
     };
@@ -134,7 +136,8 @@ export function useMessages(conversationId: string | null) {
         .insert({
           conversation_id: conversationId,
           sender_id: user.id,
-          body: body.trim(),
+          body: body.trim() || null,
+          audio_url: audioUrl || null,
         })
         .select()
         .single();

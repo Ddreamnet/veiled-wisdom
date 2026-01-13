@@ -7,6 +7,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link, useNavigate } from 'react-router-dom';
+import { formatPresenceStatus } from '@/hooks/usePresence';
+import { cn } from '@/lib/utils';
 
 type ChatWindowProps = {
   conversation: ConversationWithParticipant | null;
@@ -32,26 +34,38 @@ export function ChatWindow({ conversation, onBack, onMessagesRead }: ChatWindowP
     );
   }
 
+  const presenceStatus = formatPresenceStatus(conversation.other_participant.last_seen);
+
   return (
     <div className="flex-1 flex flex-col h-full">
       {/* Header */}
       <div className="border-b border-border bg-background p-4">
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center justify-between">
           <Link
             to={`/profile/${conversation.other_participant.id}`}
             className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
           >
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={conversation.other_participant.avatar_url || undefined} />
-              <AvatarFallback>
-                {conversation.other_participant.username?.[0]?.toUpperCase() || 'U'}
-              </AvatarFallback>
-            </Avatar>
+            <div className="relative">
+              <Avatar className="h-10 w-10">
+                <AvatarImage src={conversation.other_participant.avatar_url || undefined} />
+                <AvatarFallback>
+                  {conversation.other_participant.username?.[0]?.toUpperCase() || 'U'}
+                </AvatarFallback>
+              </Avatar>
+              {presenceStatus.isOnline && (
+                <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-green-500 border-2 border-background" />
+              )}
+            </div>
             <div>
               <h3 className="font-semibold text-base">
                 {conversation.other_participant.username || 'Kullanıcı'}
               </h3>
-              <p className="text-xs text-muted-foreground">Aktif</p>
+              <p className={cn(
+                'text-xs',
+                presenceStatus.isOnline ? 'text-green-500' : 'text-muted-foreground'
+              )}>
+                {presenceStatus.text}
+              </p>
             </div>
           </Link>
           
