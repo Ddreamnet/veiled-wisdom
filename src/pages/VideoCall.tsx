@@ -880,9 +880,29 @@ export default function VideoCall() {
         setCallObject(call);
         setIsLoading(false);
 
+        // Request permissions up-front (prevents "no audio" cases when browser blocks mic)
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+          // Immediately stop tracks - Daily will acquire its own tracks via startCamera/join
+          stream.getTracks().forEach((t) => t.stop());
+        } catch (e) {
+          console.warn('[VideoCall] getUserMedia permission check failed:', e);
+          toast({
+            title: 'Mikrofon izni gerekli',
+            description: 'Görüşmede ses iletimi için mikrofon izni vermelisiniz.',
+            variant: 'destructive',
+          });
+        }
+
         // Start camera early to enable local preview ASAP
         try {
           await call.startCamera();
+          // Ensure local audio starts enabled (some browsers may start muted)
+          try {
+            (call as any).setLocalAudio?.(true);
+          } catch (e) {
+            console.warn('[VideoCall] setLocalAudio(true) failed:', e);
+          }
         } catch (e) {
           console.warn('startCamera failed:', e);
         }
@@ -925,6 +945,14 @@ export default function VideoCall() {
             },
           },
         });
+
+        // Post-join safety: force-enable local audio/video (prevents "connected but silent" situations)
+        try {
+          (call as any).setLocalAudio?.(true);
+          (call as any).setLocalVideo?.(true);
+        } catch (e) {
+          console.warn('[VideoCall] Post-join setLocalAudio/Video failed:', e);
+        }
       } catch (err) {
         console.error('Error initializing call:', err);
         if (!isMounted) return;
