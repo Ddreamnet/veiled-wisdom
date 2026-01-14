@@ -171,15 +171,16 @@ export function MessageInput({ onSendMessage, sending }: MessageInputProps) {
               placeholder="Mesajınızı yazın..."
               rows={1}
               className={cn(
-                "w-full resize-none rounded-2xl border border-input bg-muted/30 pl-4 pr-12 py-3",
+                "w-full resize-none rounded-2xl border border-input bg-muted/30 pl-4 pr-14 py-3",
                 "text-sm placeholder:text-muted-foreground",
                 "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50",
                 "transition-all duration-200",
                 "min-h-[44px] max-h-[120px]",
                 // Scrollbar only when content overflows max-height
                 "overflow-y-hidden",
-                // Custom scrollbar styling - thinner, shorter, inside rounded area
+                // Custom scrollbar styling - thinner, positioned to the left of mic button
                 "[&::-webkit-scrollbar]:w-1",
+                "[&::-webkit-scrollbar]:mr-12",
                 "[&::-webkit-scrollbar-track]:bg-transparent",
                 "[&::-webkit-scrollbar-track]:my-3",
                 "[&::-webkit-scrollbar-thumb]:bg-primary/50",
@@ -193,19 +194,19 @@ export function MessageInput({ onSendMessage, sending }: MessageInputProps) {
               }}
               disabled={sending}
             />
-            {/* Mic Button - Inside textarea, vertically centered */}
+            {/* Mic Button - Inside textarea, vertically centered, bigger */}
             <Button
               variant="ghost"
               size="icon"
               onClick={startRecording}
               disabled={sending}
               className={cn(
-                "absolute right-2 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full",
+                "absolute right-1.5 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full",
                 "text-muted-foreground hover:text-primary hover:bg-primary/10",
                 "transition-colors"
               )}
             >
-              <Mic className="h-5 w-5" />
+              <Mic className="h-6 w-6" />
             </Button>
           </div>
 

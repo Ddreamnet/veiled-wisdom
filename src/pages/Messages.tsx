@@ -134,7 +134,7 @@ export default function Messages() {
       </div>
 
       {/* Mobile Layout - Full Screen Chat Experience */}
-      <div className="md:hidden flex flex-col overflow-hidden" style={{ height: showMobileChat ? '100dvh' : 'calc(100dvh - 80px - env(safe-area-inset-bottom))' }}>
+      <div className="md:hidden flex flex-col" style={{ height: showMobileChat ? '100dvh' : 'calc(100dvh - 80px - env(safe-area-inset-bottom))', overflow: 'hidden', touchAction: 'none' }}>
         {!showMobileChat ? (
           <div className="flex-1 flex flex-col bg-background min-h-0 overflow-hidden">
             {/* Mobile Header */}
