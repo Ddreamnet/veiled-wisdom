@@ -42,7 +42,7 @@ export function ChatWindow({ conversation, onBack, onMessagesRead }: ChatWindowP
   const isMobile = onBack !== undefined;
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-background">
+    <div className={cn("flex-1 flex flex-col bg-background", isMobile && "h-full overflow-hidden")}>
       {/* Modern Header */}
       <div 
         className={cn(
