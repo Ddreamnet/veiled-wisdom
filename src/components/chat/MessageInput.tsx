@@ -162,46 +162,54 @@ export function MessageInput({ onSendMessage, sending }: MessageInputProps) {
       <div className="px-3 pt-3">
         <div className="flex items-end gap-2">
           {/* Text Input Container with Mic inside */}
-          <div className="flex-1 relative flex items-center">
-            <textarea
-              ref={textareaRef}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Mesajınızı yazın..."
-              rows={1}
+          <div className="flex-1 relative flex items-center rounded-2xl border border-input bg-muted/30 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/50 transition-all duration-200">
+            {/* Scrollable textarea wrapper - scrollbar appears at its right edge, left of mic */}
+            <div 
               className={cn(
-                "w-full resize-none rounded-2xl border border-input bg-muted/30 pl-4 pr-14 py-3",
-                "text-sm placeholder:text-muted-foreground",
-                "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50",
-                "transition-all duration-200",
-                "min-h-[44px] max-h-[120px]",
-                // Scrollbar only when content overflows max-height
-                "overflow-y-hidden",
-                // Custom scrollbar styling - thinner, positioned to the left of mic button
-                "[&::-webkit-scrollbar]:w-1",
-                "[&::-webkit-scrollbar]:mr-12",
+                "flex-1 max-h-[120px] overflow-y-auto",
+                // Custom scrollbar - very thin, short, hidden when not scrolling
+                "[&::-webkit-scrollbar]:w-[3px]",
+                "[&::-webkit-scrollbar]:opacity-0",
+                "[&::-webkit-scrollbar]:transition-opacity",
                 "[&::-webkit-scrollbar-track]:bg-transparent",
-                "[&::-webkit-scrollbar-track]:my-3",
+                "[&::-webkit-scrollbar-track]:my-4",
                 "[&::-webkit-scrollbar-thumb]:bg-primary/50",
                 "[&::-webkit-scrollbar-thumb]:rounded-full",
                 "[&::-webkit-scrollbar-thumb]:hover:bg-primary/70",
-                // Firefox scrollbar
+                // Hide scrollbar by default, show on hover/scroll
+                "[&::-webkit-scrollbar-thumb]:opacity-0",
+                "hover:[&::-webkit-scrollbar-thumb]:opacity-100",
+                "[&::-webkit-scrollbar-thumb]:transition-opacity",
+                // Firefox
                 "scrollbar-thin scrollbar-track-transparent scrollbar-thumb-primary/50"
               )}
-              style={{
-                overflowY: textareaRef.current && textareaRef.current.scrollHeight > 120 ? 'auto' : 'hidden'
-              }}
-              disabled={sending}
-            />
-            {/* Mic Button - Inside textarea, vertically centered, bigger */}
+              style={{ scrollbarGutter: 'stable' }}
+            >
+              <textarea
+                ref={textareaRef}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Mesajınızı yazın..."
+                rows={1}
+                className={cn(
+                  "w-full resize-none bg-transparent pl-4 pr-2 py-3",
+                  "text-sm placeholder:text-muted-foreground",
+                  "focus:outline-none",
+                  "min-h-[44px]"
+                )}
+                style={{ overflow: 'hidden' }}
+                disabled={sending}
+              />
+            </div>
+            {/* Mic Button - Right side of input, vertically centered */}
             <Button
               variant="ghost"
               size="icon"
               onClick={startRecording}
               disabled={sending}
               className={cn(
-                "absolute right-1.5 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full",
+                "flex-shrink-0 mr-1 h-10 w-10 rounded-full",
                 "text-muted-foreground hover:text-primary hover:bg-primary/10",
                 "transition-colors"
               )}
