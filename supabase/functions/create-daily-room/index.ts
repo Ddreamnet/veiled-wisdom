@@ -120,6 +120,12 @@ serve(async (req) => {
     }
 
     // Create new Daily room with optimized settings
+    // Use an explicit unique name so Daily can never "reuse" an old/expired room name.
+    // Daily room names must be <= 41 chars and can include [a-zA-Z0-9_-]
+    const ts = Math.floor(Date.now() / 1000);
+    const compactId = String(conversation_id).replace(/-/g, '');
+    const roomName = `c${compactId.slice(0, 16)}-${ts}`;
+
     const roomResponse = await fetch('https://api.daily.co/v1/rooms', {
       method: 'POST',
       headers: {
@@ -127,6 +133,7 @@ serve(async (req) => {
         'Authorization': `Bearer ${DAILY_API_KEY}`,
       },
       body: JSON.stringify({
+        name: roomName,
         properties: {
           // Participant limit (2 users + 1 potential admin spectator)
           max_participants: 3,
@@ -142,7 +149,7 @@ serve(async (req) => {
           // Owner metadata for debugging in Daily dashboard
           owner_id: conversation.teacher_id || conversation.student_id || 'unknown',
           // Room expiration (24 hours)
-          exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24),
+          exp: ts + (60 * 60 * 24),
         },
       }),
     });
