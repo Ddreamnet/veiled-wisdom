@@ -139,7 +139,7 @@ export function MessageList({ messages, loading, currentUserId, conversationId, 
   }
 
   return (
-    <ScrollArea className="flex-1 [&_[data-radix-scroll-area-viewport]]:!overflow-y-auto [&_[data-radix-scroll-area-scrollbar]]:w-1 [&_[data-radix-scroll-area-scrollbar]]:my-2 [&_[data-radix-scroll-area-thumb]]:bg-primary/50 [&_[data-radix-scroll-area-thumb]]:rounded-full [&_[data-radix-scroll-area-thumb]]:hover:bg-primary/70" ref={scrollRef}>
+    <ScrollArea className="flex-1 min-h-0" ref={scrollRef}>
       <div className="p-4 space-y-1">
         {groupedMessages.map((group) => (
           <div key={group.date.toISOString()}>
