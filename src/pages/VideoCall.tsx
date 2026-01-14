@@ -933,7 +933,7 @@ export default function VideoCall() {
           user?.email?.split('@')[0] ||
           'Kullanıcı';
 
-        await call.join({
+        const joinOptions: any = {
           url: roomData.room_url,
           userName: displayName,
           userData: user?.id ? { appUserId: user.id } : undefined,
@@ -941,10 +941,31 @@ export default function VideoCall() {
           sendSettings: {
             video: {
               // Daily will automatically downgrade to 360p/180p on poor connections
-              maxQuality: 'high', // Starts at 1080p, adapts down based on bandwidth
+              maxQuality: 'high' as const, // Starts at 1080p, adapts down based on bandwidth
             },
           },
-        });
+        };
+
+        const isExpRoomError = (e: any) =>
+          e?.error?.type === 'exp-room' || e?.errorMsg?.includes('no longer available');
+
+        try {
+          await call.join(joinOptions);
+        } catch (e) {
+          // If the stored room has expired, request a fresh room and retry once
+          if (isExpRoomError(e)) {
+            console.warn('[VideoCall] Room expired, requesting fresh room...');
+            const { data: freshRoomData, error: freshRoomError } = await supabase.functions.invoke('create-daily-room', {
+              body: { conversation_id: conversationId, force_new: true },
+            });
+            if (freshRoomError || !freshRoomData?.room_url) {
+              throw e;
+            }
+            await call.join({ ...joinOptions, url: freshRoomData.room_url });
+          } else {
+            throw e;
+          }
+        }
 
         // Post-join safety: force-enable local audio/video (prevents "connected but silent" situations)
         try {

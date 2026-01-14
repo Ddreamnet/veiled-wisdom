@@ -31,7 +31,7 @@ serve(async (req) => {
       throw new Error('No authorization header');
     }
 
-    const { conversation_id } = await req.json();
+    const { conversation_id, force_new } = await req.json();
     
     if (!conversation_id) {
       throw new Error("conversation_id is required");
@@ -51,10 +51,10 @@ serve(async (req) => {
       throw new Error('Conversation not found');
     }
 
-    // If room already exists, check if it's still valid
-    if (conversation.video_room_url && conversation.video_room_name) {
+    // If room already exists, check if it's still valid (unless we explicitly force a new one)
+    if (!force_new && conversation.video_room_url && conversation.video_room_name) {
       console.log('Checking existing room:', conversation.video_room_name);
-      
+
       // Verify room is still valid by calling Daily API
       const roomCheckResponse = await fetch(
         `https://api.daily.co/v1/rooms/${conversation.video_room_name}`,
@@ -68,9 +68,18 @@ serve(async (req) => {
 
       if (roomCheckResponse.ok) {
         const roomInfo = await roomCheckResponse.json();
-        // Check if room has expired (exp is in seconds since epoch)
+
+        // Daily's response shape can vary; try several known locations
+        const exp =
+          roomInfo?.config?.exp ??
+          roomInfo?.config?.properties?.exp ??
+          roomInfo?.properties?.exp ??
+          null;
+
         const now = Math.floor(Date.now() / 1000);
-        if (!roomInfo.config?.exp || roomInfo.config.exp > now) {
+        console.log('Existing room exp:', exp, 'now:', now);
+
+        if (!exp || exp > now) {
           console.log('Room is still valid:', conversation.video_room_name);
           return new Response(
             JSON.stringify({
@@ -80,12 +89,26 @@ serve(async (req) => {
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
+
         console.log('Room has expired, creating new one...');
       } else {
         console.log('Room no longer exists, creating new one...');
       }
-      
+
       // Clear old room info before creating new one
+      await supabase
+        .from('conversations')
+        .update({
+          video_room_name: null,
+          video_room_url: null,
+          video_room_created_at: null,
+        })
+        .eq('id', conversation_id);
+    }
+
+    // If client requests a fresh room, clear old room fields first
+    if (force_new && (conversation.video_room_url || conversation.video_room_name)) {
+      console.log('force_new requested; clearing stored room fields for conversation:', conversation_id);
       await supabase
         .from('conversations')
         .update({
