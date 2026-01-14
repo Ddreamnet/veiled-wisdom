@@ -51,16 +51,49 @@ serve(async (req) => {
       throw new Error('Conversation not found');
     }
 
-    // If room already exists, return it
+    // If room already exists, check if it's still valid
     if (conversation.video_room_url && conversation.video_room_name) {
-      console.log('Room already exists:', conversation.video_room_name);
-      return new Response(
-        JSON.stringify({
-          room_name: conversation.video_room_name,
-          room_url: conversation.video_room_url,
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      console.log('Checking existing room:', conversation.video_room_name);
+      
+      // Verify room is still valid by calling Daily API
+      const roomCheckResponse = await fetch(
+        `https://api.daily.co/v1/rooms/${conversation.video_room_name}`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${DAILY_API_KEY}`,
+          },
+        }
       );
+
+      if (roomCheckResponse.ok) {
+        const roomInfo = await roomCheckResponse.json();
+        // Check if room has expired (exp is in seconds since epoch)
+        const now = Math.floor(Date.now() / 1000);
+        if (!roomInfo.config?.exp || roomInfo.config.exp > now) {
+          console.log('Room is still valid:', conversation.video_room_name);
+          return new Response(
+            JSON.stringify({
+              room_name: conversation.video_room_name,
+              room_url: conversation.video_room_url,
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        console.log('Room has expired, creating new one...');
+      } else {
+        console.log('Room no longer exists, creating new one...');
+      }
+      
+      // Clear old room info before creating new one
+      await supabase
+        .from('conversations')
+        .update({
+          video_room_name: null,
+          video_room_url: null,
+          video_room_created_at: null,
+        })
+        .eq('id', conversation_id);
     }
 
     // Create new Daily room with optimized settings
