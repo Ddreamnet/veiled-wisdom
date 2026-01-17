@@ -861,8 +861,12 @@ export default function VideoCall() {
 
         if (!isMounted) return;
         if (roomError) {
-          console.error('Error creating room:', roomError);
-          throw new Error('Failed to create video room');
+          console.error('[VideoCall] create-daily-room error:', roomError);
+          const details =
+            (roomError as any)?.context?.body ? JSON.stringify((roomError as any).context.body) :
+            (roomError as any)?.message ||
+            String(roomError);
+          throw new Error(`create-daily-room failed: ${details}`);
         }
 
         console.log('Room data:', roomData);
@@ -978,9 +982,11 @@ export default function VideoCall() {
         console.error('Error initializing call:', err);
         if (!isMounted) return;
 
+        const message = err instanceof Error ? err.message : 'Video araması başlatılamadı.';
+
         toast({
           title: 'Hata',
-          description: 'Video araması başlatılamadı.',
+          description: message,
           variant: 'destructive',
         });
         navigate('/messages');

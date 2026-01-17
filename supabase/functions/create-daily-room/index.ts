@@ -17,38 +17,76 @@ serve(async (req) => {
     if (!DAILY_API_KEY) {
       throw new Error("DAILY_API_KEY is not configured");
     }
-    
-    console.log('Daily API Key exists:', !!DAILY_API_KEY);
-    console.log('Daily API Key length:', DAILY_API_KEY?.length);
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    // --- Auth (JWT validation in-code; verify_jwt=false in config.toml) ---
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+
+    const supabaseAuth = createClient(
+      supabaseUrl,
+      supabaseAnonKey,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims?.sub) {
+      console.error('[create-daily-room] JWT validation failed:', claimsError);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const authedUserId = claimsData.claims.sub as string;
+
+    // Service client for DB writes/reads
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get auth header to verify user
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('No authorization header');
-    }
-
     const { conversation_id, force_new } = await req.json();
-    
+
     if (!conversation_id) {
-      throw new Error("conversation_id is required");
+      return new Response(
+        JSON.stringify({ error: 'conversation_id is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    console.log('Creating/getting Daily room for conversation:', conversation_id);
+    console.log('[create-daily-room] conversation_id:', conversation_id, 'force_new:', !!force_new, 'user:', authedUserId);
 
-    // Get conversation with user verification
+    // Get conversation
     const { data: conversation, error: convError } = await supabase
       .from('conversations')
       .select('*')
       .eq('id', conversation_id)
-      .single();
+      .maybeSingle();
 
     if (convError || !conversation) {
-      console.error('Conversation fetch error:', convError);
-      throw new Error('Conversation not found');
+      console.error('[create-daily-room] Conversation fetch error:', convError);
+      return new Response(
+        JSON.stringify({ error: 'Conversation not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Authorization: only participants can create/get a room for this conversation
+    const isParticipant = conversation.teacher_id === authedUserId || conversation.student_id === authedUserId;
+    if (!isParticipant) {
+      console.warn('[create-daily-room] Forbidden - user not participant', { authedUserId, teacher_id: conversation.teacher_id, student_id: conversation.student_id });
+      return new Response(
+        JSON.stringify({ error: 'Forbidden' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // If room already exists, check if it's still valid (unless we explicitly force a new one)
