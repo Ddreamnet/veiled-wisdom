@@ -860,13 +860,36 @@ export default function VideoCall() {
         });
 
         if (!isMounted) return;
+
         if (roomError) {
           console.error('[VideoCall] create-daily-room error:', roomError);
-          const details =
-            (roomError as any)?.context?.body ? JSON.stringify((roomError as any).context.body) :
-            (roomError as any)?.message ||
-            String(roomError);
-          throw new Error(`create-daily-room failed: ${details}`);
+
+          const ctx = (roomError as any)?.context;
+          const status = ctx?.status;
+          const statusText = ctx?.statusText;
+          const body = ctx?.body;
+
+          const bodyText =
+            typeof body === 'string'
+              ? body
+              : body
+                ? JSON.stringify(body)
+                : undefined;
+
+          // Make sure the user sees the *real* reason (401/403/500 etc.)
+          const detailsParts = [
+            status ? `status=${status}` : null,
+            statusText ? `statusText=${statusText}` : null,
+            bodyText ? `body=${bodyText}` : null,
+            (roomError as any)?.message ? `message=${(roomError as any).message}` : null,
+          ].filter(Boolean);
+
+          throw new Error(`create-daily-room failed: ${detailsParts.join(' | ') || 'unknown error'}`);
+        }
+
+        if (!roomData?.room_url) {
+          console.error('[VideoCall] create-daily-room returned invalid payload:', roomData);
+          throw new Error(`create-daily-room returned no room_url: ${JSON.stringify(roomData)}`);
         }
 
         console.log('Room data:', roomData);
@@ -962,9 +985,23 @@ export default function VideoCall() {
             const { data: freshRoomData, error: freshRoomError } = await supabase.functions.invoke('create-daily-room', {
               body: { conversation_id: conversationId, force_new: true },
             });
-            if (freshRoomError || !freshRoomData?.room_url) {
+
+            if (freshRoomError) {
+              const ctx = (freshRoomError as any)?.context;
+              console.error('[VideoCall] create-daily-room(force_new) error:', {
+                message: (freshRoomError as any)?.message,
+                status: ctx?.status,
+                statusText: ctx?.statusText,
+                body: ctx?.body,
+              });
               throw e;
             }
+
+            if (!freshRoomData?.room_url) {
+              console.error('[VideoCall] create-daily-room(force_new) returned invalid payload:', freshRoomData);
+              throw e;
+            }
+
             await call.join({ ...joinOptions, url: freshRoomData.room_url });
           } else {
             throw e;
