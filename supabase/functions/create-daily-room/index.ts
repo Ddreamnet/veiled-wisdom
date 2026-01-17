@@ -89,90 +89,19 @@ serve(async (req) => {
       );
     }
 
-    // If room already exists, check if it's still valid (unless we explicitly force a new one)
-    if (!force_new && conversation.video_room_url && conversation.video_room_name) {
-      console.log('[create-daily-room] Checking existing room:', conversation.video_room_name);
+    // ─────────────────────────────────────────────────────────────────
+    // ALWAYS create a fresh room for reliability.
+    // The DB may hold stale room data from a different Daily account/domain.
+    // We skip caching entirely here until we're sure the Daily API key matches.
+    // ─────────────────────────────────────────────────────────────────
 
-      // Verify room is still valid by calling Daily API
-      const roomCheckResponse = await fetch(
-        `https://api.daily.co/v1/rooms/${conversation.video_room_name}`,
-        {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${DAILY_API_KEY}`,
-          },
-        }
-      );
-
-      if (roomCheckResponse.ok) {
-        const roomInfo = await roomCheckResponse.json();
-
-        // IMPORTANT: Always trust Daily API as the source of truth.
-        // We've seen cases where DB holds an URL under a different domain, causing Daily "no-room".
-        const apiRoomName = roomInfo?.name ?? conversation.video_room_name;
-        const apiRoomUrl = roomInfo?.url ?? conversation.video_room_url;
-
-        // Daily's response shape can vary; try several known locations
-        const exp =
-          roomInfo?.config?.exp ??
-          roomInfo?.config?.properties?.exp ??
-          roomInfo?.properties?.exp ??
-          null;
-
-        const now = Math.floor(Date.now() / 1000);
-        console.log('[create-daily-room] Existing room check:', { apiRoomName, apiRoomUrl, exp, now });
-
-        if (!exp || exp > now) {
-          // If stored fields drifted (common when domain changes), heal the DB.
-          if (apiRoomName !== conversation.video_room_name || apiRoomUrl !== conversation.video_room_url) {
-            console.warn('[create-daily-room] Stored room info differs from Daily API; repairing conversation fields', {
-              stored: { name: conversation.video_room_name, url: conversation.video_room_url },
-              api: { name: apiRoomName, url: apiRoomUrl },
-            });
-
-            await supabase
-              .from('conversations')
-              .update({
-                video_room_name: apiRoomName,
-                video_room_url: apiRoomUrl,
-                video_room_created_at: conversation.video_room_created_at ?? new Date().toISOString(),
-              })
-              .eq('id', conversation_id);
-          }
-
-          console.log('[create-daily-room] Room is still valid (returning API URL):', apiRoomName);
-          return new Response(
-            JSON.stringify({
-              room_name: apiRoomName,
-              room_url: apiRoomUrl,
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        console.log('[create-daily-room] Room has expired, creating new one...');
-      } else {
-        const checkText = await roomCheckResponse.text().catch(() => '');
-        console.warn('[create-daily-room] Room check failed; creating new one...', {
-          status: roomCheckResponse.status,
-          body: checkText,
-        });
-      }
-
-      // Clear old room info before creating new one
-      await supabase
-        .from('conversations')
-        .update({
-          video_room_name: null,
-          video_room_url: null,
-          video_room_created_at: null,
-        })
-        .eq('id', conversation_id);
-    }
-
-    // If client requests a fresh room, clear old room fields first
-    if (force_new && (conversation.video_room_url || conversation.video_room_name)) {
-      console.log('force_new requested; clearing stored room fields for conversation:', conversation_id);
+    // Clear any old room info before creating new
+    if (conversation.video_room_url || conversation.video_room_name) {
+      console.log('[create-daily-room] Clearing old room info; will create fresh room', {
+        oldName: conversation.video_room_name,
+        oldUrl: conversation.video_room_url,
+        force_new,
+      });
       await supabase
         .from('conversations')
         .update({
@@ -190,38 +119,48 @@ serve(async (req) => {
     const compactId = String(conversation_id).replace(/-/g, '');
     const roomName = `c${compactId.slice(0, 16)}-${ts}`;
 
+    console.log('[create-daily-room] Creating new Daily room with name:', roomName);
+    console.log('[create-daily-room] DAILY_API_KEY present:', !!DAILY_API_KEY, 'length:', DAILY_API_KEY?.length);
+
+    const roomPayload = {
+      name: roomName,
+      properties: {
+        // Participant limit (2 users + 1 potential admin spectator)
+        max_participants: 3,
+        // Room features
+        enable_screenshare: true,
+        enable_chat: false,
+        enable_knocking: false,
+        start_video_off: false,
+        start_audio_off: false,
+        // Enable adaptive streaming for optimal quality based on network
+        enable_advanced_chat: false,
+        enable_prejoin_ui: false,
+        // Owner metadata for debugging in Daily dashboard
+        owner_id: conversation.teacher_id || conversation.student_id || 'unknown',
+        // Room expiration (24 hours)
+        exp: ts + (60 * 60 * 24),
+      },
+    };
+
+    console.log('[create-daily-room] Room payload:', JSON.stringify(roomPayload));
+
     const roomResponse = await fetch('https://api.daily.co/v1/rooms', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${DAILY_API_KEY}`,
       },
-      body: JSON.stringify({
-        name: roomName,
-        properties: {
-          // Participant limit (2 users + 1 potential admin spectator)
-          max_participants: 3,
-          // Room features
-          enable_screenshare: true,
-          enable_chat: false,
-          enable_knocking: false,
-          start_video_off: false,
-          start_audio_off: false,
-          // Enable adaptive streaming for optimal quality based on network
-          enable_advanced_chat: false,
-          enable_prejoin_ui: false,
-          // Owner metadata for debugging in Daily dashboard
-          owner_id: conversation.teacher_id || conversation.student_id || 'unknown',
-          // Room expiration (24 hours)
-          exp: ts + (60 * 60 * 24),
-        },
-      }),
+      body: JSON.stringify(roomPayload),
     });
+
+    console.log('[create-daily-room] Daily API response status:', roomResponse.status, roomResponse.statusText);
 
     if (!roomResponse.ok) {
       const errorText = await roomResponse.text().catch(() => '');
       console.error('[create-daily-room] Daily API create room error:', {
         status: roomResponse.status,
+        statusText: roomResponse.statusText,
         body: errorText,
         roomName,
       });
@@ -229,7 +168,11 @@ serve(async (req) => {
     }
 
     const roomData = await roomResponse.json();
-    console.log('Daily room created:', roomData.name);
+    console.log('[create-daily-room] Daily room created successfully:', {
+      name: roomData.name,
+      url: roomData.url,
+      id: roomData.id,
+    });
 
     // Update conversation with room info
     const { error: updateError } = await supabase

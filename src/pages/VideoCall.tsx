@@ -871,8 +871,9 @@ export default function VideoCall() {
         console.log('Initializing call for conversation:', conversationId);
 
         // Get or create Daily room
+        // Always force_new for now to bypass stale room data in DB until edge function is fully deployed
         const { data: roomData, error: roomError } = await supabase.functions.invoke('create-daily-room', {
-          body: { conversation_id: conversationId },
+          body: { conversation_id: conversationId, force_new: true },
         });
 
         if (!isMounted) return;
