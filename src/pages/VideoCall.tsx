@@ -298,6 +298,13 @@ function CallUI({ callObject }: CallUIProps) {
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [isMicOn, setIsMicOn] = useState(true);
   const [callState, setCallState] = useState<'loading' | 'joining' | 'joined' | 'leaving' | 'error'>('loading');
+  const callStateRef = useRef<typeof callState>('loading');
+  const autoNavigateOnLeaveRef = useRef(false);
+
+  useEffect(() => {
+    callStateRef.current = callState;
+  }, [callState]);
+
   const [participants, setParticipants] = useState<DailyParticipant[]>([]);
   const [localParticipant, setLocalParticipant] = useState<DailyParticipant | null>(null);
   const [notifications, setNotifications] = useState<Array<{ id: string; type: 'join' | 'leave'; userName: string }>>([]);
@@ -352,6 +359,7 @@ function CallUI({ callObject }: CallUIProps) {
         description: "30 dakika boyunca yalnız kaldığınız için görüşme sonlandırıldı.",
         variant: "destructive",
       });
+      autoNavigateOnLeaveRef.current = true;
       callObject.leave();
     }
   }, [waitingTime, callState, callObject, toast]);
@@ -368,6 +376,7 @@ function CallUI({ callObject }: CallUIProps) {
           description: "Görüşme 2 saatlik maksimum süreye ulaştığı için sonlandırıldı.",
           variant: "destructive",
         });
+        autoNavigateOnLeaveRef.current = true;
         callObject.leave();
       }
     };
@@ -493,7 +502,13 @@ function CallUI({ callObject }: CallUIProps) {
     const handleLeftMeeting = () => {
       console.log('Left meeting');
       setCallState('leaving');
-      setTimeout(() => navigate('/messages'), 1000);
+
+      // Don't force-redirect on error-driven disconnects (e.g. "no-room").
+      // Only navigate away when the user (or our timers) intentionally ended the call.
+      if (autoNavigateOnLeaveRef.current) {
+        autoNavigateOnLeaveRef.current = false;
+        setTimeout(() => navigate('/messages'), 1000);
+      }
     };
 
     const handleError = (e: any) => {
@@ -556,6 +571,7 @@ function CallUI({ callObject }: CallUIProps) {
   };
 
   const leaveCall = () => {
+    autoNavigateOnLeaveRef.current = true;
     callObject.leave();
   };
 
