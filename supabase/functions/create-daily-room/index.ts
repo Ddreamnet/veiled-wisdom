@@ -91,7 +91,7 @@ serve(async (req) => {
 
     // If room already exists, check if it's still valid (unless we explicitly force a new one)
     if (!force_new && conversation.video_room_url && conversation.video_room_name) {
-      console.log('Checking existing room:', conversation.video_room_name);
+      console.log('[create-daily-room] Checking existing room:', conversation.video_room_name);
 
       // Verify room is still valid by calling Daily API
       const roomCheckResponse = await fetch(
@@ -128,9 +128,13 @@ serve(async (req) => {
           );
         }
 
-        console.log('Room has expired, creating new one...');
+        console.log('[create-daily-room] Room has expired, creating new one...');
       } else {
-        console.log('Room no longer exists, creating new one...');
+        const checkText = await roomCheckResponse.text().catch(() => '');
+        console.warn('[create-daily-room] Room check failed; creating new one...', {
+          status: roomCheckResponse.status,
+          body: checkText,
+        });
       }
 
       // Clear old room info before creating new one
@@ -193,9 +197,13 @@ serve(async (req) => {
     });
 
     if (!roomResponse.ok) {
-      const errorText = await roomResponse.text();
-      console.error('Daily API error:', errorText);
-      throw new Error(`Daily API error: ${roomResponse.status}`);
+      const errorText = await roomResponse.text().catch(() => '');
+      console.error('[create-daily-room] Daily API create room error:', {
+        status: roomResponse.status,
+        body: errorText,
+        roomName,
+      });
+      throw new Error(`Daily API error ${roomResponse.status}: ${errorText || 'no body'}`);
     }
 
     const roomData = await roomResponse.json();
@@ -225,13 +233,13 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error in create-daily-room:', error);
+    console.error('[create-daily-room] Unhandled error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
       JSON.stringify({ error: errorMessage }),
-      { 
+      {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
   }
