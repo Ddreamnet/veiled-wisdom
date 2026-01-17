@@ -983,13 +983,13 @@ export default function VideoCall() {
         if (!isMounted) return;
 
         const message = err instanceof Error ? err.message : 'Video araması başlatılamadı.';
+        setError(message);
 
         toast({
           title: 'Hata',
           description: message,
           variant: 'destructive',
         });
-        navigate('/messages');
       }
     };
 
