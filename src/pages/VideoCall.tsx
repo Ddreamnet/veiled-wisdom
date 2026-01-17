@@ -976,12 +976,15 @@ export default function VideoCall() {
         const isExpRoomError = (e: any) =>
           e?.error?.type === 'exp-room' || e?.errorMsg?.includes('no longer available');
 
+        const isNoRoomError = (e: any) =>
+          e?.error?.type === 'no-room' || e?.errorMsg?.includes("does not exist");
+
         try {
           await call.join(joinOptions);
         } catch (e) {
-          // If the stored room has expired, request a fresh room and retry once
-          if (isExpRoomError(e)) {
-            console.warn('[VideoCall] Room expired, requesting fresh room...');
+          // If the stored room has expired OR Daily says the room doesn't exist, request a fresh room and retry once
+          if (isExpRoomError(e) || isNoRoomError(e)) {
+            console.warn('[VideoCall] Room invalid (exp-room/no-room), requesting fresh room...', e);
             const { data: freshRoomData, error: freshRoomError } = await supabase.functions.invoke('create-daily-room', {
               body: { conversation_id: conversationId, force_new: true },
             });

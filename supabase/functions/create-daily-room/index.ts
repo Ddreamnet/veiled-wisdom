@@ -107,6 +107,11 @@ serve(async (req) => {
       if (roomCheckResponse.ok) {
         const roomInfo = await roomCheckResponse.json();
 
+        // IMPORTANT: Always trust Daily API as the source of truth.
+        // We've seen cases where DB holds an URL under a different domain, causing Daily "no-room".
+        const apiRoomName = roomInfo?.name ?? conversation.video_room_name;
+        const apiRoomUrl = roomInfo?.url ?? conversation.video_room_url;
+
         // Daily's response shape can vary; try several known locations
         const exp =
           roomInfo?.config?.exp ??
@@ -115,14 +120,31 @@ serve(async (req) => {
           null;
 
         const now = Math.floor(Date.now() / 1000);
-        console.log('Existing room exp:', exp, 'now:', now);
+        console.log('[create-daily-room] Existing room check:', { apiRoomName, apiRoomUrl, exp, now });
 
         if (!exp || exp > now) {
-          console.log('Room is still valid:', conversation.video_room_name);
+          // If stored fields drifted (common when domain changes), heal the DB.
+          if (apiRoomName !== conversation.video_room_name || apiRoomUrl !== conversation.video_room_url) {
+            console.warn('[create-daily-room] Stored room info differs from Daily API; repairing conversation fields', {
+              stored: { name: conversation.video_room_name, url: conversation.video_room_url },
+              api: { name: apiRoomName, url: apiRoomUrl },
+            });
+
+            await supabase
+              .from('conversations')
+              .update({
+                video_room_name: apiRoomName,
+                video_room_url: apiRoomUrl,
+                video_room_created_at: conversation.video_room_created_at ?? new Date().toISOString(),
+              })
+              .eq('id', conversation_id);
+          }
+
+          console.log('[create-daily-room] Room is still valid (returning API URL):', apiRoomName);
           return new Response(
             JSON.stringify({
-              room_name: conversation.video_room_name,
-              room_url: conversation.video_room_url,
+              room_name: apiRoomName,
+              room_url: apiRoomUrl,
             }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
