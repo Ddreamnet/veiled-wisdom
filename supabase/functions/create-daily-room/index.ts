@@ -1,6 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.80.0";
 
+// Bump this when changing logic so the frontend can detect outdated deployments.
+const FUNCTION_VERSION = "2026-01-18-2";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -19,6 +22,7 @@ serve(async (req) => {
     const DAILY_API_KEY = Deno.env.get("DAILY_API_KEY");
     
     console.log('[create-daily-room] === STARTUP CHECKS ===');
+    console.log('[create-daily-room] function_version:', FUNCTION_VERSION);
     console.log('[create-daily-room] DAILY_API_KEY present:', !!DAILY_API_KEY);
     console.log('[create-daily-room] DAILY_API_KEY length:', DAILY_API_KEY?.length ?? 0);
     console.log('[create-daily-room] DAILY_API_KEY first 8 chars:', DAILY_API_KEY?.substring(0, 8) ?? 'N/A');
@@ -26,12 +30,13 @@ serve(async (req) => {
     if (!DAILY_API_KEY || DAILY_API_KEY.trim() === '') {
       console.error('[create-daily-room] CRITICAL: DAILY_API_KEY is not configured or is empty!');
       return new Response(
-        JSON.stringify({ 
-          error: 'DAILY_API_KEY is not configured',
-          code: 'MISSING_API_KEY',
-          details: 'The Daily.co API key is missing from environment variables. Please add it in Supabase Function settings.'
-        }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+         JSON.stringify({ 
+           error: 'DAILY_API_KEY is not configured',
+           code: 'MISSING_API_KEY',
+           function_version: FUNCTION_VERSION,
+           details: 'The Daily.co API key is missing from environment variables. Please add it in Supabase Function settings.'
+         }),
+         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -46,7 +51,7 @@ serve(async (req) => {
     if (!authHeader?.startsWith('Bearer ')) {
       console.error('[create-daily-room] No Authorization header');
       return new Response(
-        JSON.stringify({ error: 'Unauthorized', code: 'NO_AUTH_HEADER' }),
+        JSON.stringify({ error: 'Unauthorized', code: 'NO_AUTH_HEADER', function_version: FUNCTION_VERSION }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -63,7 +68,7 @@ serve(async (req) => {
     if (claimsError || !claimsData?.claims?.sub) {
       console.error('[create-daily-room] JWT validation failed:', claimsError);
       return new Response(
-        JSON.stringify({ error: 'Unauthorized', code: 'INVALID_JWT' }),
+        JSON.stringify({ error: 'Unauthorized', code: 'INVALID_JWT', function_version: FUNCTION_VERSION }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -111,7 +116,7 @@ serve(async (req) => {
     if (convError || !conversation) {
       console.error('[create-daily-room] Conversation fetch error:', convError);
       return new Response(
-        JSON.stringify({ error: 'Conversation not found', code: 'CONVERSATION_NOT_FOUND' }),
+        JSON.stringify({ error: 'Conversation not found', code: 'CONVERSATION_NOT_FOUND', function_version: FUNCTION_VERSION }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -125,7 +130,7 @@ serve(async (req) => {
         student_id: conversation.student_id 
       });
       return new Response(
-        JSON.stringify({ error: 'Forbidden', code: 'NOT_PARTICIPANT' }),
+        JSON.stringify({ error: 'Forbidden', code: 'NOT_PARTICIPANT', function_version: FUNCTION_VERSION }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -190,12 +195,13 @@ serve(async (req) => {
     } catch (fetchError) {
       console.error('[create-daily-room] CRITICAL: fetch to Daily API failed:', fetchError);
       return new Response(
-        JSON.stringify({ 
-          error: 'Failed to connect to Daily API',
-          code: 'DAILY_FETCH_FAILED',
-          details: String(fetchError)
-        }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+         JSON.stringify({ 
+           error: 'Failed to connect to Daily API',
+           code: 'DAILY_FETCH_FAILED',
+           function_version: FUNCTION_VERSION,
+           details: String(fetchError)
+         }),
+         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -218,22 +224,24 @@ serve(async (req) => {
       // Check for common errors
       if (roomResponse.status === 401) {
         return new Response(
-          JSON.stringify({ 
-            error: 'Daily API authentication failed',
-            code: 'DAILY_AUTH_FAILED',
-            details: 'The DAILY_API_KEY is invalid or expired. Please verify your Daily.co API key in Supabase Function environment variables.'
-          }),
-          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+           JSON.stringify({ 
+             error: 'Daily API authentication failed',
+             code: 'DAILY_AUTH_FAILED',
+             function_version: FUNCTION_VERSION,
+             details: 'The DAILY_API_KEY is invalid or expired. Please verify your Daily.co API key in Supabase Function environment variables.'
+           }),
+           { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
       return new Response(
-        JSON.stringify({ 
-          error: `Daily API error: ${roomResponse.status}`,
-          code: 'DAILY_API_ERROR',
-          details: responseText
-        }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+         JSON.stringify({ 
+           error: `Daily API error: ${roomResponse.status}`,
+           code: 'DAILY_API_ERROR',
+           function_version: FUNCTION_VERSION,
+           details: responseText
+         }),
+         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -244,12 +252,13 @@ serve(async (req) => {
     } catch (parseError) {
       console.error('[create-daily-room] Failed to parse Daily API response:', parseError);
       return new Response(
-        JSON.stringify({ 
-          error: 'Invalid response from Daily API',
-          code: 'DAILY_PARSE_ERROR',
-          details: responseText
-        }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+         JSON.stringify({ 
+           error: 'Invalid response from Daily API',
+           code: 'DAILY_PARSE_ERROR',
+           function_version: FUNCTION_VERSION,
+           details: responseText
+         }),
+         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -257,12 +266,13 @@ serve(async (req) => {
     if (!roomData.url || !roomData.name) {
       console.error('[create-daily-room] Daily API response missing url or name:', roomData);
       return new Response(
-        JSON.stringify({ 
-          error: 'Daily API returned incomplete room data',
-          code: 'DAILY_INCOMPLETE_RESPONSE',
-          details: JSON.stringify(roomData)
-        }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+         JSON.stringify({ 
+           error: 'Daily API returned incomplete room data',
+           code: 'DAILY_INCOMPLETE_RESPONSE',
+           function_version: FUNCTION_VERSION,
+           details: JSON.stringify(roomData)
+         }),
+         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -292,27 +302,30 @@ serve(async (req) => {
     // ═══════════════════════════════════════════════════════════════════════
     // 9. RETURN SUCCESS
     // ═══════════════════════════════════════════════════════════════════════
-    return new Response(
-      JSON.stringify({
-        room_name: roomData.name,
-        room_url: roomData.url,
-        success: true,
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+     return new Response(
+       JSON.stringify({
+         room_name: roomData.name,
+         room_url: roomData.url,
+         success: true,
+         created_via: 'daily_api',
+         function_version: FUNCTION_VERSION,
+       }),
+       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+     );
 
   } catch (error) {
     console.error('[create-daily-room] UNHANDLED ERROR:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(
-      JSON.stringify({ 
-        error: errorMessage,
-        code: 'UNHANDLED_ERROR'
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+     return new Response(
+       JSON.stringify({ 
+         error: errorMessage,
+         code: 'UNHANDLED_ERROR',
+         function_version: FUNCTION_VERSION,
+       }),
+       {
+         status: 500,
+         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+       }
+     );
   }
 });

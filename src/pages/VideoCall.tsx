@@ -876,7 +876,7 @@ export default function VideoCall() {
         console.log('[VideoCall] Calling create-daily-room edge function...');
         
         const { data: roomData, error: roomError } = await supabase.functions.invoke('create-daily-room', {
-          body: { conversation_id: conversationId },
+          body: { conversation_id: conversationId, force_new: true },
         });
 
         console.log('[VideoCall] create-daily-room response:', { roomData, roomError });
@@ -936,9 +936,10 @@ export default function VideoCall() {
           throw new Error(userMessage);
         }
 
-        if (!roomData?.room_url) {
-          console.error('[VideoCall] create-daily-room returned invalid payload:', roomData);
-          throw new Error('Oda oluşturulamadı. Lütfen tekrar deneyin.');
+        // Hard safety: never join unless backend explicitly confirms it created the room via Daily API.
+        if (!roomData?.room_url || roomData?.success !== true || roomData?.created_via !== 'daily_api') {
+          console.error('[VideoCall] create-daily-room returned invalid/untrusted payload:', roomData);
+          throw new Error('Oda oluşturma servisi güncel değil veya oda oluşturulamadı. Lütfen tekrar deneyin.');
         }
 
         console.log('[VideoCall] Room created successfully:', {
@@ -1049,12 +1050,18 @@ export default function VideoCall() {
             console.warn('[VideoCall] Room invalid, this should not happen with fresh room creation. Retrying once...');
             
             const { data: freshRoomData, error: freshRoomError } = await supabase.functions.invoke('create-daily-room', {
-              body: { conversation_id: conversationId },
+              body: { conversation_id: conversationId, force_new: true },
             });
 
             console.log('[VideoCall] Retry create-daily-room response:', { freshRoomData, freshRoomError });
 
-            if (freshRoomError || freshRoomData?.error || !freshRoomData?.room_url) {
+            if (
+              freshRoomError ||
+              freshRoomData?.error ||
+              !freshRoomData?.room_url ||
+              freshRoomData?.success !== true ||
+              freshRoomData?.created_via !== 'daily_api'
+            ) {
               console.error('[VideoCall] Retry also failed:', { freshRoomError, freshRoomData });
               throw new Error('Oda oluşturulamadı. Lütfen daha sonra tekrar deneyin.');
             }
