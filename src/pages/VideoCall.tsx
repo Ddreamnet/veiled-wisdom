@@ -868,46 +868,83 @@ export default function VideoCall() {
       try {
         if (!conversationId) throw new Error('Conversation ID is required');
 
-        console.log('Initializing call for conversation:', conversationId);
+        console.log('[VideoCall] Initializing call for conversation:', conversationId);
 
-        // Get or create Daily room
-        // Always force_new for now to bypass stale room data in DB until edge function is fully deployed
+        // ═══════════════════════════════════════════════════════════════════════
+        // STEP 1: Create Daily room via edge function
+        // ═══════════════════════════════════════════════════════════════════════
+        console.log('[VideoCall] Calling create-daily-room edge function...');
+        
         const { data: roomData, error: roomError } = await supabase.functions.invoke('create-daily-room', {
-          body: { conversation_id: conversationId, force_new: true },
+          body: { conversation_id: conversationId },
         });
+
+        console.log('[VideoCall] create-daily-room response:', { roomData, roomError });
 
         if (!isMounted) return;
 
+        // ═══════════════════════════════════════════════════════════════════════
+        // STEP 2: Handle edge function errors with detailed messages
+        // ═══════════════════════════════════════════════════════════════════════
         if (roomError) {
           console.error('[VideoCall] create-daily-room error:', roomError);
 
           const ctx = (roomError as any)?.context;
           const status = ctx?.status;
-          const statusText = ctx?.statusText;
-          const body = ctx?.body;
 
-          const bodyText =
-            typeof body === 'string'
-              ? body
-              : body
-                ? JSON.stringify(body)
-                : undefined;
+          // Try to extract the error code and details from the response
+          let errorCode = 'UNKNOWN';
+          let errorDetails = '';
+          
+          try {
+            const bodyStr = typeof ctx?.body === 'string' ? ctx.body : JSON.stringify(ctx?.body || {});
+            const parsed = JSON.parse(bodyStr);
+            errorCode = parsed?.code || 'UNKNOWN';
+            errorDetails = parsed?.details || parsed?.error || '';
+          } catch {
+            errorDetails = (roomError as any)?.message || 'Unknown error';
+          }
 
-          // Make sure the user sees the *real* reason (401/403/500 etc.)
-          const detailsParts = [
-            status ? `status=${status}` : null,
-            statusText ? `statusText=${statusText}` : null,
-            bodyText ? `body=${bodyText}` : null,
-            (roomError as any)?.message ? `message=${(roomError as any).message}` : null,
-          ].filter(Boolean);
+          // Provide user-friendly error messages based on error code
+          let userMessage = 'Video araması başlatılamadı.';
+          
+          if (errorCode === 'DAILY_AUTH_FAILED' || status === 502) {
+            userMessage = 'Daily.co API bağlantı hatası. Lütfen yöneticiye başvurun.';
+          } else if (errorCode === 'MISSING_API_KEY') {
+            userMessage = 'Video servisi yapılandırılmamış. Lütfen yöneticiye başvurun.';
+          } else if (status === 401 || errorCode === 'NO_AUTH_HEADER' || errorCode === 'INVALID_JWT') {
+            userMessage = 'Oturum geçersiz. Lütfen tekrar giriş yapın.';
+          } else if (status === 403 || errorCode === 'NOT_PARTICIPANT') {
+            userMessage = 'Bu görüşmeye katılma yetkiniz yok.';
+          } else if (status === 404 || errorCode === 'CONVERSATION_NOT_FOUND') {
+            userMessage = 'Görüşme bulunamadı.';
+          }
 
-          throw new Error(`create-daily-room failed: ${detailsParts.join(' | ') || 'unknown error'}`);
+          console.error('[VideoCall] Error details:', { errorCode, errorDetails, status, userMessage });
+          throw new Error(userMessage);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // STEP 3: Validate room data
+        // ═══════════════════════════════════════════════════════════════════════
+        // Check for error in the response body (edge function may return 200 with error)
+        if (roomData?.error) {
+          console.error('[VideoCall] create-daily-room returned error in body:', roomData);
+          const userMessage = roomData.code === 'DAILY_AUTH_FAILED' 
+            ? 'Daily.co API bağlantı hatası. Lütfen yöneticiye başvurun.'
+            : roomData.error;
+          throw new Error(userMessage);
         }
 
         if (!roomData?.room_url) {
           console.error('[VideoCall] create-daily-room returned invalid payload:', roomData);
-          throw new Error(`create-daily-room returned no room_url: ${JSON.stringify(roomData)}`);
+          throw new Error('Oda oluşturulamadı. Lütfen tekrar deneyin.');
         }
+
+        console.log('[VideoCall] Room created successfully:', {
+          room_name: roomData.room_name,
+          room_url: roomData.room_url,
+        });
 
         console.log('Room data:', roomData);
 
@@ -996,31 +1033,33 @@ export default function VideoCall() {
         const isNoRoomError = (e: any) =>
           e?.error?.type === 'no-room' || e?.errorMsg?.includes("does not exist");
 
+        // ═══════════════════════════════════════════════════════════════════════
+        // STEP 6: Join the room - with one retry if room doesn't exist
+        // ═══════════════════════════════════════════════════════════════════════
+        console.log('[VideoCall] Attempting to join room:', roomData.room_url);
+        
         try {
           await call.join(joinOptions);
-        } catch (e) {
-          // If the stored room has expired OR Daily says the room doesn't exist, request a fresh room and retry once
+          console.log('[VideoCall] Successfully joined room');
+        } catch (e: any) {
+          console.error('[VideoCall] Initial join failed:', e);
+          
+          // If room doesn't exist (shouldn't happen with new flow), try once more
           if (isExpRoomError(e) || isNoRoomError(e)) {
-            console.warn('[VideoCall] Room invalid (exp-room/no-room), requesting fresh room...', e);
+            console.warn('[VideoCall] Room invalid, this should not happen with fresh room creation. Retrying once...');
+            
             const { data: freshRoomData, error: freshRoomError } = await supabase.functions.invoke('create-daily-room', {
-              body: { conversation_id: conversationId, force_new: true },
+              body: { conversation_id: conversationId },
             });
 
-            if (freshRoomError) {
-              const ctx = (freshRoomError as any)?.context;
-              console.error('[VideoCall] create-daily-room(force_new) error:', {
-                message: (freshRoomError as any)?.message,
-                status: ctx?.status,
-                statusText: ctx?.statusText,
-                body: ctx?.body,
-              });
-              throw e;
+            console.log('[VideoCall] Retry create-daily-room response:', { freshRoomData, freshRoomError });
+
+            if (freshRoomError || freshRoomData?.error || !freshRoomData?.room_url) {
+              console.error('[VideoCall] Retry also failed:', { freshRoomError, freshRoomData });
+              throw new Error('Oda oluşturulamadı. Lütfen daha sonra tekrar deneyin.');
             }
 
-            if (!freshRoomData?.room_url) {
-              console.error('[VideoCall] create-daily-room(force_new) returned invalid payload:', freshRoomData);
-              throw e;
-            }
+            console.log('[VideoCall] Retrying join with new room:', freshRoomData.room_url);
 
             await call.join({ ...joinOptions, url: freshRoomData.room_url });
           } else {
@@ -1062,10 +1101,23 @@ export default function VideoCall() {
     return (
       <div className="h-screen bg-gradient-to-br from-background via-purple-950/20 to-background flex items-center justify-center p-4">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-4 max-w-sm">
+          <div className="h-16 w-16 rounded-full bg-destructive/20 flex items-center justify-center mx-auto">
+            <PhoneOff className="h-8 w-8 text-destructive" />
+          </div>
           <p className="text-lg font-semibold">Görüşmeye bağlanılamadı</p>
           <p className="text-sm text-muted-foreground">{error}</p>
-          <div className="flex items-center justify-center gap-2">
-            <Button onClick={() => navigate('/messages')}>Mesajlara Dön</Button>
+          <div className="flex items-center justify-center gap-3 pt-2">
+            <Button 
+              variant="outline" 
+              onClick={() => navigate('/messages')}
+            >
+              Mesajlara Dön
+            </Button>
+            <Button 
+              onClick={() => window.location.reload()}
+            >
+              Tekrar Dene
+            </Button>
           </div>
         </motion.div>
       </div>
