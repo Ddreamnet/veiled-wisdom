@@ -937,8 +937,18 @@ export default function VideoCall() {
         }
 
         // Hard safety: never join unless backend explicitly confirms it created the room via Daily API.
+        // NOTE: If you see a payload like { room_name, room_url } without { success, created_via },
+        // your deployed edge function is outdated (or another function is being hit).
         if (!roomData?.room_url || roomData?.success !== true || roomData?.created_via !== 'daily_api') {
           console.error('[VideoCall] create-daily-room returned invalid/untrusted payload:', roomData);
+
+          const isLegacyPayload = !!roomData?.room_url && roomData?.success === undefined && roomData?.created_via === undefined;
+          if (isLegacyPayload) {
+            throw new Error(
+              'create-daily-room eski sürüm çalışıyor (success/created_via alanları yok). Supabase > Edge Functions > create-daily-room fonksiyonunu redeploy edin ve tekrar deneyin.'
+            );
+          }
+
           throw new Error('Oda oluşturma servisi güncel değil veya oda oluşturulamadı. Lütfen tekrar deneyin.');
         }
 
