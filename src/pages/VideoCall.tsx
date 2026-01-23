@@ -291,6 +291,48 @@ function WaitingRoom({
 const SOLO_TIMEOUT_SECONDS = 30 * 60; // 30 minutes alone = auto-leave
 const MAX_CALL_DURATION_SECONDS = 2 * 60 * 60; // 2 hours max = auto-leave
 
+type CreateDailyRoomResponse = {
+  room_name?: string;
+  room_url?: string;
+  success?: boolean;
+  created_via?: string;
+  function_version?: string;
+  // legacy/edge error payloads
+  error?: string;
+  code?: string;
+  details?: string;
+};
+
+function isTrustedDailyRoomPayload(payload: CreateDailyRoomResponse | null | undefined) {
+  if (!payload?.room_url) return { ok: false as const, reason: 'missing_room_url' };
+
+  // Preferred (new) contract: backend explicitly confirms creation.
+  if (payload.success === true && payload.created_via === 'daily_api') {
+    return { ok: true as const, mode: 'confirmed' as const };
+  }
+
+  // Backward-compatible (legacy) contract: accept only if it *looks like* a real Daily room URL.
+  // This prevents joining arbitrary URLs if an outdated function is still deployed.
+  try {
+    const url = new URL(payload.room_url);
+    const isHttps = url.protocol === 'https:';
+    const isDailyHost = url.hostname === 'daily.co' || url.hostname.endsWith('.daily.co');
+    const pathSegs = url.pathname.split('/').filter(Boolean);
+    const lastSeg = pathSegs[pathSegs.length - 1];
+
+    const hasName = !!payload.room_name;
+    const nameMatchesPath = hasName ? payload.room_name === lastSeg : true;
+
+    if (isHttps && isDailyHost && lastSeg && nameMatchesPath) {
+      return { ok: true as const, mode: 'legacy' as const };
+    }
+  } catch {
+    // ignore
+  }
+
+  return { ok: false as const, reason: 'untrusted_payload' };
+}
+
 function CallUI({ callObject }: CallUIProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -936,20 +978,17 @@ export default function VideoCall() {
           throw new Error(userMessage);
         }
 
-        // Hard safety: never join unless backend explicitly confirms it created the room via Daily API.
-        // NOTE: If you see a payload like { room_name, room_url } without { success, created_via },
-        // your deployed edge function is outdated (or another function is being hit).
-        if (!roomData?.room_url || roomData?.success !== true || roomData?.created_via !== 'daily_api') {
+        // Hard safety: never join unless payload is trusted.
+        // Prefer the new contract ({ success, created_via }) but allow a *strictly validated* legacy payload
+        // if the edge function redeploy is still propagating.
+        const trust = isTrustedDailyRoomPayload(roomData as any);
+        if (!trust.ok) {
           console.error('[VideoCall] create-daily-room returned invalid/untrusted payload:', roomData);
+          throw new Error('Oda oluşturulamadı (güvenlik doğrulaması başarısız). Lütfen sayfayı yenileyip tekrar deneyin.');
+        }
 
-          const isLegacyPayload = !!roomData?.room_url && roomData?.success === undefined && roomData?.created_via === undefined;
-          if (isLegacyPayload) {
-            throw new Error(
-              'create-daily-room eski sürüm çalışıyor (success/created_via alanları yok). Supabase > Edge Functions > create-daily-room fonksiyonunu redeploy edin ve tekrar deneyin.'
-            );
-          }
-
-          throw new Error('Oda oluşturma servisi güncel değil veya oda oluşturulamadı. Lütfen tekrar deneyin.');
+        if (trust.mode === 'legacy') {
+          console.warn('[VideoCall] Using legacy create-daily-room payload; proceeding with strict URL validation.');
         }
 
         console.log('[VideoCall] Room created successfully:', {
@@ -1065,13 +1104,8 @@ export default function VideoCall() {
 
             console.log('[VideoCall] Retry create-daily-room response:', { freshRoomData, freshRoomError });
 
-            if (
-              freshRoomError ||
-              freshRoomData?.error ||
-              !freshRoomData?.room_url ||
-              freshRoomData?.success !== true ||
-              freshRoomData?.created_via !== 'daily_api'
-            ) {
+            const retryTrust = isTrustedDailyRoomPayload(freshRoomData as any);
+            if (freshRoomError || (freshRoomData as any)?.error || !retryTrust.ok) {
               console.error('[VideoCall] Retry also failed:', { freshRoomError, freshRoomData });
               throw new Error('Oda oluşturulamadı. Lütfen daha sonra tekrar deneyin.');
             }
