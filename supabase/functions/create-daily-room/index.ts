@@ -2,11 +2,12 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.80.0";
 
 // Bump this when changing logic so the frontend can detect outdated deployments.
-const FUNCTION_VERSION = "2026-01-18-2";
+const FUNCTION_VERSION = "2026-01-23-force-deploy";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'X-Function-Version': '2026-01-23-force-deploy',
 };
 
 serve(async (req) => {
