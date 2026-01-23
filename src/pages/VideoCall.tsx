@@ -9,11 +9,14 @@ import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// TYPES & CONSTANTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
 interface CallUIProps {
   callObject: DailyCall;
 }
 
-// Notification component for participant events
 interface NotificationProps {
   id: string;
   type: 'join' | 'leave';
@@ -21,47 +24,6 @@ interface NotificationProps {
   onDismiss: (id: string) => void;
 }
 
-function ParticipantNotification({ id, type, userName, onDismiss }: NotificationProps) {
-  useEffect(() => {
-    const timer = setTimeout(() => onDismiss(id), 4000);
-    return () => clearTimeout(timer);
-  }, [id, onDismiss]);
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: -20, scale: 0.9 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -20, scale: 0.9 }}
-      className={cn(
-        "flex items-center gap-3 px-4 py-3 rounded-xl backdrop-blur-md border shadow-lg",
-        type === 'join' 
-          ? "bg-green-500/20 border-green-500/30 text-green-100" 
-          : "bg-orange-500/20 border-orange-500/30 text-orange-100"
-      )}
-    >
-      <div className={cn(
-        "h-8 w-8 rounded-full flex items-center justify-center",
-        type === 'join' ? "bg-green-500/30" : "bg-orange-500/30"
-      )}>
-        {type === 'join' ? (
-          <UserPlus className="h-4 w-4" />
-        ) : (
-          <UserMinus className="h-4 w-4" />
-        )}
-      </div>
-      <div>
-        <p className="font-medium text-sm">
-          {userName || 'Katılımcı'}
-        </p>
-        <p className="text-xs opacity-80">
-          {type === 'join' ? 'görüşmeye katıldı' : 'görüşmeden ayrıldı'}
-        </p>
-      </div>
-    </motion.div>
-  );
-}
-
-// Waiting room component
 interface WaitingRoomProps {
   localParticipant: DailyParticipant | null;
   isCameraOn: boolean;
@@ -72,14 +34,351 @@ interface WaitingRoomProps {
   waitingTime: number;
 }
 
-function WaitingRoom({ 
-  localParticipant, 
-  isCameraOn, 
-  isMicOn, 
-  onToggleCamera, 
-  onToggleMic, 
+interface NotificationItem {
+  id: string;
+  type: 'join' | 'leave';
+  userName: string;
+}
+
+type CallState = 'loading' | 'joining' | 'joined' | 'leaving' | 'error';
+
+type CreateDailyRoomResponse = {
+  room_name?: string;
+  room_url?: string;
+  success?: boolean;
+  created_via?: string;
+  function_version?: string;
+  error?: string;
+  code?: string;
+  details?: string;
+};
+
+type TrustResult = 
+  | { ok: true; mode: 'confirmed' | 'legacy' }
+  | { ok: false; reason: string };
+
+const SOLO_TIMEOUT_SECONDS = 30 * 60; // 30 minutes alone = auto-leave
+const MAX_CALL_DURATION_SECONDS = 2 * 60 * 60; // 2 hours max = auto-leave
+const NOTIFICATION_DURATION_MS = 4000;
+const DUPLICATE_NOTIFICATION_THRESHOLD_MS = 5000;
+const JOIN_TIMEOUT_MS = 20000;
+const MAX_DURATION_CHECK_INTERVAL_MS = 10000;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// HELPER FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function formatTime(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function isTrustedDailyRoomPayload(payload: CreateDailyRoomResponse | null | undefined): TrustResult {
+  if (!payload?.room_url) {
+    return { ok: false, reason: 'missing_room_url' };
+  }
+
+  // Preferred (new) contract: backend explicitly confirms creation.
+  if (payload.success === true && payload.created_via === 'daily_api') {
+    return { ok: true, mode: 'confirmed' };
+  }
+
+  // Backward-compatible (legacy) contract: accept only if it *looks like* a real Daily room URL.
+  try {
+    const url = new URL(payload.room_url);
+    const isHttps = url.protocol === 'https:';
+    const isDailyHost = url.hostname === 'daily.co' || url.hostname.endsWith('.daily.co');
+    const pathSegs = url.pathname.split('/').filter(Boolean);
+    const lastSeg = pathSegs[pathSegs.length - 1];
+    const nameMatchesPath = payload.room_name ? payload.room_name === lastSeg : true;
+
+    if (isHttps && isDailyHost && lastSeg && nameMatchesPath) {
+      return { ok: true, mode: 'legacy' };
+    }
+  } catch {
+    // URL parsing failed
+  }
+
+  return { ok: false, reason: 'untrusted_payload' };
+}
+
+function isExpRoomError(e: any): boolean {
+  return e?.error?.type === 'exp-room' || e?.errorMsg?.includes('no longer available');
+}
+
+function isNoRoomError(e: any): boolean {
+  return e?.error?.type === 'no-room' || e?.errorMsg?.includes("does not exist");
+}
+
+function parseEdgeFunctionError(roomError: any): { errorCode: string; errorDetails: string; status?: number } {
+  const ctx = roomError?.context;
+  const status = ctx?.status;
+  let errorCode = 'UNKNOWN';
+  let errorDetails = '';
+
+  try {
+    const bodyStr = typeof ctx?.body === 'string' ? ctx.body : JSON.stringify(ctx?.body || {});
+    const parsed = JSON.parse(bodyStr);
+    errorCode = parsed?.code || 'UNKNOWN';
+    errorDetails = parsed?.details || parsed?.error || '';
+  } catch {
+    errorDetails = roomError?.message || 'Unknown error';
+  }
+
+  return { errorCode, errorDetails, status };
+}
+
+function getErrorMessage(errorCode: string, status?: number): string {
+  if (errorCode === 'DAILY_AUTH_FAILED' || status === 502) {
+    return 'Daily.co API bağlantı hatası. Lütfen yöneticiye başvurun.';
+  }
+  if (errorCode === 'MISSING_API_KEY') {
+    return 'Video servisi yapılandırılmamış. Lütfen yöneticiye başvurun.';
+  }
+  if (status === 401 || errorCode === 'NO_AUTH_HEADER' || errorCode === 'INVALID_JWT') {
+    return 'Oturum geçersiz. Lütfen tekrar giriş yapın.';
+  }
+  if (status === 403 || errorCode === 'NOT_PARTICIPANT') {
+    return 'Bu görüşmeye katılma yetkiniz yok.';
+  }
+  if (status === 404 || errorCode === 'CONVERSATION_NOT_FOUND') {
+    return 'Görüşme bulunamadı.';
+  }
+  return 'Video araması başlatılamadı.';
+}
+
+function getParticipantKey(p: DailyParticipant): string {
+  const pAny = p as any;
+  return pAny?.userData?.appUserId || pAny?.user_id || pAny?.user_name || p.session_id;
+}
+
+function isMirrorOfLocal(p: DailyParticipant, local: DailyParticipant | null): boolean {
+  if (!local || p.local) return false;
+
+  const lp = local as any;
+  const rp = p as any;
+
+  // Same underlying media track id
+  if (lp?.videoTrack?.id && rp?.videoTrack?.id && lp.videoTrack.id === rp.videoTrack.id) return true;
+  if (lp?.audioTrack?.id && rp?.audioTrack?.id && lp.audioTrack.id === rp.audioTrack.id) return true;
+
+  // App identity / user identity if present
+  if (lp?.userData?.appUserId && rp?.userData?.appUserId && lp.userData.appUserId === rp.userData.appUserId) return true;
+  if (lp?.user_id && rp?.user_id && lp.user_id === rp.user_id) return true;
+
+  // Name match (only if non-empty)
+  if (lp?.user_name && rp?.user_name && lp.user_name === rp.user_name) return true;
+
+  // If remote has *no* identifying info at all, treat it as a mirror candidate.
+  const hasAnyIdentity = !!(rp?.userData?.appUserId || rp?.user_id || rp?.user_name);
+  if (!hasAnyIdentity && (rp?.videoTrack || rp?.audioTrack)) return true;
+
+  return false;
+}
+
+function sanitizeParticipants(participantList: DailyParticipant[]): { local: DailyParticipant | null; sanitized: DailyParticipant[] } {
+  // Find the best local participant
+  const locals = participantList.filter((p) => p.local);
+  const local =
+    locals.find((p) => !!p.videoTrack) ||
+    locals.find((p) => !!p.audioTrack) ||
+    locals[0] ||
+    null;
+
+  // Filter out mirrors of local
+  const remoteCandidates = participantList
+    .filter((p) => !p.local)
+    .filter((p) => !isMirrorOfLocal(p, local));
+
+  // Dedupe remotes: keep best tile per user key (prefer videoTrack)
+  const remoteMap = new Map<string, DailyParticipant>();
+  for (const p of remoteCandidates) {
+    const key = String(getParticipantKey(p));
+    const existing = remoteMap.get(key);
+    if (!existing) {
+      remoteMap.set(key, p);
+      continue;
+    }
+    const existingHasVideo = !!(existing as any).videoTrack;
+    const pHasVideo = !!(p as any).videoTrack;
+    if (!existingHasVideo && pHasVideo) {
+      remoteMap.set(key, p);
+    }
+  }
+
+  const sanitized: DailyParticipant[] = [
+    ...(local ? [local] : []),
+    ...Array.from(remoteMap.values()),
+  ];
+
+  return { local, sanitized };
+}
+
+function logParticipants(raw: DailyParticipant[], sanitized: DailyParticipant[]): void {
+  if (!import.meta.env.DEV) return;
+
+  console.log('[VideoCall] participants(raw)', raw.map((p: any) => ({
+    session_id: p.session_id,
+    local: p.local,
+    user_id: p.user_id,
+    user_name: p.user_name,
+    appUserId: p?.userData?.appUserId,
+    videoTrackId: p?.videoTrack?.id,
+    audioTrackId: p?.audioTrack?.id,
+  })));
+  console.log('[VideoCall] participants(sanitized)', sanitized.map((p: any) => ({
+    session_id: p.session_id,
+    local: p.local,
+    user_id: p.user_id,
+    user_name: p.user_name,
+    appUserId: p?.userData?.appUserId,
+  })));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// UI COMPONENTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function ParticipantNotification({ id, type, userName, onDismiss }: NotificationProps) {
+  useEffect(() => {
+    const timer = setTimeout(() => onDismiss(id), NOTIFICATION_DURATION_MS);
+    return () => clearTimeout(timer);
+  }, [id, onDismiss]);
+
+  const isJoin = type === 'join';
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -20, scale: 0.9 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -20, scale: 0.9 }}
+      className={cn(
+        "flex items-center gap-3 px-4 py-3 rounded-xl backdrop-blur-md border shadow-lg",
+        isJoin
+          ? "bg-green-500/20 border-green-500/30 text-green-100"
+          : "bg-orange-500/20 border-orange-500/30 text-orange-100"
+      )}
+    >
+      <div className={cn(
+        "h-8 w-8 rounded-full flex items-center justify-center",
+        isJoin ? "bg-green-500/30" : "bg-orange-500/30"
+      )}>
+        {isJoin ? <UserPlus className="h-4 w-4" /> : <UserMinus className="h-4 w-4" />}
+      </div>
+      <div>
+        <p className="font-medium text-sm">{userName || 'Katılımcı'}</p>
+        <p className="text-xs opacity-80">
+          {isJoin ? 'görüşmeye katıldı' : 'görüşmeden ayrıldı'}
+        </p>
+      </div>
+    </motion.div>
+  );
+}
+
+function NotificationsOverlay({ notifications, onDismiss }: { notifications: NotificationItem[]; onDismiss: (id: string) => void }) {
+  return (
+    <div className="fixed top-4 right-4 z-50 space-y-2">
+      <AnimatePresence>
+        {notifications.map((notif) => (
+          <ParticipantNotification
+            key={notif.id}
+            id={notif.id}
+            type={notif.type}
+            userName={notif.userName}
+            onDismiss={onDismiss}
+          />
+        ))}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function AnimatedBackground() {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      <motion.div
+        className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl"
+        animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }}
+        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-purple-500/5 rounded-full blur-3xl"
+        animate={{ scale: [1.2, 1, 1.2], opacity: [0.5, 0.3, 0.5] }}
+        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+      />
+    </div>
+  );
+}
+
+function MediaStatusBadge({ isOn, Icon, IconOff }: { isOn: boolean; Icon: typeof Video; IconOff: typeof VideoOff }) {
+  return (
+    <div className={cn(
+      "px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1",
+      isOn
+        ? "bg-green-500/20 text-green-400 border border-green-500/30"
+        : "bg-red-500/20 text-red-400 border border-red-500/30"
+    )}>
+      {isOn ? <Icon className="h-3 w-3" /> : <IconOff className="h-3 w-3" />}
+      {isOn ? 'Açık' : 'Kapalı'}
+    </div>
+  );
+}
+
+function WaitingIndicator() {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ delay: 0.4 }}
+      className="flex items-center justify-center gap-3 py-4"
+    >
+      <div className="flex gap-1.5">
+        {[0, 1, 2].map((i) => (
+          <motion.div
+            key={i}
+            className="h-2.5 w-2.5 rounded-full bg-primary"
+            animate={{ scale: [1, 1.3, 1], opacity: [0.5, 1, 0.5] }}
+            transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+          />
+        ))}
+      </div>
+      <span className="text-sm text-muted-foreground">Bekleniyor...</span>
+    </motion.div>
+  );
+}
+
+function ControlButton({ 
+  variant, 
+  onClick, 
+  children, 
+  withHoverScale = false 
+}: { 
+  variant: 'secondary' | 'destructive'; 
+  onClick: () => void; 
+  children: React.ReactNode;
+  withHoverScale?: boolean;
+}) {
+  return (
+    <Button
+      size="lg"
+      variant={variant}
+      onClick={onClick}
+      className={cn("h-14 w-14 rounded-full", withHoverScale && "transition-all hover:scale-110")}
+    >
+      {children}
+    </Button>
+  );
+}
+
+function WaitingRoom({
+  localParticipant,
+  isCameraOn,
+  isMicOn,
+  onToggleCamera,
+  onToggleMic,
   onLeave,
-  waitingTime 
+  waitingTime
 }: WaitingRoomProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -89,41 +388,9 @@ function WaitingRoom({
     videoRef.current.srcObject = stream;
   }, [localParticipant?.videoTrack]);
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
   return (
     <div className="h-screen bg-gradient-to-br from-background via-purple-950/20 to-background flex flex-col items-center justify-center p-4">
-      {/* Animated background elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <motion.div
-          className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl"
-          animate={{
-            scale: [1, 1.2, 1],
-            opacity: [0.3, 0.5, 0.3],
-          }}
-          transition={{
-            duration: 4,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-        />
-        <motion.div
-          className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-purple-500/5 rounded-full blur-3xl"
-          animate={{
-            scale: [1.2, 1, 1.2],
-            opacity: [0.5, 0.3, 0.5],
-          }}
-          transition={{
-            duration: 4,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-        />
-      </div>
+      <AnimatedBackground />
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -141,9 +408,7 @@ function WaitingRoom({
             <Users className="h-8 w-8 text-primary" />
           </motion.div>
           <h1 className="text-2xl font-bold">Katılımcı Bekleniyor</h1>
-          <p className="text-muted-foreground">
-            Diğer katılımcı henüz görüşmeye katılmadı
-          </p>
+          <p className="text-muted-foreground">Diğer katılımcı henüz görüşmeye katılmadı</p>
         </div>
 
         {/* Self video preview */}
@@ -163,11 +428,7 @@ function WaitingRoom({
             />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center bg-muted">
-              <motion.div
-                initial={{ scale: 0.8 }}
-                animate={{ scale: 1 }}
-                className="text-center"
-              >
+              <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="text-center">
                 <div className="h-20 w-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-3">
                   <VideoOff className="h-10 w-10 text-primary" />
                 </div>
@@ -175,27 +436,11 @@ function WaitingRoom({
               </motion.div>
             </div>
           )}
-          
+
           {/* Camera/Mic status badges */}
           <div className="absolute bottom-3 left-3 flex gap-2">
-            <div className={cn(
-              "px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1",
-              isCameraOn 
-                ? "bg-green-500/20 text-green-400 border border-green-500/30" 
-                : "bg-red-500/20 text-red-400 border border-red-500/30"
-            )}>
-              {isCameraOn ? <Video className="h-3 w-3" /> : <VideoOff className="h-3 w-3" />}
-              {isCameraOn ? 'Açık' : 'Kapalı'}
-            </div>
-            <div className={cn(
-              "px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1",
-              isMicOn 
-                ? "bg-green-500/20 text-green-400 border border-green-500/30" 
-                : "bg-red-500/20 text-red-400 border border-red-500/30"
-            )}>
-              {isMicOn ? <Mic className="h-3 w-3" /> : <MicOff className="h-3 w-3" />}
-              {isMicOn ? 'Açık' : 'Kapalı'}
-            </div>
+            <MediaStatusBadge isOn={isCameraOn} Icon={Video} IconOff={VideoOff} />
+            <MediaStatusBadge isOn={isMicOn} Icon={Mic} IconOff={MicOff} />
           </div>
 
           {/* Waiting time badge */}
@@ -211,32 +456,7 @@ function WaitingRoom({
           </div>
         </motion.div>
 
-        {/* Animated waiting indicator */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4 }}
-          className="flex items-center justify-center gap-3 py-4"
-        >
-          <div className="flex gap-1.5">
-            {[0, 1, 2].map((i) => (
-              <motion.div
-                key={i}
-                className="h-2.5 w-2.5 rounded-full bg-primary"
-                animate={{
-                  scale: [1, 1.3, 1],
-                  opacity: [0.5, 1, 0.5],
-                }}
-                transition={{
-                  duration: 1,
-                  repeat: Infinity,
-                  delay: i * 0.2,
-                }}
-              />
-            ))}
-          </div>
-          <span className="text-sm text-muted-foreground">Bekleniyor...</span>
-        </motion.div>
+        <WaitingIndicator />
 
         {/* Controls */}
         <motion.div
@@ -245,32 +465,15 @@ function WaitingRoom({
           transition={{ delay: 0.5 }}
           className="flex items-center justify-center gap-3"
         >
-          <Button
-            size="lg"
-            variant={isCameraOn ? "secondary" : "destructive"}
-            onClick={onToggleCamera}
-            className="h-14 w-14 rounded-full"
-          >
+          <ControlButton variant={isCameraOn ? "secondary" : "destructive"} onClick={onToggleCamera}>
             {isCameraOn ? <Video className="h-6 w-6" /> : <VideoOff className="h-6 w-6" />}
-          </Button>
-          
-          <Button
-            size="lg"
-            variant={isMicOn ? "secondary" : "destructive"}
-            onClick={onToggleMic}
-            className="h-14 w-14 rounded-full"
-          >
+          </ControlButton>
+          <ControlButton variant={isMicOn ? "secondary" : "destructive"} onClick={onToggleMic}>
             {isMicOn ? <Mic className="h-6 w-6" /> : <MicOff className="h-6 w-6" />}
-          </Button>
-          
-          <Button
-            size="lg"
-            variant="destructive"
-            onClick={onLeave}
-            className="h-14 w-14 rounded-full"
-          >
+          </ControlButton>
+          <ControlButton variant="destructive" onClick={onLeave}>
             <PhoneOff className="h-6 w-6" />
-          </Button>
+          </ControlButton>
         </motion.div>
 
         {/* Tip */}
@@ -287,77 +490,135 @@ function WaitingRoom({
   );
 }
 
-// Constants for timeouts
-const SOLO_TIMEOUT_SECONDS = 30 * 60; // 30 minutes alone = auto-leave
-const MAX_CALL_DURATION_SECONDS = 2 * 60 * 60; // 2 hours max = auto-leave
-
-type CreateDailyRoomResponse = {
-  room_name?: string;
-  room_url?: string;
-  success?: boolean;
-  created_via?: string;
-  function_version?: string;
-  // legacy/edge error payloads
-  error?: string;
-  code?: string;
-  details?: string;
-};
-
-function isTrustedDailyRoomPayload(payload: CreateDailyRoomResponse | null | undefined) {
-  if (!payload?.room_url) return { ok: false as const, reason: 'missing_room_url' };
-
-  // Preferred (new) contract: backend explicitly confirms creation.
-  if (payload.success === true && payload.created_via === 'daily_api') {
-    return { ok: true as const, mode: 'confirmed' as const };
-  }
-
-  // Backward-compatible (legacy) contract: accept only if it *looks like* a real Daily room URL.
-  // This prevents joining arbitrary URLs if an outdated function is still deployed.
-  try {
-    const url = new URL(payload.room_url);
-    const isHttps = url.protocol === 'https:';
-    const isDailyHost = url.hostname === 'daily.co' || url.hostname.endsWith('.daily.co');
-    const pathSegs = url.pathname.split('/').filter(Boolean);
-    const lastSeg = pathSegs[pathSegs.length - 1];
-
-    const hasName = !!payload.room_name;
-    const nameMatchesPath = hasName ? payload.room_name === lastSeg : true;
-
-    if (isHttps && isDailyHost && lastSeg && nameMatchesPath) {
-      return { ok: true as const, mode: 'legacy' as const };
-    }
-  } catch {
-    // ignore
-  }
-
-  return { ok: false as const, reason: 'untrusted_payload' };
-}
-
-function CallUI({ callObject }: CallUIProps) {
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  
-  const [isCameraOn, setIsCameraOn] = useState(true);
-  const [isMicOn, setIsMicOn] = useState(true);
-  const [callState, setCallState] = useState<'loading' | 'joining' | 'joined' | 'leaving' | 'error'>('loading');
-  const callStateRef = useRef<typeof callState>('loading');
-  const autoNavigateOnLeaveRef = useRef(false);
+function VideoTile({ participant, isLocal }: { participant: DailyParticipant; isLocal: boolean }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    callStateRef.current = callState;
-  }, [callState]);
+    if (!videoRef.current) return;
+    if (participant.videoTrack) {
+      const stream = new MediaStream([participant.videoTrack]);
+      videoRef.current.srcObject = stream;
+    }
+  }, [participant.videoTrack, participant.session_id]);
 
-  const [participants, setParticipants] = useState<DailyParticipant[]>([]);
-  const [localParticipant, setLocalParticipant] = useState<DailyParticipant | null>(null);
-  const [notifications, setNotifications] = useState<Array<{ id: string; type: 'join' | 'leave'; userName: string }>>([]);
-  
-  // Waiting time - continues from where it left off when participant leaves
+  const displayName = isLocal ? 'Siz' : (participant.user_name || 'Katılımcı');
+  const avatarLetter = isLocal ? 'S' : (participant.user_name?.charAt(0).toUpperCase() || 'K');
+
+  return (
+    <div className="relative bg-card rounded-xl overflow-hidden aspect-video border border-border shadow-lg group">
+      <video
+        ref={videoRef}
+        autoPlay
+        muted={isLocal}
+        playsInline
+        className="w-full h-full object-cover"
+      />
+
+      {/* Name badge */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="absolute bottom-4 left-4 flex items-center gap-2"
+      >
+        <div className="px-3 py-1.5 bg-background/80 backdrop-blur-sm rounded-full border border-border flex items-center gap-2">
+          {isLocal && <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />}
+          <span className="text-sm font-medium">{displayName}</span>
+        </div>
+      </motion.div>
+
+      {/* Mic status indicator */}
+      {!participant.audio && (
+        <div className="absolute top-4 right-4">
+          <div className="p-2 rounded-full bg-red-500/20 border border-red-500/30">
+            <MicOff className="h-4 w-4 text-red-400" />
+          </div>
+        </div>
+      )}
+
+      {/* No video placeholder */}
+      {!participant.videoTrack && (
+        <div className="absolute inset-0 flex items-center justify-center bg-muted">
+          <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="text-center">
+            <div className="h-20 w-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-3 ring-4 ring-primary/10">
+              <span className="text-3xl font-bold text-primary">{avatarLetter}</span>
+            </div>
+            <p className="text-sm text-muted-foreground">{displayName}</p>
+          </motion.div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LoadingScreen({ message }: { message: string }) {
+  return (
+    <div className="h-screen bg-gradient-to-br from-background via-purple-950/20 to-background flex items-center justify-center">
+      <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center space-y-4">
+        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+          <Loader2 className="h-12 w-12 mx-auto text-primary" />
+        </motion.div>
+        <p className="text-lg text-muted-foreground">{message}</p>
+      </motion.div>
+    </div>
+  );
+}
+
+function ErrorScreen({ onNavigate }: { onNavigate: () => void }) {
+  return (
+    <div className="h-screen bg-gradient-to-br from-background via-purple-950/20 to-background flex items-center justify-center">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-4">
+        <p className="text-lg text-destructive">Bağlantı hatası oluştu</p>
+        <Button onClick={onNavigate}>Mesajlara Dön</Button>
+      </motion.div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CUSTOM HOOKS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function useNotifications() {
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const recentRef = useRef<Map<string, number>>(new Map());
+
+  const add = useCallback((type: 'join' | 'leave', userName: string) => {
+    const dedupeKey = `${type}-${userName || 'unknown'}`;
+    const now = Date.now();
+    const lastShown = recentRef.current.get(dedupeKey) || 0;
+
+    if (now - lastShown < DUPLICATE_NOTIFICATION_THRESHOLD_MS) {
+      if (import.meta.env.DEV) {
+        console.log('[VideoCall] Duplicate notification suppressed:', dedupeKey);
+      }
+      return;
+    }
+
+    recentRef.current.set(dedupeKey, now);
+    const id = `${now}-${Math.random()}`;
+    setNotifications((prev) => [...prev, { id, type, userName }]);
+  }, []);
+
+  const remove = useCallback((id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  }, []);
+
+  return { notifications, add, remove };
+}
+
+function useCallTimers(
+  callState: CallState,
+  participants: DailyParticipant[],
+  callObject: DailyCall,
+  toast: ReturnType<typeof useToast>['toast']
+) {
   const [waitingTime, setWaitingTime] = useState(0);
-  // Call duration - starts when first remote joins, never resets
   const [callDuration, setCallDuration] = useState(0);
   const [callStartTime, setCallStartTime] = useState<number | null>(null);
-  // Total room time - starts on join, used for 2-hour max limit
   const [roomJoinTime, setRoomJoinTime] = useState<number | null>(null);
+  const autoNavigateOnLeaveRef = useRef(false);
+
+  const remoteCount = participants.filter((p) => !p.local).length;
 
   // Set room join time when joined
   useEffect(() => {
@@ -368,32 +629,24 @@ function CallUI({ callObject }: CallUIProps) {
 
   // Waiting time counter - continues from where it left off
   useEffect(() => {
-    const remoteParticipants = participants.filter((p) => !p.local);
-    if (remoteParticipants.length === 0 && callState === 'joined') {
-      const interval = setInterval(() => {
-        setWaitingTime((prev) => prev + 1);
-      }, 1000);
+    if (remoteCount === 0 && callState === 'joined') {
+      const interval = setInterval(() => setWaitingTime((prev) => prev + 1), 1000);
       return () => clearInterval(interval);
     }
-    // Don't reset waitingTime when remote joins - keep accumulated value
-  }, [participants, callState]);
+  }, [remoteCount, callState]);
 
   // Call duration counter - starts when first remote joins
   useEffect(() => {
-    const remoteParticipants = participants.filter((p) => !p.local);
-    if (remoteParticipants.length > 0 && callState === 'joined') {
-      // Start call timer if not already started
+    if (remoteCount > 0 && callState === 'joined') {
       if (callStartTime === null) {
         setCallStartTime(Date.now());
       }
-      const interval = setInterval(() => {
-        setCallDuration((prev) => prev + 1);
-      }, 1000);
+      const interval = setInterval(() => setCallDuration((prev) => prev + 1), 1000);
       return () => clearInterval(interval);
     }
-  }, [participants, callState, callStartTime]);
+  }, [remoteCount, callState, callStartTime]);
 
-  // 30 minute solo timeout - auto-leave if alone for too long
+  // 30 minute solo timeout
   useEffect(() => {
     if (waitingTime >= SOLO_TIMEOUT_SECONDS && callState === 'joined') {
       toast({
@@ -406,10 +659,10 @@ function CallUI({ callObject }: CallUIProps) {
     }
   }, [waitingTime, callState, callObject, toast]);
 
-  // 2 hour max room duration - auto-leave
+  // 2 hour max room duration
   useEffect(() => {
     if (!roomJoinTime || callState !== 'joined') return;
-    
+
     const checkMaxDuration = () => {
       const elapsed = (Date.now() - roomJoinTime) / 1000;
       if (elapsed >= MAX_CALL_DURATION_SECONDS) {
@@ -423,118 +676,55 @@ function CallUI({ callObject }: CallUIProps) {
       }
     };
 
-    const interval = setInterval(checkMaxDuration, 10000); // Check every 10 seconds
+    const interval = setInterval(checkMaxDuration, MAX_DURATION_CHECK_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [roomJoinTime, callState, callObject, toast]);
 
-  // Track recent notifications to prevent duplicates (key = type-userName, value = timestamp)
-  const recentNotificationsRef = useRef<Map<string, number>>(new Map());
+  return { waitingTime, callDuration, autoNavigateOnLeaveRef };
+}
 
-  const addNotification = useCallback((type: 'join' | 'leave', userName: string) => {
-    const dedupeKey = `${type}-${userName || 'unknown'}`;
-    const now = Date.now();
-    const lastShown = recentNotificationsRef.current.get(dedupeKey) || 0;
+// ═══════════════════════════════════════════════════════════════════════════════
+// MAIN COMPONENTS
+// ═══════════════════════════════════════════════════════════════════════════════
 
-    // Ignore if same notification was shown within last 5 seconds
-    if (now - lastShown < 5000) {
-      if (import.meta.env.DEV) {
-        console.log('[VideoCall] Duplicate notification suppressed:', dedupeKey);
-      }
-      return;
-    }
+function CallUI({ callObject }: CallUIProps) {
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
-    recentNotificationsRef.current.set(dedupeKey, now);
-    const id = `${now}-${Math.random()}`;
-    setNotifications((prev) => [...prev, { id, type, userName }]);
-  }, []);
-
-  const removeNotification = useCallback((id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-  }, []);
+  const [isCameraOn, setIsCameraOn] = useState(true);
+  const [isMicOn, setIsMicOn] = useState(true);
+  const [callState, setCallState] = useState<CallState>('loading');
+  const callStateRef = useRef<CallState>('loading');
 
   useEffect(() => {
-    const updateParticipants = () => {
-      const participantObj = callObject.participants();
-      const participantList = Object.values(participantObj);
+    callStateRef.current = callState;
+  }, [callState]);
 
-      // Daily can sometimes include a non-local "mirror" participant of yourself.
-      // We sanitize the list here so UI always renders 1 tile per real user.
-      const locals = participantList.filter((p) => p.local);
-      const local =
-        locals.find((p) => !!p.videoTrack) ||
-        locals.find((p) => !!p.audioTrack) ||
-        locals[0] ||
-        null;
+  const [participants, setParticipants] = useState<DailyParticipant[]>([]);
+  const [localParticipant, setLocalParticipant] = useState<DailyParticipant | null>(null);
 
-      const isMirrorOfLocal = (p: DailyParticipant) => {
-        if (!local || p.local) return false;
-        const lp: any = local;
-        const rp: any = p;
+  const { notifications, add: addNotification, remove: removeNotification } = useNotifications();
+  const { waitingTime, callDuration, autoNavigateOnLeaveRef } = useCallTimers(
+    callState,
+    participants,
+    callObject,
+    toast
+  );
 
-        // Strongest signal: same underlying media track id
-        if (lp?.videoTrack?.id && rp?.videoTrack?.id && lp.videoTrack.id === rp.videoTrack.id) return true;
-        if (lp?.audioTrack?.id && rp?.audioTrack?.id && lp.audioTrack.id === rp.audioTrack.id) return true;
+  // Update participants helper
+  const updateParticipants = useCallback(() => {
+    const participantObj = callObject.participants();
+    const participantList = Object.values(participantObj);
+    const { local, sanitized } = sanitizeParticipants(participantList);
 
-        // App identity / user identity if present
-        if (lp?.userData?.appUserId && rp?.userData?.appUserId && lp.userData.appUserId === rp.userData.appUserId) return true;
-        if (lp?.user_id && rp?.user_id && lp.user_id === rp.user_id) return true;
+    setLocalParticipant(local);
+    setParticipants(sanitized);
 
-        // Name match (only if non-empty)
-        if (lp?.user_name && rp?.user_name && lp.user_name === rp.user_name) return true;
+    logParticipants(participantList, sanitized);
+  }, [callObject]);
 
-        // If remote has *no* identifying info at all, treat it as a mirror candidate.
-        const hasAnyIdentity = !!(rp?.userData?.appUserId || rp?.user_id || rp?.user_name);
-        if (!hasAnyIdentity && (rp?.videoTrack || rp?.audioTrack)) return true;
-
-        return false;
-      };
-
-      const remoteCandidates = participantList.filter((p) => !p.local).filter((p) => !isMirrorOfLocal(p));
-
-      // Dedupe remotes: keep best tile per user key (prefer videoTrack)
-      const pickKey = (p: any) => p?.userData?.appUserId || p?.user_id || p?.user_name || p?.session_id;
-      const remoteMap = new Map<string, DailyParticipant>();
-      for (const p of remoteCandidates) {
-        const key = String(pickKey(p));
-        const existing = remoteMap.get(key);
-        if (!existing) {
-          remoteMap.set(key, p);
-          continue;
-        }
-        const existingHasVideo = !!(existing as any).videoTrack;
-        const pHasVideo = !!(p as any).videoTrack;
-        if (!existingHasVideo && pHasVideo) remoteMap.set(key, p);
-      }
-
-      const sanitizedParticipants: DailyParticipant[] = [
-        ...(local ? [local] : []),
-        ...Array.from(remoteMap.values()),
-      ];
-
-      setLocalParticipant(local);
-      setParticipants(sanitizedParticipants);
-
-      // Debug (only in development to reduce production noise)
-      if (import.meta.env.DEV) {
-        console.log('[VideoCall] participants(raw)', participantList.map((p: any) => ({
-          session_id: p.session_id,
-          local: p.local,
-          user_id: p.user_id,
-          user_name: p.user_name,
-          appUserId: p?.userData?.appUserId,
-          videoTrackId: p?.videoTrack?.id,
-          audioTrackId: p?.audioTrack?.id,
-        })));
-        console.log('[VideoCall] participants(sanitized)', sanitizedParticipants.map((p: any) => ({
-          session_id: p.session_id,
-          local: p.local,
-          user_id: p.user_id,
-          user_name: p.user_name,
-          appUserId: p?.userData?.appUserId,
-        })));
-      }
-    };
-
+  // Daily event handlers
+  useEffect(() => {
     const handleJoinedMeeting = () => {
       console.log('Joined meeting');
       setCallState('joined');
@@ -545,8 +735,6 @@ function CallUI({ callObject }: CallUIProps) {
       console.log('Left meeting');
       setCallState('leaving');
 
-      // Don't force-redirect on error-driven disconnects (e.g. "no-room").
-      // Only navigate away when the user (or our timers) intentionally ended the call.
       if (autoNavigateOnLeaveRef.current) {
         autoNavigateOnLeaveRef.current = false;
         setTimeout(() => navigate('/messages'), 1000);
@@ -571,7 +759,7 @@ function CallUI({ callObject }: CallUIProps) {
       updateParticipants();
     };
 
-    const handleParticipantUpdated = (event: DailyEventObjectParticipant | undefined) => {
+    const handleParticipantUpdated = () => {
       updateParticipants();
     };
 
@@ -584,7 +772,7 @@ function CallUI({ callObject }: CallUIProps) {
     };
 
     updateParticipants();
-    
+
     callObject.on('joined-meeting', handleJoinedMeeting);
     callObject.on('left-meeting', handleLeftMeeting);
     callObject.on('error', handleError);
@@ -600,60 +788,35 @@ function CallUI({ callObject }: CallUIProps) {
       callObject.off('participant-updated', handleParticipantUpdated);
       callObject.off('participant-left', handleParticipantLeft);
     };
-  }, [callObject, navigate, toast, addNotification]);
+  }, [callObject, navigate, toast, addNotification, updateParticipants, autoNavigateOnLeaveRef]);
 
-  const toggleCamera = () => {
+  const toggleCamera = useCallback(() => {
     callObject.setLocalVideo(!isCameraOn);
-    setIsCameraOn(!isCameraOn);
-  };
+    setIsCameraOn((prev) => !prev);
+  }, [callObject, isCameraOn]);
 
-  const toggleMic = () => {
+  const toggleMic = useCallback(() => {
     callObject.setLocalAudio(!isMicOn);
-    setIsMicOn(!isMicOn);
-  };
+    setIsMicOn((prev) => !prev);
+  }, [callObject, isMicOn]);
 
-  const leaveCall = () => {
+  const leaveCall = useCallback(() => {
     autoNavigateOnLeaveRef.current = true;
     callObject.leave();
-  };
+  }, [callObject, autoNavigateOnLeaveRef]);
 
+  // Render states
   if (callState === 'loading' || callState === 'joining') {
-    return (
-      <div className="h-screen bg-gradient-to-br from-background via-purple-950/20 to-background flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="text-center space-y-4"
-        >
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          >
-            <Loader2 className="h-12 w-12 mx-auto text-primary" />
-          </motion.div>
-          <p className="text-lg text-muted-foreground">Görüşme başlatılıyor...</p>
-        </motion.div>
-      </div>
-    );
+    return <LoadingScreen message="Görüşme başlatılıyor..." />;
   }
 
   if (callState === 'error') {
-    return (
-      <div className="h-screen bg-gradient-to-br from-background via-purple-950/20 to-background flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center space-y-4"
-        >
-          <p className="text-lg text-destructive">Bağlantı hatası oluştu</p>
-          <Button onClick={() => navigate('/messages')}>Mesajlara Dön</Button>
-        </motion.div>
-      </div>
-    );
+    return <ErrorScreen onNavigate={() => navigate('/messages')} />;
   }
 
-  // participants state is sanitized (1 local + real unique remotes)
   const remoteParticipants = participants.filter((p) => !p.local);
+
+  // Waiting room (no remote participants)
   if (remoteParticipants.length === 0) {
     return (
       <>
@@ -666,24 +829,12 @@ function CallUI({ callObject }: CallUIProps) {
           onLeave={leaveCall}
           waitingTime={waitingTime}
         />
-        {/* Notifications overlay */}
-        <div className="fixed top-4 right-4 z-50 space-y-2">
-          <AnimatePresence>
-            {notifications.map((notif) => (
-              <ParticipantNotification
-                key={notif.id}
-                id={notif.id}
-                type={notif.type}
-                userName={notif.userName}
-                onDismiss={removeNotification}
-              />
-            ))}
-          </AnimatePresence>
-        </div>
+        <NotificationsOverlay notifications={notifications} onDismiss={removeNotification} />
       </>
     );
   }
 
+  // Active call
   return (
     <>
       <motion.div
@@ -691,7 +842,7 @@ function CallUI({ callObject }: CallUIProps) {
         animate={{ opacity: 1 }}
         className="h-screen bg-gradient-to-br from-background via-purple-950/20 to-background flex flex-col"
       >
-        {/* Connection status bar with call duration */}
+        {/* Connection status bar */}
         <motion.div
           initial={{ y: -50 }}
           animate={{ y: 0 }}
@@ -704,16 +855,13 @@ function CallUI({ callObject }: CallUIProps) {
           </span>
           <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-background/50">
             <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-sm font-medium">
-              {Math.floor(callDuration / 60)}:{(callDuration % 60).toString().padStart(2, '0')}
-            </span>
+            <span className="text-sm font-medium">{formatTime(callDuration)}</span>
           </div>
         </motion.div>
 
-        {/* Video Grid - Only show local participant once and remote participants */}
+        {/* Video Grid */}
         <div className="flex-1 p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
           <AnimatePresence>
-            {/* Local participant (only one) */}
             {localParticipant && (
               <motion.div
                 key={localParticipant.session_id}
@@ -722,13 +870,9 @@ function CallUI({ callObject }: CallUIProps) {
                 exit={{ opacity: 0, scale: 0.8 }}
                 transition={{ delay: 0 }}
               >
-                <VideoTile 
-                  participant={localParticipant} 
-                  isLocal={true} 
-                />
+                <VideoTile participant={localParticipant} isLocal={true} />
               </motion.div>
             )}
-            {/* Remote participants */}
             {remoteParticipants.map((participant, index) => (
               <motion.div
                 key={participant.session_id}
@@ -737,10 +881,7 @@ function CallUI({ callObject }: CallUIProps) {
                 exit={{ opacity: 0, scale: 0.8 }}
                 transition={{ delay: (index + 1) * 0.1 }}
               >
-                <VideoTile 
-                  participant={participant} 
-                  isLocal={false} 
-                />
+                <VideoTile participant={participant} isLocal={false} />
               </motion.div>
             ))}
           </AnimatePresence>
@@ -753,122 +894,27 @@ function CallUI({ callObject }: CallUIProps) {
           className="p-6 bg-card/50 backdrop-blur-sm border-t border-border"
         >
           <div className="max-w-md mx-auto flex items-center justify-center gap-4">
-            <Button
-              size="lg"
-              variant={isCameraOn ? "secondary" : "destructive"}
-              onClick={toggleCamera}
-              className="h-14 w-14 rounded-full transition-all hover:scale-110"
-            >
+            <ControlButton variant={isCameraOn ? "secondary" : "destructive"} onClick={toggleCamera} withHoverScale>
               {isCameraOn ? <Video className="h-6 w-6" /> : <VideoOff className="h-6 w-6" />}
-            </Button>
-            
-            <Button
-              size="lg"
-              variant={isMicOn ? "secondary" : "destructive"}
-              onClick={toggleMic}
-              className="h-14 w-14 rounded-full transition-all hover:scale-110"
-            >
+            </ControlButton>
+            <ControlButton variant={isMicOn ? "secondary" : "destructive"} onClick={toggleMic} withHoverScale>
               {isMicOn ? <Mic className="h-6 w-6" /> : <MicOff className="h-6 w-6" />}
-            </Button>
-            
-            <Button
-              size="lg"
-              variant="destructive"
-              onClick={leaveCall}
-              className="h-14 w-14 rounded-full transition-all hover:scale-110"
-            >
+            </ControlButton>
+            <ControlButton variant="destructive" onClick={leaveCall} withHoverScale>
               <PhoneOff className="h-6 w-6" />
-            </Button>
+            </ControlButton>
           </div>
         </motion.div>
       </motion.div>
 
-      {/* Notifications overlay */}
-      <div className="fixed top-4 right-4 z-50 space-y-2">
-        <AnimatePresence>
-          {notifications.map((notif) => (
-            <ParticipantNotification
-              key={notif.id}
-              id={notif.id}
-              type={notif.type}
-              userName={notif.userName}
-              onDismiss={removeNotification}
-            />
-          ))}
-        </AnimatePresence>
-      </div>
+      <NotificationsOverlay notifications={notifications} onDismiss={removeNotification} />
     </>
   );
 }
 
-function VideoTile({ participant, isLocal }: { participant: DailyParticipant; isLocal: boolean }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    if (!videoRef.current) return;
-    
-    if (participant.videoTrack) {
-      const stream = new MediaStream([participant.videoTrack]);
-      videoRef.current.srcObject = stream;
-    }
-  }, [participant.videoTrack, participant.session_id]);
-
-  return (
-    <div className="relative bg-card rounded-xl overflow-hidden aspect-video border border-border shadow-lg group">
-      <video
-        ref={videoRef}
-        autoPlay
-        muted={isLocal}
-        playsInline
-        className="w-full h-full object-cover"
-      />
-      
-      {/* Name badge */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="absolute bottom-4 left-4 flex items-center gap-2"
-      >
-        <div className="px-3 py-1.5 bg-background/80 backdrop-blur-sm rounded-full border border-border flex items-center gap-2">
-          {isLocal && (
-            <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-          )}
-          <span className="text-sm font-medium">
-            {isLocal ? 'Siz' : (participant.user_name || 'Katılımcı')}
-          </span>
-        </div>
-      </motion.div>
-
-      {/* Mic status indicator */}
-      {!participant.audio && (
-        <div className="absolute top-4 right-4">
-          <div className="p-2 rounded-full bg-red-500/20 border border-red-500/30">
-            <MicOff className="h-4 w-4 text-red-400" />
-          </div>
-        </div>
-      )}
-
-      {!participant.videoTrack && (
-        <div className="absolute inset-0 flex items-center justify-center bg-muted">
-          <motion.div
-            initial={{ scale: 0.8 }}
-            animate={{ scale: 1 }}
-            className="text-center"
-          >
-            <div className="h-20 w-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-3 ring-4 ring-primary/10">
-              <span className="text-3xl font-bold text-primary">
-                {isLocal ? 'S' : (participant.user_name?.charAt(0).toUpperCase() || 'K')}
-              </span>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {isLocal ? 'Siz' : (participant.user_name || 'Katılımcı')}
-            </p>
-          </motion.div>
-        </div>
-      )}
-    </div>
-  );
-}
+// ═══════════════════════════════════════════════════════════════════════════════
+// PAGE COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
 
 export default function VideoCall() {
   const { conversationId } = useParams();
@@ -883,7 +929,6 @@ export default function VideoCall() {
   const callObjectRef = useRef<DailyCall | null>(null);
 
   useEffect(() => {
-    // Strict check - only initialize once per component lifecycle
     if (initAttemptedRef.current) return;
     initAttemptedRef.current = true;
 
@@ -894,7 +939,6 @@ export default function VideoCall() {
       if (joinTimeout) window.clearTimeout(joinTimeout);
       joinTimeout = null;
 
-      // Only destroy if we own this call object
       if (callObjectRef.current) {
         console.log('Destroying call object on unmount...');
         try {
@@ -906,129 +950,93 @@ export default function VideoCall() {
       }
     };
 
+    const requestMediaPermissions = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        stream.getTracks().forEach((t) => t.stop());
+      } catch (e) {
+        console.warn('[VideoCall] getUserMedia permission check failed:', e);
+        toast({
+          title: 'Mikrofon izni gerekli',
+          description: 'Görüşmede ses iletimi için mikrofon izni vermelisiniz.',
+          variant: 'destructive',
+        });
+      }
+    };
+
+    const createRoom = async (): Promise<CreateDailyRoomResponse> => {
+      console.log('[VideoCall] Calling create-daily-room edge function...');
+
+      const { data: roomData, error: roomError } = await supabase.functions.invoke('create-daily-room', {
+        body: { conversation_id: conversationId, force_new: true },
+      });
+
+      console.log('[VideoCall] create-daily-room response:', { roomData, roomError });
+
+      if (roomError) {
+        console.error('[VideoCall] create-daily-room error:', roomError);
+        const { errorCode, errorDetails, status } = parseEdgeFunctionError(roomError);
+        console.error('[VideoCall] Error details:', { errorCode, errorDetails, status });
+        throw new Error(getErrorMessage(errorCode, status));
+      }
+
+      if (roomData?.error) {
+        console.error('[VideoCall] create-daily-room returned error in body:', roomData);
+        const userMessage = roomData.code === 'DAILY_AUTH_FAILED'
+          ? 'Daily.co API bağlantı hatası. Lütfen yöneticiye başvurun.'
+          : roomData.error;
+        throw new Error(userMessage);
+      }
+
+      const trust = isTrustedDailyRoomPayload(roomData);
+      if (!trust.ok) {
+        console.error('[VideoCall] create-daily-room returned invalid/untrusted payload:', roomData);
+        throw new Error('Oda oluşturulamadı (güvenlik doğrulaması başarısız). Lütfen sayfayı yenileyip tekrar deneyin.');
+      }
+
+      if (trust.mode === 'legacy') {
+        console.warn('[VideoCall] Using legacy create-daily-room payload; proceeding with strict URL validation.');
+      }
+
+      console.log('[VideoCall] Room created successfully:', {
+        room_name: roomData.room_name,
+        room_url: roomData.room_url,
+      });
+
+      return roomData;
+    };
+
+    const getDisplayName = async (): Promise<string> => {
+      const { data: authData } = await supabase.auth.getUser();
+      const user = authData?.user ?? null;
+      return (
+        (user?.user_metadata as any)?.username ||
+        (user?.user_metadata as any)?.full_name ||
+        user?.email?.split('@')[0] ||
+        'Kullanıcı'
+      );
+    };
+
     const initializeCall = async () => {
       try {
         if (!conversationId) throw new Error('Conversation ID is required');
-
         console.log('[VideoCall] Initializing call for conversation:', conversationId);
 
-        // ═══════════════════════════════════════════════════════════════════════
-        // STEP 1: Create Daily room via edge function
-        // ═══════════════════════════════════════════════════════════════════════
-        console.log('[VideoCall] Calling create-daily-room edge function...');
-        
-        const { data: roomData, error: roomError } = await supabase.functions.invoke('create-daily-room', {
-          body: { conversation_id: conversationId, force_new: true },
-        });
-
-        console.log('[VideoCall] create-daily-room response:', { roomData, roomError });
-
+        const roomData = await createRoom();
         if (!isMounted) return;
-
-        // ═══════════════════════════════════════════════════════════════════════
-        // STEP 2: Handle edge function errors with detailed messages
-        // ═══════════════════════════════════════════════════════════════════════
-        if (roomError) {
-          console.error('[VideoCall] create-daily-room error:', roomError);
-
-          const ctx = (roomError as any)?.context;
-          const status = ctx?.status;
-
-          // Try to extract the error code and details from the response
-          let errorCode = 'UNKNOWN';
-          let errorDetails = '';
-          
-          try {
-            const bodyStr = typeof ctx?.body === 'string' ? ctx.body : JSON.stringify(ctx?.body || {});
-            const parsed = JSON.parse(bodyStr);
-            errorCode = parsed?.code || 'UNKNOWN';
-            errorDetails = parsed?.details || parsed?.error || '';
-          } catch {
-            errorDetails = (roomError as any)?.message || 'Unknown error';
-          }
-
-          // Provide user-friendly error messages based on error code
-          let userMessage = 'Video araması başlatılamadı.';
-          
-          if (errorCode === 'DAILY_AUTH_FAILED' || status === 502) {
-            userMessage = 'Daily.co API bağlantı hatası. Lütfen yöneticiye başvurun.';
-          } else if (errorCode === 'MISSING_API_KEY') {
-            userMessage = 'Video servisi yapılandırılmamış. Lütfen yöneticiye başvurun.';
-          } else if (status === 401 || errorCode === 'NO_AUTH_HEADER' || errorCode === 'INVALID_JWT') {
-            userMessage = 'Oturum geçersiz. Lütfen tekrar giriş yapın.';
-          } else if (status === 403 || errorCode === 'NOT_PARTICIPANT') {
-            userMessage = 'Bu görüşmeye katılma yetkiniz yok.';
-          } else if (status === 404 || errorCode === 'CONVERSATION_NOT_FOUND') {
-            userMessage = 'Görüşme bulunamadı.';
-          }
-
-          console.error('[VideoCall] Error details:', { errorCode, errorDetails, status, userMessage });
-          throw new Error(userMessage);
-        }
-
-        // ═══════════════════════════════════════════════════════════════════════
-        // STEP 3: Validate room data
-        // ═══════════════════════════════════════════════════════════════════════
-        // Check for error in the response body (edge function may return 200 with error)
-        if (roomData?.error) {
-          console.error('[VideoCall] create-daily-room returned error in body:', roomData);
-          const userMessage = roomData.code === 'DAILY_AUTH_FAILED' 
-            ? 'Daily.co API bağlantı hatası. Lütfen yöneticiye başvurun.'
-            : roomData.error;
-          throw new Error(userMessage);
-        }
-
-        // Hard safety: never join unless payload is trusted.
-        // Prefer the new contract ({ success, created_via }) but allow a *strictly validated* legacy payload
-        // if the edge function redeploy is still propagating.
-        const trust = isTrustedDailyRoomPayload(roomData as any);
-        if (!trust.ok) {
-          console.error('[VideoCall] create-daily-room returned invalid/untrusted payload:', roomData);
-          throw new Error('Oda oluşturulamadı (güvenlik doğrulaması başarısız). Lütfen sayfayı yenileyip tekrar deneyin.');
-        }
-
-        if (trust.mode === 'legacy') {
-          console.warn('[VideoCall] Using legacy create-daily-room payload; proceeding with strict URL validation.');
-        }
-
-        console.log('[VideoCall] Room created successfully:', {
-          room_name: roomData.room_name,
-          room_url: roomData.room_url,
-        });
 
         console.log('Room data:', roomData);
 
-        // Create Daily call object
-        // allowMultipleCallInstances needed for React Strict Mode (double-mount in dev)
-        // We still properly cleanup on unmount to prevent duplicate participants in production
-        const call = Daily.createCallObject({
-          allowMultipleCallInstances: true,
-        });
-
+        const call = Daily.createCallObject({ allowMultipleCallInstances: true });
         callObjectRef.current = call;
 
-        // IMPORTANT: render UI immediately so user can see self preview (camera) while joining
         setCallObject(call);
         setIsLoading(false);
 
-        // Request permissions up-front (prevents "no audio" cases when browser blocks mic)
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-          // Immediately stop tracks - Daily will acquire its own tracks via startCamera/join
-          stream.getTracks().forEach((t) => t.stop());
-        } catch (e) {
-          console.warn('[VideoCall] getUserMedia permission check failed:', e);
-          toast({
-            title: 'Mikrofon izni gerekli',
-            description: 'Görüşmede ses iletimi için mikrofon izni vermelisiniz.',
-            variant: 'destructive',
-          });
-        }
+        await requestMediaPermissions();
 
-        // Start camera early to enable local preview ASAP
         try {
           await call.startCamera();
-          // Ensure local audio starts enabled (some browsers may start muted)
           try {
             (call as any).setLocalAudio?.(true);
           } catch (e) {
@@ -1041,7 +1049,7 @@ export default function VideoCall() {
         joinTimeout = window.setTimeout(() => {
           if (!isMounted) return;
           setError('Bağlantı zaman aşımına uğradı. Lütfen tekrar deneyin.');
-        }, 20000);
+        }, JOIN_TIMEOUT_MS);
 
         call.on('joined-meeting', () => {
           console.log('Successfully joined meeting');
@@ -1055,70 +1063,49 @@ export default function VideoCall() {
           setError('Bağlantı hatası oluştu');
         });
 
-        // Join in background (CallUI will transition out of loading when joined-meeting fires)
+        const displayName = await getDisplayName();
         const { data: authData } = await supabase.auth.getUser();
         const user = authData?.user ?? null;
-        const displayName =
-          (user?.user_metadata as any)?.username ||
-          (user?.user_metadata as any)?.full_name ||
-          user?.email?.split('@')[0] ||
-          'Kullanıcı';
 
         const joinOptions: any = {
           url: roomData.room_url,
           userName: displayName,
           userData: user?.id ? { appUserId: user.id } : undefined,
-          // Enable adaptive video quality based on network conditions
           sendSettings: {
-            video: {
-              // Daily will automatically downgrade to 360p/180p on poor connections
-              maxQuality: 'high' as const, // Starts at 1080p, adapts down based on bandwidth
-            },
+            video: { maxQuality: 'high' as const },
           },
         };
 
-        const isExpRoomError = (e: any) =>
-          e?.error?.type === 'exp-room' || e?.errorMsg?.includes('no longer available');
-
-        const isNoRoomError = (e: any) =>
-          e?.error?.type === 'no-room' || e?.errorMsg?.includes("does not exist");
-
-        // ═══════════════════════════════════════════════════════════════════════
-        // STEP 6: Join the room - with one retry if room doesn't exist
-        // ═══════════════════════════════════════════════════════════════════════
         console.log('[VideoCall] Attempting to join room:', roomData.room_url);
-        
+
         try {
           await call.join(joinOptions);
           console.log('[VideoCall] Successfully joined room');
         } catch (e: any) {
           console.error('[VideoCall] Initial join failed:', e);
-          
-          // If room doesn't exist (shouldn't happen with new flow), try once more
+
           if (isExpRoomError(e) || isNoRoomError(e)) {
             console.warn('[VideoCall] Room invalid, this should not happen with fresh room creation. Retrying once...');
-            
+
             const { data: freshRoomData, error: freshRoomError } = await supabase.functions.invoke('create-daily-room', {
               body: { conversation_id: conversationId, force_new: true },
             });
 
             console.log('[VideoCall] Retry create-daily-room response:', { freshRoomData, freshRoomError });
 
-            const retryTrust = isTrustedDailyRoomPayload(freshRoomData as any);
-            if (freshRoomError || (freshRoomData as any)?.error || !retryTrust.ok) {
+            const retryTrust = isTrustedDailyRoomPayload(freshRoomData);
+            if (freshRoomError || freshRoomData?.error || !retryTrust.ok) {
               console.error('[VideoCall] Retry also failed:', { freshRoomError, freshRoomData });
               throw new Error('Oda oluşturulamadı. Lütfen daha sonra tekrar deneyin.');
             }
 
             console.log('[VideoCall] Retrying join with new room:', freshRoomData.room_url);
-
             await call.join({ ...joinOptions, url: freshRoomData.room_url });
           } else {
             throw e;
           }
         }
 
-        // Post-join safety: force-enable local audio/video (prevents "connected but silent" situations)
         try {
           (call as any).setLocalAudio?.(true);
           (call as any).setLocalVideo?.(true);
@@ -1158,24 +1145,14 @@ export default function VideoCall() {
           <p className="text-lg font-semibold">Görüşmeye bağlanılamadı</p>
           <p className="text-sm text-muted-foreground">{error}</p>
           <div className="flex items-center justify-center gap-3 pt-2">
-            <Button 
-              variant="outline" 
-              onClick={() => navigate('/messages')}
-            >
-              Mesajlara Dön
-            </Button>
-            <Button 
-              onClick={() => window.location.reload()}
-            >
-              Tekrar Dene
-            </Button>
+            <Button variant="outline" onClick={() => navigate('/messages')}>Mesajlara Dön</Button>
+            <Button onClick={() => window.location.reload()}>Tekrar Dene</Button>
           </div>
         </motion.div>
       </div>
     );
   }
 
-  // Very first paint while callObject is being created
   if (isLoading || !callObject) {
     return (
       <div className="h-screen bg-gradient-to-br from-background via-purple-950/20 to-background flex items-center justify-center">
@@ -1197,7 +1174,6 @@ export default function VideoCall() {
               </div>
             </div>
           </div>
-
           <div className="space-y-2">
             <p className="text-lg font-medium">Görüşme hazırlanıyor</p>
             <p className="text-sm text-muted-foreground">Lütfen bekleyin...</p>
