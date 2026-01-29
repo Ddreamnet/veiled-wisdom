@@ -79,28 +79,26 @@ function isTrustedDailyRoomPayload(payload: CreateDailyRoomResponse | null | und
     return { ok: false, reason: 'missing_room_url' };
   }
 
-  // Preferred (new) contract: backend explicitly confirms creation.
-  if (payload.success === true && payload.created_via === 'daily_api') {
-    return { ok: true, mode: 'confirmed' };
-  }
-
-  // Backward-compatible (legacy) contract: accept only if it *looks like* a real Daily room URL.
+  // Validate room_url is a valid Daily.co URL
   try {
     const url = new URL(payload.room_url);
     const isHttps = url.protocol === 'https:';
     const isDailyHost = url.hostname === 'daily.co' || url.hostname.endsWith('.daily.co');
-    const pathSegs = url.pathname.split('/').filter(Boolean);
-    const lastSeg = pathSegs[pathSegs.length - 1];
-    const nameMatchesPath = payload.room_name ? payload.room_name === lastSeg : true;
-
-    if (isHttps && isDailyHost && lastSeg && nameMatchesPath) {
-      return { ok: true, mode: 'legacy' };
+    
+    if (!isHttps || !isDailyHost) {
+      return { ok: false, reason: 'invalid_daily_url' };
     }
   } catch {
-    // URL parsing failed
+    return { ok: false, reason: 'invalid_url_format' };
   }
 
-  return { ok: false, reason: 'untrusted_payload' };
+  // Preferred: backend confirms creation via Daily API
+  if (payload.success === true && payload.created_via === 'daily_api') {
+    return { ok: true, mode: 'confirmed' };
+  }
+
+  // Accept any valid Daily.co URL (the URL itself is the source of truth from Daily API)
+  return { ok: true, mode: 'legacy' };
 }
 
 function isExpRoomError(e: any): boolean {
@@ -927,9 +925,14 @@ export default function VideoCall() {
 
   const initAttemptedRef = useRef(false);
   const callObjectRef = useRef<DailyCall | null>(null);
+  const currentRoomUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (initAttemptedRef.current) return;
+    // Prevent double initialization (React StrictMode / fast refresh)
+    if (initAttemptedRef.current) {
+      console.log('[VideoCall] Init already attempted, skipping duplicate');
+      return;
+    }
     initAttemptedRef.current = true;
 
     let isMounted = true;
@@ -1001,7 +1004,12 @@ export default function VideoCall() {
       console.log('[VideoCall] Room created successfully:', {
         room_name: roomData.room_name,
         room_url: roomData.room_url,
+        success: roomData.success,
+        created_via: roomData.created_via,
       });
+
+      // Store the room URL for retry comparison
+      currentRoomUrlRef.current = roomData.room_url;
 
       return roomData;
     };
@@ -1085,7 +1093,7 @@ export default function VideoCall() {
           console.error('[VideoCall] Initial join failed:', e);
 
           if (isExpRoomError(e) || isNoRoomError(e)) {
-            console.warn('[VideoCall] Room invalid, this should not happen with fresh room creation. Retrying once...');
+            console.warn('[VideoCall] Room expired/not found. Creating a fresh room...');
 
             const { data: freshRoomData, error: freshRoomError } = await supabase.functions.invoke('create-daily-room', {
               body: { conversation_id: conversationId, force_new: true },
@@ -1093,13 +1101,31 @@ export default function VideoCall() {
 
             console.log('[VideoCall] Retry create-daily-room response:', { freshRoomData, freshRoomError });
 
-            const retryTrust = isTrustedDailyRoomPayload(freshRoomData);
-            if (freshRoomError || freshRoomData?.error || !retryTrust.ok) {
-              console.error('[VideoCall] Retry also failed:', { freshRoomError, freshRoomData });
+            if (freshRoomError) {
+              console.error('[VideoCall] Retry edge function error:', freshRoomError);
               throw new Error('Oda oluşturulamadı. Lütfen daha sonra tekrar deneyin.');
             }
 
-            console.log('[VideoCall] Retrying join with new room:', freshRoomData.room_url);
+            if (freshRoomData?.error) {
+              console.error('[VideoCall] Retry returned error:', freshRoomData);
+              throw new Error(freshRoomData.error);
+            }
+
+            const retryTrust = isTrustedDailyRoomPayload(freshRoomData);
+            if (!retryTrust.ok) {
+              const reason = 'reason' in retryTrust ? retryTrust.reason : 'unknown';
+              console.error('[VideoCall] Retry validation failed:', { freshRoomData, reason });
+              throw new Error('Oda oluşturulamadı. Lütfen daha sonra tekrar deneyin.');
+            }
+
+            // Ensure we're using a DIFFERENT room URL
+            if (freshRoomData.room_url === currentRoomUrlRef.current) {
+              console.error('[VideoCall] Retry returned same room URL - edge function may be cached');
+              throw new Error('Yeni oda oluşturulamadı. Lütfen sayfayı yenileyip tekrar deneyin.');
+            }
+
+            currentRoomUrlRef.current = freshRoomData.room_url;
+            console.log('[VideoCall] Retrying join with NEW room:', freshRoomData.room_url);
             await call.join({ ...joinOptions, url: freshRoomData.room_url });
           } else {
             throw e;
