@@ -52,6 +52,10 @@ type CreateDailyRoomResponse = {
   error?: { code: string; message: string; details?: unknown };
 };
 
+// In-flight mutexes to prevent double init / double room creation per conversation
+const initFlowMutex = new Map<string, Promise<void>>();
+const createRoomMutex = new Map<string, Promise<CreateDailyRoomResponse>>();
+
 const SOLO_TIMEOUT_SECONDS = 30 * 60; // 30 minutes alone = auto-leave
 const MAX_CALL_DURATION_SECONDS = 2 * 60 * 60; // 2 hours max = auto-leave
 const NOTIFICATION_DURATION_MS = 4000;
@@ -86,22 +90,24 @@ function isNoRoomError(e: any): boolean {
   return e?.error?.type === 'no-room' || e?.errorMsg?.includes("does not exist");
 }
 
-function parseEdgeFunctionError(roomError: any): { errorCode: string; errorDetails: string; status?: number } {
+function parseEdgeFunctionError(roomError: any): { errorCode: string; errorDetails: string; status?: number; functionVersion?: string } {
   const ctx = roomError?.context;
   const status = ctx?.status;
   let errorCode = 'UNKNOWN';
   let errorDetails = '';
+  let functionVersion: string | undefined;
 
   try {
     const bodyStr = typeof ctx?.body === 'string' ? ctx.body : JSON.stringify(ctx?.body || {});
     const parsed = JSON.parse(bodyStr);
-    errorCode = parsed?.code || 'UNKNOWN';
-    errorDetails = parsed?.details || parsed?.error || '';
+    functionVersion = parsed?.function_version;
+    errorCode = parsed?.error?.code || parsed?.code || 'UNKNOWN';
+    errorDetails = parsed?.error?.message || parsed?.error || parsed?.details || '';
   } catch {
     errorDetails = roomError?.message || 'Unknown error';
   }
 
-  return { errorCode, errorDetails, status };
+  return { errorCode, errorDetails, status, functionVersion };
 }
 
 function getErrorMessage(errorCode: string, status?: number): string {
@@ -943,48 +949,78 @@ export default function VideoCall() {
     };
 
     const createRoom = async (opts?: { forceNew?: boolean }): Promise<CreateDailyRoomResponse> => {
-      console.log('[VideoCall] Calling create-daily-room edge function...');
+      if (!conversationId) throw new Error('Conversation ID is required');
 
-      const { data: roomData, error: roomError } = await supabase.functions.invoke('create-daily-room', {
-        body: { conversation_id: conversationId, force_new: opts?.forceNew ?? true },
+      const mutexKey = `${conversationId}:${opts?.forceNew ? 'forceNew' : 'reuse'}`;
+      const existing = createRoomMutex.get(mutexKey);
+      if (existing) {
+        console.log('[VideoCall] create-daily-room mutex hit; reusing in-flight promise', { mutexKey });
+        return await existing;
+      }
+
+      const p = (async () => {
+        console.log('[VideoCall] Calling create-daily-room edge function...');
+
+        const { data: roomData, error: roomError } = await supabase.functions.invoke('create-daily-room', {
+          body: { conversation_id: conversationId, force_new: opts?.forceNew ?? true },
+        });
+
+        console.log('[VideoCall] create-daily-room response:', { roomData, roomError });
+
+        if (roomError) {
+          console.error('[VideoCall] create-daily-room error:', roomError);
+          const { errorCode, errorDetails, status, functionVersion } = parseEdgeFunctionError(roomError);
+          console.error('[VideoCall] Error details:', { errorCode, errorDetails, status, functionVersion });
+          throw new Error(`${getErrorMessage(errorCode, status)} (fn: ${functionVersion || 'missing'})`);
+        }
+
+        const raw = roomData as any;
+        if (!raw) throw new Error('Oda oluşturulamadı. (fn: missing)');
+
+        // Hard fail if we receive any non-standard payload (e.g. legacy {room_name, room_url}).
+        if (typeof raw.success !== 'boolean') {
+          console.error('[VideoCall] NON-STANDARD create-daily-room payload (wrong deployment?)', raw);
+          throw new Error('Sunucu yanıtı standart değil (yanlış/stale edge function). (fn: missing)');
+        }
+
+        const typed = raw as CreateDailyRoomResponse;
+        console.log('[VideoCall] create-daily-room function_version:', typed.function_version ?? 'missing');
+
+        if (!typed.function_version) {
+          console.warn('[VideoCall] Missing function_version => likely wrong deployment or stale function');
+        }
+
+        if (typed.success !== true) {
+          const errorCode = typed.error?.code || 'UNKNOWN';
+          console.error('[VideoCall] create-daily-room returned error payload:', typed);
+          throw new Error(`${getErrorMessage(errorCode)} (fn: ${typed.function_version || 'missing'})`);
+        }
+
+        const roomUrl = typed.room?.url;
+        const roomName = typed.room?.name;
+        if (!roomUrl || !roomName) {
+          console.error('[VideoCall] create-daily-room missing room fields:', typed);
+          throw new Error(`Oda oluşturulamadı (eksik yanıt). (fn: ${typed.function_version || 'missing'})`);
+        }
+
+        assertValidDailyUrl(roomUrl);
+
+        console.log('[VideoCall] Room ready:', {
+          room_name: roomName,
+          room_url: roomUrl,
+          reused: typed.reused,
+          source: typed.source,
+          function_version: typed.function_version,
+        });
+
+        currentRoomUrlRef.current = roomUrl;
+        return typed;
+      })().finally(() => {
+        createRoomMutex.delete(mutexKey);
       });
 
-      console.log('[VideoCall] create-daily-room response:', { roomData, roomError });
-
-      if (roomError) {
-        console.error('[VideoCall] create-daily-room error:', roomError);
-        const { errorCode, errorDetails, status } = parseEdgeFunctionError(roomError);
-        console.error('[VideoCall] Error details:', { errorCode, errorDetails, status });
-        throw new Error(getErrorMessage(errorCode, status));
-      }
-
-      const typed = roomData as CreateDailyRoomResponse | null;
-      if (!typed) throw new Error('Oda oluşturulamadı.');
-
-      if (typed.success !== true) {
-        const errorCode = typed.error?.code || 'UNKNOWN';
-        console.error('[VideoCall] create-daily-room returned error payload:', typed);
-        throw new Error(getErrorMessage(errorCode));
-      }
-
-      const roomUrl = typed.room?.url;
-      const roomName = typed.room?.name;
-      if (!roomUrl || !roomName) {
-        console.error('[VideoCall] create-daily-room missing room fields:', typed);
-        throw new Error('Oda oluşturulamadı (eksik yanıt).');
-      }
-
-      assertValidDailyUrl(roomUrl);
-
-      console.log('[VideoCall] Room ready:', {
-        room_name: roomName,
-        room_url: roomUrl,
-        reused: typed.reused,
-        source: typed.source,
-      });
-
-      currentRoomUrlRef.current = roomUrl;
-      return typed;
+      createRoomMutex.set(mutexKey, p);
+      return await p;
     };
 
     const getDisplayName = async (): Promise<string> => {
@@ -1105,10 +1141,22 @@ export default function VideoCall() {
       }
     };
 
-    initializeCall();
+    // StrictMode / double-mount guard (production-safe): per conversation mutex for init flow.
+    if (conversationId) {
+      const existingInit = initFlowMutex.get(conversationId);
+      if (existingInit) {
+        console.log('[VideoCall] initFlow mutex hit; skipping duplicate init', { conversationId });
+      } else {
+        const p = initializeCall().finally(() => {
+          initFlowMutex.delete(conversationId);
+        });
+        initFlowMutex.set(conversationId, p);
+      }
+    }
 
     return () => {
       isMounted = false;
+      if (conversationId) initFlowMutex.delete(conversationId);
       cleanup();
     };
   }, [conversationId, navigate, toast]);

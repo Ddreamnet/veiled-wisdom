@@ -2,7 +2,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.80.0";
 
 // Bump this when changing logic so the frontend can detect outdated deployments.
-const FUNCTION_VERSION = "2026-01-29-verify-daily-room";
+// IMPORTANT: frontend uses this value as proof we're hitting the intended deployment.
+const FUNCTION_VERSION = "create-daily-room@2026-01-29-REV3";
 
 type SuccessResponse = {
   success: true;
@@ -24,6 +25,30 @@ function jsonResponse(payload: unknown, status = 200) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+function errorResponse(
+  params: { code: string; message: string; details?: unknown },
+  status: number,
+) {
+  return jsonResponse(
+    {
+      success: false,
+      error: params,
+      function_version: FUNCTION_VERSION,
+    } satisfies ErrorResponse,
+    status,
+  );
+}
+
+function successResponse(payload: Omit<SuccessResponse, "function_version">, status = 200) {
+  return jsonResponse(
+    {
+      ...payload,
+      function_version: FUNCTION_VERSION,
+    } satisfies SuccessResponse,
+    status,
+  );
 }
 
 function safeJsonParse(text: string): unknown {
@@ -83,6 +108,8 @@ serve(async (req) => {
   }
 
   try {
+    const request_id = crypto.randomUUID();
+
     // ═══════════════════════════════════════════════════════════════════════
     // 1. VALIDATE DAILY_API_KEY FIRST - This is the most common failure point
     // ═══════════════════════════════════════════════════════════════════════
@@ -90,22 +117,19 @@ serve(async (req) => {
     
     console.log('[create-daily-room] === STARTUP CHECKS ===');
     console.log('[create-daily-room] function_version:', FUNCTION_VERSION);
+    console.log('[create-daily-room] request_id:', request_id);
     console.log('[create-daily-room] DAILY_API_KEY present:', !!DAILY_API_KEY);
     console.log('[create-daily-room] DAILY_API_KEY length:', DAILY_API_KEY?.length ?? 0);
     console.log('[create-daily-room] DAILY_API_KEY first 8 chars:', DAILY_API_KEY?.substring(0, 8) ?? 'N/A');
     
     if (!DAILY_API_KEY || DAILY_API_KEY.trim() === "") {
       console.error("[create-daily-room] CRITICAL: DAILY_API_KEY is not configured or is empty!");
-      return jsonResponse(
+      return errorResponse(
         {
-          success: false,
-          error: {
-            code: "MISSING_DAILY_API_KEY",
-            message: "DAILY_API_KEY is not configured",
-            details: "Add DAILY_API_KEY in Supabase Function environment variables.",
-          },
-          function_version: FUNCTION_VERSION,
-        } satisfies ErrorResponse,
+          code: "MISSING_DAILY_API_KEY",
+          message: "DAILY_API_KEY is not configured",
+          details: "Add DAILY_API_KEY in Supabase Function environment variables.",
+        },
         500,
       );
     }
@@ -120,9 +144,9 @@ serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       console.error('[create-daily-room] No Authorization header');
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized', code: 'NO_AUTH_HEADER', function_version: FUNCTION_VERSION }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      return errorResponse(
+        { code: 'NO_AUTH_HEADER', message: 'Unauthorized', details: { request_id } },
+        401,
       );
     }
 
@@ -137,9 +161,9 @@ serve(async (req) => {
     const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
     if (claimsError || !claimsData?.claims?.sub) {
       console.error('[create-daily-room] JWT validation failed:', claimsError);
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized', code: 'INVALID_JWT', function_version: FUNCTION_VERSION }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      return errorResponse(
+        { code: 'INVALID_JWT', message: 'Unauthorized', details: { request_id } },
+        401,
       );
     }
 
@@ -157,18 +181,18 @@ serve(async (req) => {
       body = await req.json();
     } catch (e) {
       console.error('[create-daily-room] Failed to parse request body:', e);
-      return new Response(
-        JSON.stringify({ error: 'Invalid request body', code: 'INVALID_BODY' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      return errorResponse(
+        { code: 'INVALID_BODY', message: 'Invalid request body', details: { request_id } },
+        400,
       );
     }
 
     const { conversation_id, force_new } = body;
 
     if (!conversation_id) {
-      return new Response(
-        JSON.stringify({ error: 'conversation_id is required', code: 'MISSING_CONVERSATION_ID' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      return errorResponse(
+        { code: 'MISSING_CONVERSATION_ID', message: 'conversation_id is required', details: { request_id } },
+        400,
       );
     }
 
@@ -185,9 +209,9 @@ serve(async (req) => {
 
     if (convError || !conversation) {
       console.error('[create-daily-room] Conversation fetch error:', convError);
-      return new Response(
-        JSON.stringify({ error: 'Conversation not found', code: 'CONVERSATION_NOT_FOUND', function_version: FUNCTION_VERSION }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      return errorResponse(
+        { code: 'CONVERSATION_NOT_FOUND', message: 'Conversation not found', details: { request_id } },
+        404,
       );
     }
 
@@ -199,9 +223,9 @@ serve(async (req) => {
         teacher_id: conversation.teacher_id, 
         student_id: conversation.student_id 
       });
-      return new Response(
-        JSON.stringify({ error: 'Forbidden', code: 'NOT_PARTICIPANT', function_version: FUNCTION_VERSION }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      return errorResponse(
+        { code: 'NOT_PARTICIPANT', message: 'Forbidden', details: { request_id } },
+        403,
       );
     }
 
@@ -215,20 +239,20 @@ serve(async (req) => {
       console.log("[create-daily-room] Candidate cached room found; verifying before reuse", {
         conversation_id,
         room_name: existingName,
+        request_id,
       });
 
       const verify = await dailyRequest(DAILY_API_KEY, "GET", `/rooms/${encodeURIComponent(existingName)}`);
       if (verify.res.ok) {
         const createdAt = new Date().toISOString();
-        return jsonResponse(
+        return successResponse(
           {
             success: true,
             room: { name: existingName, url: existingUrl },
             createdAt,
             source: "daily_api",
-            function_version: FUNCTION_VERSION,
             reused: true,
-          } satisfies SuccessResponse,
+          },
           200,
         );
       }
@@ -292,12 +316,8 @@ serve(async (req) => {
             ? "Daily API key invalid/for wrong domain"
             : `Daily room creation failed (${status})`;
 
-        return jsonResponse(
-          {
-            success: false,
-            error: { code, message, details: create.json },
-            function_version: FUNCTION_VERSION,
-          } satisfies ErrorResponse,
+        return errorResponse(
+          { code, message, details: { request_id, daily: create.json } },
           502,
         );
       }
@@ -307,27 +327,23 @@ serve(async (req) => {
       createdRoomUrl = body?.url ?? null;
 
       if (!isNonEmptyString(createdRoomName) || !isNonEmptyString(createdRoomUrl)) {
-        return jsonResponse(
+        return errorResponse(
           {
-            success: false,
-            error: {
-              code: "DAILY_CREATE_INCOMPLETE",
-              message: "Daily API returned incomplete room data",
-              details: create.json,
-            },
-            function_version: FUNCTION_VERSION,
-          } satisfies ErrorResponse,
+            code: "DAILY_CREATE_INCOMPLETE",
+            message: "Daily API returned incomplete room data",
+            details: { request_id, daily: create.json },
+          },
           502,
         );
       }
     } catch (fetchError) {
       console.error("[create-daily-room] CRITICAL: fetch to Daily API failed:", fetchError);
-      return jsonResponse(
+      return errorResponse(
         {
-          success: false,
-          error: { code: "DAILY_FETCH_FAILED", message: "Failed to connect to Daily API", details: String(fetchError) },
-          function_version: FUNCTION_VERSION,
-        } satisfies ErrorResponse,
+          code: "DAILY_FETCH_FAILED",
+          message: "Failed to connect to Daily API",
+          details: { request_id, error: String(fetchError) },
+        },
         502,
       );
     }
@@ -337,26 +353,25 @@ serve(async (req) => {
     // ═══════════════════════════════════════════════════════════════════════
     const verify = await dailyRequest(DAILY_API_KEY, "GET", `/rooms/${encodeURIComponent(createdRoomName)}`);
     if (!verify.res.ok) {
-      return jsonResponse(
+      return errorResponse(
         {
-          success: false,
-          error: {
-            code: "DAILY_VERIFY_FAILED",
-            message: `Daily room verify failed (${verify.res.status})`,
-            details: {
-              room_name: createdRoomName,
-              create_url: createdRoomUrl,
-              verify_status: verify.res.status,
-              verify_body: verify.json,
-            },
+          code: "DAILY_VERIFY_FAILED",
+          message: `Daily room verify failed (${verify.res.status})`,
+          details: {
+            request_id,
+            room_name: createdRoomName,
+            create_url: createdRoomUrl,
+            verify_status: verify.res.status,
+            verify_body: verify.json,
           },
-          function_version: FUNCTION_VERSION,
-        } satisfies ErrorResponse,
+        },
         502,
       );
     }
 
     console.log("[create-daily-room] === ROOM CREATED + VERIFIED ===", {
+      function_version: FUNCTION_VERSION,
+      request_id,
       room_name: createdRoomName,
       room_url: createdRoomUrl,
       conversation_id,
@@ -386,15 +401,14 @@ serve(async (req) => {
     // ═══════════════════════════════════════════════════════════════════════
     // 9. RETURN SUCCESS
     // ═══════════════════════════════════════════════════════════════════════
-    return jsonResponse(
+    return successResponse(
       {
         success: true,
         room: { name: createdRoomName, url: createdRoomUrl },
         createdAt,
         source: "daily_api",
-        function_version: FUNCTION_VERSION,
         reused: false,
-      } satisfies SuccessResponse,
+      },
       200,
     );
 
@@ -402,13 +416,6 @@ serve(async (req) => {
     console.error('[create-daily-room] UNHANDLED ERROR:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
-    return jsonResponse(
-      {
-        success: false,
-        error: { code: "UNHANDLED_ERROR", message: errorMessage },
-        function_version: FUNCTION_VERSION,
-      } satisfies ErrorResponse,
-      500,
-    );
+    return errorResponse({ code: "UNHANDLED_ERROR", message: errorMessage }, 500);
   }
 });
