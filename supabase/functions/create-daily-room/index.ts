@@ -2,16 +2,19 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.80.0";
 
 // Bump this when changing logic so the frontend can detect outdated deployments.
-// IMPORTANT: frontend uses this value as proof we're hitting the intended deployment.
-const FUNCTION_VERSION = "create-daily-room@2026-01-29-REV3";
+const FUNCTION_VERSION = "create-daily-room@2026-01-29-REV4-ACTIVE-CALL";
+
+type CallIntent = "start" | "join";
 
 type SuccessResponse = {
   success: true;
   room: { name: string; url: string };
   createdAt: string;
-  source: "daily_api";
   function_version: string;
   reused: boolean;
+  active_call: boolean;
+  call_started_at?: string;
+  call_created_by?: string;
 };
 
 type ErrorResponse = {
@@ -82,7 +85,6 @@ async function dailyRequest(
   const text = await res.text();
   const requestId = res.headers.get("x-daily-request-id") ?? res.headers.get("x-request-id") ?? null;
 
-  // NOTE: We never log the API key.
   console.log("[create-daily-room] Daily API", {
     method,
     path,
@@ -102,7 +104,6 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -111,7 +112,7 @@ serve(async (req) => {
     const request_id = crypto.randomUUID();
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 1. VALIDATE DAILY_API_KEY FIRST - This is the most common failure point
+    // 1. VALIDATE DAILY_API_KEY
     // ═══════════════════════════════════════════════════════════════════════
     const DAILY_API_KEY = Deno.env.get("DAILY_API_KEY");
     
@@ -119,11 +120,9 @@ serve(async (req) => {
     console.log('[create-daily-room] function_version:', FUNCTION_VERSION);
     console.log('[create-daily-room] request_id:', request_id);
     console.log('[create-daily-room] DAILY_API_KEY present:', !!DAILY_API_KEY);
-    console.log('[create-daily-room] DAILY_API_KEY length:', DAILY_API_KEY?.length ?? 0);
-    console.log('[create-daily-room] DAILY_API_KEY first 8 chars:', DAILY_API_KEY?.substring(0, 8) ?? 'N/A');
     
     if (!DAILY_API_KEY || DAILY_API_KEY.trim() === "") {
-      console.error("[create-daily-room] CRITICAL: DAILY_API_KEY is not configured or is empty!");
+      console.error("[create-daily-room] CRITICAL: DAILY_API_KEY is not configured!");
       return errorResponse(
         {
           code: "MISSING_DAILY_API_KEY",
@@ -143,7 +142,6 @@ serve(async (req) => {
     // ═══════════════════════════════════════════════════════════════════════
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
-      console.error('[create-daily-room] No Authorization header');
       return errorResponse(
         { code: 'NO_AUTH_HEADER', message: 'Unauthorized', details: { request_id } },
         401,
@@ -151,7 +149,6 @@ serve(async (req) => {
     }
 
     const token = authHeader.replace('Bearer ', '');
-
     const supabaseAuth = createClient(
       supabaseUrl,
       supabaseAnonKey,
@@ -170,13 +167,12 @@ serve(async (req) => {
     const authedUserId = claimsData.claims.sub as string;
     console.log('[create-daily-room] Authenticated user:', authedUserId);
 
-    // Service client for DB writes/reads
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // ═══════════════════════════════════════════════════════════════════════
     // 3. PARSE REQUEST BODY
     // ═══════════════════════════════════════════════════════════════════════
-    let body: { conversation_id?: string; force_new?: boolean } = {};
+    let body: { conversation_id?: string; intent?: CallIntent; force_new?: boolean } = {};
     try {
       body = await req.json();
     } catch (e) {
@@ -188,6 +184,8 @@ serve(async (req) => {
     }
 
     const { conversation_id, force_new } = body;
+    // Default intent to "start" for backward compatibility
+    const intent: CallIntent = body.intent === "join" ? "join" : "start";
 
     if (!conversation_id) {
       return errorResponse(
@@ -196,7 +194,7 @@ serve(async (req) => {
       );
     }
 
-    console.log('[create-daily-room] conversation_id:', conversation_id, 'user:', authedUserId);
+    console.log('[create-daily-room] Request:', { conversation_id, intent, force_new, user: authedUserId });
 
     // ═══════════════════════════════════════════════════════════════════════
     // 4. GET CONVERSATION & VALIDATE PARTICIPANT
@@ -215,14 +213,8 @@ serve(async (req) => {
       );
     }
 
-    // Authorization: only participants can create/get a room for this conversation
     const isParticipant = conversation.teacher_id === authedUserId || conversation.student_id === authedUserId;
     if (!isParticipant) {
-      console.warn('[create-daily-room] Forbidden - user not participant', { 
-        authedUserId, 
-        teacher_id: conversation.teacher_id, 
-        student_id: conversation.student_id 
-      });
       return errorResponse(
         { code: 'NOT_PARTICIPANT', message: 'Forbidden', details: { request_id } },
         403,
@@ -230,55 +222,95 @@ serve(async (req) => {
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 5. REUSE IF VERIFIED (unless force_new)
+    // 5. CHECK FOR ACTIVE CALL
     // ═══════════════════════════════════════════════════════════════════════
-    const existingName = conversation.video_room_name as string | null | undefined;
-    const existingUrl = conversation.video_room_url as string | null | undefined;
+    const activeCallRoomName = conversation.active_call_room_name as string | null;
+    const activeCallRoomUrl = conversation.active_call_room_url as string | null;
+    const activeCallStartedAt = conversation.active_call_started_at as string | null;
+    const activeCallEndedAt = conversation.active_call_ended_at as string | null;
+    const activeCallCreatedBy = conversation.active_call_created_by as string | null;
 
-    if (!force_new && isNonEmptyString(existingName) && isNonEmptyString(existingUrl)) {
-      console.log("[create-daily-room] Candidate cached room found; verifying before reuse", {
-        conversation_id,
-        room_name: existingName,
-        request_id,
-      });
+    const hasActiveCall = 
+      isNonEmptyString(activeCallRoomName) && 
+      isNonEmptyString(activeCallRoomUrl) &&
+      activeCallStartedAt !== null &&
+      activeCallEndedAt === null;
 
-      const verify = await dailyRequest(DAILY_API_KEY, "GET", `/rooms/${encodeURIComponent(existingName)}`);
+    console.log('[create-daily-room] Active call check:', { 
+      hasActiveCall, 
+      activeCallRoomName, 
+      activeCallStartedAt, 
+      activeCallEndedAt,
+      intent 
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 6. IF ACTIVE CALL EXISTS - VERIFY AND RETURN IT
+    // ═══════════════════════════════════════════════════════════════════════
+    if (hasActiveCall && !force_new) {
+      console.log("[create-daily-room] Active call exists; verifying in Daily...");
+
+      const verify = await dailyRequest(DAILY_API_KEY, "GET", `/rooms/${encodeURIComponent(activeCallRoomName!)}`);
+      
       if (verify.res.ok) {
-        const createdAt = new Date().toISOString();
-        return successResponse(
-          {
-            success: true,
-            room: { name: existingName, url: existingUrl },
-            createdAt,
-            source: "daily_api",
-            reused: true,
-          },
-          200,
-        );
+        console.log("[create-daily-room] Active call verified successfully");
+        return successResponse({
+          success: true,
+          room: { name: activeCallRoomName!, url: activeCallRoomUrl! },
+          createdAt: activeCallStartedAt!,
+          reused: true,
+          active_call: true,
+          call_started_at: activeCallStartedAt!,
+          call_created_by: activeCallCreatedBy ?? undefined,
+        });
       }
 
-      console.warn("[create-daily-room] Cached room failed verification; will create a new one", {
-        conversation_id,
-        room_name: existingName,
-        verify_status: verify.res.status,
-      });
-
-      // clear cached room in DB (best effort)
+      // Room doesn't exist in Daily anymore - clean up
+      console.warn("[create-daily-room] Active call room not found in Daily. Cleaning up...");
       await supabase
         .from("conversations")
-        .update({ video_room_name: null, video_room_url: null, video_room_created_at: null })
+        .update({
+          active_call_room_name: null,
+          active_call_room_url: null,
+          active_call_started_at: null,
+          active_call_ended_at: new Date().toISOString(),
+          active_call_created_by: null,
+          // Also clear legacy fields
+          video_room_name: null,
+          video_room_url: null,
+          video_room_created_at: null,
+        })
         .eq("id", conversation_id);
+
+      // If intent is "join", the call they wanted to join is gone
+      if (intent === "join") {
+        return errorResponse(
+          { code: "NO_ACTIVE_CALL", message: "Aktif arama bulunamadı veya sona erdi.", details: { request_id } },
+          404,
+        );
+      }
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 6. CREATE A FRESH DAILY ROOM (unique)
+    // 7. IF INTENT IS "JOIN" BUT NO ACTIVE CALL - ERROR
+    // ═══════════════════════════════════════════════════════════════════════
+    if (intent === "join" && !hasActiveCall) {
+      console.log("[create-daily-room] Intent is 'join' but no active call exists");
+      return errorResponse(
+        { code: "NO_ACTIVE_CALL", message: "Aktif arama bulunamadı. Görüşmeyi başlatmak için 'Görüntülü Ara' butonunu kullanın.", details: { request_id } },
+        404,
+      );
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 8. CREATE A NEW DAILY ROOM (START intent)
     // ═══════════════════════════════════════════════════════════════════════
     const ts = Math.floor(Date.now() / 1000);
     const compactId = String(conversation_id).replace(/-/g, "");
     const rand = crypto.randomUUID().slice(0, 8);
     const roomName = `c${compactId.slice(0, 12)}-${ts}-${rand}`;
 
-    console.log('[create-daily-room] === CREATING DAILY ROOM ===');
+    console.log('[create-daily-room] === CREATING NEW ROOM ===');
     console.log('[create-daily-room] Room name:', roomName);
 
     const roomPayload = {
@@ -292,130 +324,103 @@ serve(async (req) => {
         start_audio_off: false,
         enable_advanced_chat: false,
         enable_prejoin_ui: false,
-        // IMPORTANT: Do not set exp. Expiring rooms cause “works then breaks later” regressions
-        // when any stale room_url is reused.
+        // No exp - rooms persist until manually cleaned
       },
     };
 
-    console.log('[create-daily-room] Sending POST to https://api.daily.co/v1/rooms');
-    console.log('[create-daily-room] Payload:', JSON.stringify(roomPayload));
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // 7. POST /rooms (create) + fail-fast
-    // ═══════════════════════════════════════════════════════════════════════
     let createdRoomName: string | null = null;
     let createdRoomUrl: string | null = null;
+    
     try {
       const create = await dailyRequest(DAILY_API_KEY, "POST", "/rooms", roomPayload);
 
       if (!create.res.ok) {
         const status = create.res.status;
         const code = status === 401 || status === 403 ? "DAILY_API_KEY_INVALID" : "DAILY_CREATE_FAILED";
-        const message =
-          status === 401 || status === 403
-            ? "Daily API key invalid/for wrong domain"
-            : `Daily room creation failed (${status})`;
+        const message = status === 401 || status === 403
+          ? "Daily API key invalid/for wrong domain"
+          : `Daily room creation failed (${status})`;
 
-        return errorResponse(
-          { code, message, details: { request_id, daily: create.json } },
-          502,
-        );
+        return errorResponse({ code, message, details: { request_id, daily: create.json } }, 502);
       }
 
-      const body = create.json as any;
-      createdRoomName = body?.name ?? null;
-      createdRoomUrl = body?.url ?? null;
+      const resBody = create.json as any;
+      createdRoomName = resBody?.name ?? null;
+      createdRoomUrl = resBody?.url ?? null;
 
       if (!isNonEmptyString(createdRoomName) || !isNonEmptyString(createdRoomUrl)) {
-        return errorResponse(
-          {
-            code: "DAILY_CREATE_INCOMPLETE",
-            message: "Daily API returned incomplete room data",
-            details: { request_id, daily: create.json },
-          },
-          502,
-        );
+        return errorResponse({
+          code: "DAILY_CREATE_INCOMPLETE",
+          message: "Daily API returned incomplete room data",
+          details: { request_id, daily: create.json },
+        }, 502);
       }
     } catch (fetchError) {
       console.error("[create-daily-room] CRITICAL: fetch to Daily API failed:", fetchError);
-      return errorResponse(
-        {
-          code: "DAILY_FETCH_FAILED",
-          message: "Failed to connect to Daily API",
-          details: { request_id, error: String(fetchError) },
-        },
-        502,
-      );
+      return errorResponse({
+        code: "DAILY_FETCH_FAILED",
+        message: "Failed to connect to Daily API",
+        details: { request_id, error: String(fetchError) },
+      }, 502);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 8. VERIFY /rooms/{name} (non-negotiable)
+    // 9. VERIFY ROOM EXISTS
     // ═══════════════════════════════════════════════════════════════════════
     const verify = await dailyRequest(DAILY_API_KEY, "GET", `/rooms/${encodeURIComponent(createdRoomName)}`);
     if (!verify.res.ok) {
-      return errorResponse(
-        {
-          code: "DAILY_VERIFY_FAILED",
-          message: `Daily room verify failed (${verify.res.status})`,
-          details: {
-            request_id,
-            room_name: createdRoomName,
-            create_url: createdRoomUrl,
-            verify_status: verify.res.status,
-            verify_body: verify.json,
-          },
+      return errorResponse({
+        code: "DAILY_VERIFY_FAILED",
+        message: `Daily room verify failed (${verify.res.status})`,
+        details: {
+          request_id,
+          room_name: createdRoomName,
+          verify_status: verify.res.status,
         },
-        502,
-      );
+      }, 502);
     }
 
-    console.log("[create-daily-room] === ROOM CREATED + VERIFIED ===", {
-      function_version: FUNCTION_VERSION,
-      request_id,
-      room_name: createdRoomName,
-      room_url: createdRoomUrl,
-      conversation_id,
-      reused: false,
-    });
+    console.log("[create-daily-room] === ROOM CREATED + VERIFIED ===");
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 8. SAVE ROOM INFO TO DATABASE
+    // 10. SAVE AS ACTIVE CALL IN DATABASE
     // ═══════════════════════════════════════════════════════════════════════
-    const createdAt = new Date().toISOString();
+    const startedAt = new Date().toISOString();
 
     const { error: updateError } = await supabase
       .from('conversations')
       .update({
+        // New active call fields
+        active_call_room_name: createdRoomName,
+        active_call_room_url: createdRoomUrl,
+        active_call_started_at: startedAt,
+        active_call_ended_at: null,
+        active_call_created_by: authedUserId,
+        // Also update legacy fields for backward compat
         video_room_name: createdRoomName,
         video_room_url: createdRoomUrl,
-        video_room_created_at: createdAt,
+        video_room_created_at: startedAt,
       })
       .eq('id', conversation_id);
 
     if (updateError) {
       console.error('[create-daily-room] Failed to save room info to DB:', updateError);
-      // Room was created in Daily but we failed to save - still return success
-      // since the room exists and can be used
+      // Continue - room was created and can be used
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // 9. RETURN SUCCESS
-    // ═══════════════════════════════════════════════════════════════════════
-    return successResponse(
-      {
-        success: true,
-        room: { name: createdRoomName, url: createdRoomUrl },
-        createdAt,
-        source: "daily_api",
-        reused: false,
-      },
-      200,
-    );
+    return successResponse({
+      success: true,
+      room: { name: createdRoomName, url: createdRoomUrl },
+      createdAt: startedAt,
+      reused: false,
+      active_call: true,
+      call_started_at: startedAt,
+      call_created_by: authedUserId,
+    });
 
   } catch (error) {
     console.error('[create-daily-room] UNHANDLED ERROR:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-
     return errorResponse({ code: "UNHANDLED_ERROR", message: errorMessage }, 500);
   }
 });

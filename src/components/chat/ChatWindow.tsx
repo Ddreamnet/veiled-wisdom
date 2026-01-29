@@ -3,12 +3,14 @@ import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
 import { useMessages } from '@/hooks/useMessages';
 import { ConversationWithParticipant } from '@/hooks/useConversations';
+import { useActiveCall } from '@/hooks/useActiveCall';
 import { useAuth } from '@/contexts/AuthContext';
-import { Video, ArrowLeft, MessageCircle } from 'lucide-react';
+import { Video, ArrowLeft, MessageCircle, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link, useNavigate } from 'react-router-dom';
 import { formatPresenceStatus } from '@/hooks/usePresence';
 import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 
 type ChatWindowProps = {
   conversation: ConversationWithParticipant | null;
@@ -20,6 +22,7 @@ export function ChatWindow({ conversation, onBack, onMessagesRead }: ChatWindowP
   const { user } = useAuth();
   const navigate = useNavigate();
   const { messages, loading, sending, sendMessage } = useMessages(conversation?.id || null);
+  const { activeCall } = useActiveCall(conversation?.id || null);
 
   // Empty state - no conversation selected
   if (!conversation) {
@@ -41,8 +44,60 @@ export function ChatWindow({ conversation, onBack, onMessagesRead }: ChatWindowP
   const presenceStatus = formatPresenceStatus(conversation.other_participant.last_seen);
   const isMobile = onBack !== undefined;
 
+  // Check if the active call was started by someone else (so we show "Join" banner)
+  const isCallStartedByOther = activeCall && activeCall.created_by !== user?.id;
+
+  const handleJoinCall = () => {
+    navigate(`/call/${conversation.id}?intent=join`);
+  };
+
+  const handleStartCall = () => {
+    navigate(`/call/${conversation.id}`);
+  };
+
   return (
     <div className={cn("flex-1 flex flex-col bg-background", isMobile && "h-full overflow-hidden")}>
+      {/* Active Call Banner */}
+      <AnimatePresence>
+        {activeCall && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="bg-green-500/10 border-b border-green-500/30 px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="h-10 w-10 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                    <Phone className="h-5 w-5 text-green-500 animate-pulse" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-green-400 truncate">
+                      {isCallStartedByOther ? 'Aktif görüşme var' : 'Görüşmeniz devam ediyor'}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {isCallStartedByOther 
+                        ? `${conversation.other_participant.username || 'Kullanıcı'} aramada`
+                        : 'Katılmak için tıklayın'
+                      }
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={handleJoinCall}
+                  className="bg-green-500 hover:bg-green-600 text-white flex-shrink-0"
+                >
+                  <Phone className="h-4 w-4 mr-1.5" />
+                  Katıl
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Modern Header */}
       <div 
         className={cn(
@@ -100,10 +155,13 @@ export function ChatWindow({ conversation, onBack, onMessagesRead }: ChatWindowP
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate(`/call/${conversation.id}`)}
+            onClick={activeCall ? handleJoinCall : handleStartCall}
             className={cn(
-              "rounded-full flex-shrink-0 hover:bg-primary/10 hover:text-primary transition-colors",
-              isMobile ? "h-10 w-10" : "h-11 w-11"
+              "rounded-full flex-shrink-0 transition-colors",
+              isMobile ? "h-10 w-10" : "h-11 w-11",
+              activeCall 
+                ? "bg-green-500/10 hover:bg-green-500/20 text-green-500" 
+                : "hover:bg-primary/10 hover:text-primary"
             )}
           >
             <Video className="h-5 w-5" />
