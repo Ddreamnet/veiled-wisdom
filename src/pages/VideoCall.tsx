@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { DailyProvider } from '@daily-co/daily-react';
 import Daily, { DailyCall, DailyParticipant, DailyEventObjectParticipant, DailyEventObjectParticipantLeft } from '@daily-co/daily-js';
 import { supabase } from '@/lib/supabase';
@@ -41,6 +41,7 @@ interface NotificationItem {
 }
 
 type CallState = 'loading' | 'joining' | 'joined' | 'leaving' | 'error';
+type CallIntent = 'start' | 'join';
 
 type CreateDailyRoomResponse = {
   success: boolean;
@@ -49,6 +50,9 @@ type CreateDailyRoomResponse = {
   source?: string;
   function_version?: string;
   reused?: boolean;
+  active_call?: boolean;
+  call_started_at?: string;
+  call_created_by?: string;
   error?: { code: string; message: string; details?: unknown };
 };
 
@@ -115,6 +119,7 @@ function getErrorMessage(errorCode: string, status?: number): string {
   if (errorCode === 'MISSING_DAILY_API_KEY') return 'Video servisi yapılandırılmamış (DAILY_API_KEY eksik). Lütfen yöneticiye başvurun.';
   if (errorCode === 'DAILY_VERIFY_FAILED') return 'Oda doğrulanamadı (Daily verify failed). Lütfen tekrar deneyin.';
   if (errorCode === 'DAILY_CREATE_FAILED' || errorCode === 'DAILY_FETCH_FAILED') return 'Oda oluşturma başarısız. Lütfen tekrar deneyin.';
+  if (errorCode === 'NO_ACTIVE_CALL') return 'Aktif görüşme bulunamadı. Görüşme sona ermiş olabilir.';
   if (status === 401 || errorCode === 'NO_AUTH_HEADER' || errorCode === 'INVALID_JWT') {
     return 'Oturum geçersiz. Lütfen tekrar giriş yapın.';
   }
@@ -138,18 +143,12 @@ function isMirrorOfLocal(p: DailyParticipant, local: DailyParticipant | null): b
   const lp = local as any;
   const rp = p as any;
 
-  // Same underlying media track id
   if (lp?.videoTrack?.id && rp?.videoTrack?.id && lp.videoTrack.id === rp.videoTrack.id) return true;
   if (lp?.audioTrack?.id && rp?.audioTrack?.id && lp.audioTrack.id === rp.audioTrack.id) return true;
-
-  // App identity / user identity if present
   if (lp?.userData?.appUserId && rp?.userData?.appUserId && lp.userData.appUserId === rp.userData.appUserId) return true;
   if (lp?.user_id && rp?.user_id && lp.user_id === rp.user_id) return true;
-
-  // Name match (only if non-empty)
   if (lp?.user_name && rp?.user_name && lp.user_name === rp.user_name) return true;
 
-  // If remote has *no* identifying info at all, treat it as a mirror candidate.
   const hasAnyIdentity = !!(rp?.userData?.appUserId || rp?.user_id || rp?.user_name);
   if (!hasAnyIdentity && (rp?.videoTrack || rp?.audioTrack)) return true;
 
@@ -157,7 +156,6 @@ function isMirrorOfLocal(p: DailyParticipant, local: DailyParticipant | null): b
 }
 
 function sanitizeParticipants(participantList: DailyParticipant[]): { local: DailyParticipant | null; sanitized: DailyParticipant[] } {
-  // Find the best local participant
   const locals = participantList.filter((p) => p.local);
   const local =
     locals.find((p) => !!p.videoTrack) ||
@@ -165,12 +163,10 @@ function sanitizeParticipants(participantList: DailyParticipant[]): { local: Dai
     locals[0] ||
     null;
 
-  // Filter out mirrors of local
   const remoteCandidates = participantList
     .filter((p) => !p.local)
     .filter((p) => !isMirrorOfLocal(p, local));
 
-  // Dedupe remotes: keep best tile per user key (prefer videoTrack)
   const remoteMap = new Map<string, DailyParticipant>();
   for (const p of remoteCandidates) {
     const key = String(getParticipantKey(p));
@@ -599,14 +595,12 @@ function useCallTimers(
 
   const remoteCount = participants.filter((p) => !p.local).length;
 
-  // Set room join time when joined
   useEffect(() => {
     if (callState === 'joined' && roomJoinTime === null) {
       setRoomJoinTime(Date.now());
     }
   }, [callState, roomJoinTime]);
 
-  // Waiting time counter - continues from where it left off
   useEffect(() => {
     if (remoteCount === 0 && callState === 'joined') {
       const interval = setInterval(() => setWaitingTime((prev) => prev + 1), 1000);
@@ -614,7 +608,6 @@ function useCallTimers(
     }
   }, [remoteCount, callState]);
 
-  // Call duration counter - starts when first remote joins
   useEffect(() => {
     if (remoteCount > 0 && callState === 'joined') {
       if (callStartTime === null) {
@@ -625,7 +618,6 @@ function useCallTimers(
     }
   }, [remoteCount, callState, callStartTime]);
 
-  // 30 minute solo timeout
   useEffect(() => {
     if (waitingTime >= SOLO_TIMEOUT_SECONDS && callState === 'joined') {
       toast({
@@ -638,7 +630,6 @@ function useCallTimers(
     }
   }, [waitingTime, callState, callObject, toast]);
 
-  // 2 hour max room duration
   useEffect(() => {
     if (!roomJoinTime || callState !== 'joined') return;
 
@@ -690,7 +681,6 @@ function CallUI({ callObject }: CallUIProps) {
     toast
   );
 
-  // Update participants helper
   const updateParticipants = useCallback(() => {
     const participantObj = callObject.participants();
     const participantList = Object.values(participantObj);
@@ -702,7 +692,6 @@ function CallUI({ callObject }: CallUIProps) {
     logParticipants(participantList, sanitized);
   }, [callObject]);
 
-  // Daily event handlers
   useEffect(() => {
     const handleJoinedMeeting = () => {
       console.log('Joined meeting');
@@ -784,7 +773,6 @@ function CallUI({ callObject }: CallUIProps) {
     callObject.leave();
   }, [callObject, autoNavigateOnLeaveRef]);
 
-  // Render states
   if (callState === 'loading' || callState === 'joining') {
     return <LoadingScreen message="Görüşme başlatılıyor..." />;
   }
@@ -795,7 +783,6 @@ function CallUI({ callObject }: CallUIProps) {
 
   const remoteParticipants = participants.filter((p) => !p.local);
 
-  // Waiting room (no remote participants)
   if (remoteParticipants.length === 0) {
     return (
       <>
@@ -813,7 +800,6 @@ function CallUI({ callObject }: CallUIProps) {
     );
   }
 
-  // Active call
   return (
     <>
       <motion.div
@@ -897,8 +883,13 @@ function CallUI({ callObject }: CallUIProps) {
 
 export default function VideoCall() {
   const { conversationId } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Get intent from URL query param (default: start)
+  const intentFromUrl = searchParams.get('intent') as CallIntent | null;
+  const intent: CallIntent = intentFromUrl === 'join' ? 'join' : 'start';
 
   const [callObject, setCallObject] = useState<DailyCall | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -909,7 +900,6 @@ export default function VideoCall() {
   const currentRoomUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
-    // Prevent double initialization (React StrictMode / fast refresh)
     if (initAttemptedRef.current) {
       console.log('[VideoCall] Init already attempted, skipping duplicate');
       return;
@@ -948,10 +938,11 @@ export default function VideoCall() {
       }
     };
 
-    const createRoom = async (opts?: { forceNew?: boolean }): Promise<CreateDailyRoomResponse> => {
+    const createRoom = async (opts?: { forceNew?: boolean; callIntent?: CallIntent }): Promise<CreateDailyRoomResponse> => {
       if (!conversationId) throw new Error('Conversation ID is required');
 
-      const mutexKey = `${conversationId}:${opts?.forceNew ? 'forceNew' : 'reuse'}`;
+      const effectiveIntent = opts?.callIntent ?? intent;
+      const mutexKey = `${conversationId}:${effectiveIntent}:${opts?.forceNew ? 'forceNew' : 'reuse'}`;
       const existing = createRoomMutex.get(mutexKey);
       if (existing) {
         console.log('[VideoCall] create-daily-room mutex hit; reusing in-flight promise', { mutexKey });
@@ -959,10 +950,14 @@ export default function VideoCall() {
       }
 
       const p = (async () => {
-        console.log('[VideoCall] Calling create-daily-room edge function...');
+        console.log('[VideoCall] Calling create-daily-room edge function...', { intent: effectiveIntent });
 
         const { data: roomData, error: roomError } = await supabase.functions.invoke('create-daily-room', {
-          body: { conversation_id: conversationId, force_new: opts?.forceNew ?? true },
+          body: { 
+            conversation_id: conversationId, 
+            intent: effectiveIntent,
+            force_new: opts?.forceNew ?? false 
+          },
         });
 
         console.log('[VideoCall] create-daily-room response:', { roomData, roomError });
@@ -977,7 +972,6 @@ export default function VideoCall() {
         const raw = roomData as any;
         if (!raw) throw new Error('Oda oluşturulamadı. (fn: missing)');
 
-        // Hard fail if we receive any non-standard payload (e.g. legacy {room_name, room_url}).
         if (typeof raw.success !== 'boolean') {
           console.error('[VideoCall] NON-STANDARD create-daily-room payload (wrong deployment?)', raw);
           throw new Error('Sunucu yanıtı standart değil (yanlış/stale edge function). (fn: missing)');
@@ -1009,7 +1003,8 @@ export default function VideoCall() {
           room_name: roomName,
           room_url: roomUrl,
           reused: typed.reused,
-          source: typed.source,
+          active_call: typed.active_call,
+          call_started_at: typed.call_started_at,
           function_version: typed.function_version,
         });
 
@@ -1037,9 +1032,11 @@ export default function VideoCall() {
     const initializeCall = async () => {
       try {
         if (!conversationId) throw new Error('Conversation ID is required');
-        console.log('[VideoCall] Initializing call for conversation:', conversationId);
+        console.log('[VideoCall] Initializing call for conversation:', conversationId, 'intent:', intent);
 
-        const roomData = await createRoom({ forceNew: true });
+        // For "start" intent, we might create a new room or join existing active call
+        // For "join" intent, we must have an active call
+        const roomData = await createRoom({ forceNew: false, callIntent: intent });
         if (!isMounted) return;
 
         console.log('Room data:', roomData);
@@ -1105,7 +1102,8 @@ export default function VideoCall() {
             console.warn('[VideoCall] Room expired/not found. Creating a fresh room...');
 
             const prevUrl = currentRoomUrlRef.current;
-            const fresh = await createRoom({ forceNew: true });
+            // Force create a new room (only works for start intent)
+            const fresh = await createRoom({ forceNew: true, callIntent: 'start' });
             const freshUrl = fresh.room!.url;
 
             if (prevUrl && freshUrl === prevUrl) {
@@ -1141,7 +1139,6 @@ export default function VideoCall() {
       }
     };
 
-    // StrictMode / double-mount guard (production-safe): per conversation mutex for init flow.
     if (conversationId) {
       const existingInit = initFlowMutex.get(conversationId);
       if (existingInit) {
@@ -1159,7 +1156,7 @@ export default function VideoCall() {
       if (conversationId) initFlowMutex.delete(conversationId);
       cleanup();
     };
-  }, [conversationId, navigate, toast]);
+  }, [conversationId, intent, navigate, toast]);
 
   if (error) {
     return (
@@ -1201,7 +1198,9 @@ export default function VideoCall() {
             </div>
           </div>
           <div className="space-y-2">
-            <p className="text-lg font-medium">Görüşme hazırlanıyor</p>
+            <p className="text-lg font-medium">
+              {intent === 'join' ? 'Görüşmeye katılınıyor' : 'Görüşme hazırlanıyor'}
+            </p>
             <p className="text-sm text-muted-foreground">Lütfen bekleyin...</p>
           </div>
         </motion.div>
