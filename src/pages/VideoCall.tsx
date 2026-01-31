@@ -779,6 +779,20 @@ function CallUI({ callObject }: CallUIProps) {
   const [participants, setParticipants] = useState<DailyParticipant[]>([]);
   const [localParticipant, setLocalParticipant] = useState<DailyParticipant | null>(null);
 
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // TRACK EVENT DEDUPLICATION
+  // Daily.co can fire multiple track events for the same track (ICE/SDP renegotiation)
+  // We dedupe by tracking current state per (session_id, trackType)
+  // ═══════════════════════════════════════════════════════════════════════════════
+  const trackStatesRef = useRef<Map<string, { video: boolean; audio: boolean }>>(new Map());
+  
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // DEBOUNCED PARTICIPANT UPDATES
+  // Multiple rapid events (mic toggle → track-stopped + participant-updated + renegotiation)
+  // are batched into a single UI update to prevent flickering
+  // ═══════════════════════════════════════════════════════════════════════════════
+  const updateDebounceRef = useRef<number | null>(null);
+
   const { notifications, add: addNotification, remove: removeNotification } = useNotifications();
   const { waitingTime, callDuration, autoNavigateOnLeaveRef } = useCallTimers(
     callState,
@@ -824,8 +838,31 @@ function CallUI({ callObject }: CallUIProps) {
     // Also sync local media state on participant updates
     syncLocalMediaState();
 
-    logParticipants(participantList, sanitized);
+    // Only log in dev mode and only occasionally to reduce noise
+    if (import.meta.env.DEV) {
+      logParticipants(participantList, sanitized);
+    }
   }, [callObject, syncLocalMediaState]);
+
+  // Debounced version to batch rapid updates (50ms window)
+  const debouncedUpdateParticipants = useCallback(() => {
+    if (updateDebounceRef.current) {
+      window.clearTimeout(updateDebounceRef.current);
+    }
+    updateDebounceRef.current = window.setTimeout(() => {
+      updateParticipants();
+      updateDebounceRef.current = null;
+    }, 50);
+  }, [updateParticipants]);
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (updateDebounceRef.current) {
+        window.clearTimeout(updateDebounceRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     // ══════════════════════════════════════════════════════════════════════════
@@ -887,46 +924,102 @@ function CallUI({ callObject }: CallUIProps) {
     };
 
     const handleParticipantUpdated = () => {
-      updateParticipants();
+      // Use debounced version to prevent rapid fire updates
+      debouncedUpdateParticipants();
     };
 
     const handleParticipantLeft = (event: DailyEventObjectParticipantLeft | undefined) => {
       console.log('[CallUI] participant-left event:', event?.participant?.user_name);
+      
+      // Clean up track state for this participant
+      if (event?.participant?.session_id) {
+        trackStatesRef.current.delete(event.participant.session_id);
+      }
+      
       if (event?.participant && !event.participant.local) {
         addNotification('leave', event.participant.user_name || 'Katılımcı');
       }
+      // Immediate update for leave events (user feedback)
       updateParticipants();
     };
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // TRACK EVENT HANDLERS WITH DEDUPLICATION
+    // Daily.co can fire multiple track events during ICE/SDP renegotiation
+    // We only process events that represent actual state changes
+    // ═══════════════════════════════════════════════════════════════════════════
     const handleTrackStarted = (event: any) => {
-      // Only log remote track events to reduce noise
+      const sessionId = event?.participant?.session_id;
+      const trackKind = event?.track?.kind as 'video' | 'audio';
+      
+      // Skip incomplete events
+      if (!sessionId || !trackKind) {
+        return;
+      }
+      
+      // Get current tracked state for this participant
+      const current = trackStatesRef.current.get(sessionId) || { video: false, audio: false };
+      
+      // DEDUPLICATION: Skip if state hasn't changed
+      if (current[trackKind] === true) {
+        return; // Already marked as on, skip duplicate event
+      }
+      
+      // Update tracked state
+      trackStatesRef.current.set(sessionId, { ...current, [trackKind]: true });
+      
+      // Only log remote track events (reduces noise)
       if (!event?.participant?.local) {
         console.log('[CallUI] track-started (remote):', {
-          participant: event?.participant?.user_name,
-          trackType: event?.track?.kind,
+          participant: event?.participant?.user_name || 'unknown',
+          trackType: trackKind,
         });
       }
+      
       // Sync local media state if this is a local track event
       if (event?.participant?.local) {
         syncLocalMediaState();
       }
-      updateParticipants();
+      
+      // Use debounced update to batch rapid events
+      debouncedUpdateParticipants();
     };
 
-    // Track durduğunda (kamera/mikrofon kapatıldığında) tetiklenir
     const handleTrackStopped = (event: any) => {
-      // Only log remote track events to reduce noise
+      const sessionId = event?.participant?.session_id;
+      const trackKind = event?.track?.kind as 'video' | 'audio';
+      
+      // Skip incomplete events (sometimes participant is missing in track-stopped)
+      if (!sessionId || !trackKind) {
+        return;
+      }
+      
+      // Get current tracked state for this participant
+      const current = trackStatesRef.current.get(sessionId) || { video: true, audio: true };
+      
+      // DEDUPLICATION: Skip if state hasn't changed
+      if (current[trackKind] === false) {
+        return; // Already marked as off, skip duplicate event
+      }
+      
+      // Update tracked state
+      trackStatesRef.current.set(sessionId, { ...current, [trackKind]: false });
+      
+      // Only log remote track events (reduces noise)
       if (!event?.participant?.local) {
         console.log('[CallUI] track-stopped (remote):', {
-          participant: event?.participant?.user_name,
-          trackType: event?.track?.kind,
+          participant: event?.participant?.user_name || 'unknown',
+          trackType: trackKind,
         });
       }
+      
       // Sync local media state if this is a local track event
       if (event?.participant?.local) {
         syncLocalMediaState();
       }
-      updateParticipants();
+      
+      // Use debounced update to batch rapid events
+      debouncedUpdateParticipants();
     };
     
     // Camera error handler to sync state when device fails
@@ -960,7 +1053,7 @@ function CallUI({ callObject }: CallUIProps) {
       callObject.off('track-stopped', handleTrackStopped);
       callObject.off('camera-error', handleCameraError);
     };
-  }, [callObject, navigate, toast, addNotification, updateParticipants, autoNavigateOnLeaveRef, syncLocalMediaState]);
+  }, [callObject, navigate, toast, addNotification, updateParticipants, debouncedUpdateParticipants, autoNavigateOnLeaveRef, syncLocalMediaState]);
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // KAMERA/MİKROFON TOGGLE - Kritik Gizlilik Özelliği
