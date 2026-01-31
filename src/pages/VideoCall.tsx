@@ -513,18 +513,24 @@ function VideoTile({ sessionId, isLocal, displayName }: { sessionId: string; isL
   const isVideoOff = videoTrackState.isOff;
   const isAudioOff = audioTrackState.isOff;
 
-  // Debug logging
+  // Debug logging - only log state transitions, not every render
+  const prevVideoOffRef = useRef(isVideoOff);
+  const prevAudioOffRef = useRef(isAudioOff);
   useEffect(() => {
-    console.log('[VideoTile] Track state update:', {
-      sessionId,
-      displayName,
-      isLocal,
-      isVideoOff,
-      isAudioOff,
-      videoState: videoTrackState.state,
-      audioState: audioTrackState.state,
-    });
-  }, [sessionId, displayName, isLocal, isVideoOff, isAudioOff, videoTrackState.state, audioTrackState.state]);
+    const videoChanged = prevVideoOffRef.current !== isVideoOff;
+    const audioChanged = prevAudioOffRef.current !== isAudioOff;
+    
+    if (videoChanged || audioChanged) {
+      console.log('[VideoTile] Track state changed:', {
+        displayName,
+        isLocal,
+        video: videoChanged ? `${prevVideoOffRef.current ? 'off' : 'on'} -> ${isVideoOff ? 'off' : 'on'}` : (isVideoOff ? 'off' : 'on'),
+        audio: audioChanged ? `${prevAudioOffRef.current ? 'off' : 'on'} -> ${isAudioOff ? 'off' : 'on'}` : (isAudioOff ? 'off' : 'on'),
+      });
+      prevVideoOffRef.current = isVideoOff;
+      prevAudioOffRef.current = isAudioOff;
+    }
+  }, [displayName, isLocal, isVideoOff, isAudioOff]);
 
   const avatarLetter = isLocal ? 'S' : (displayName?.charAt(0).toUpperCase() || 'K');
   const shownName = isLocal ? 'Siz' : (displayName || 'Katılımcı');
@@ -734,15 +740,40 @@ function CallUI({ callObject }: CallUIProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const [isCameraOn, setIsCameraOn] = useState(true);
-  const [isMicOn, setIsMicOn] = useState(true);
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // CAMERA/MIC STATE: Derive from Daily as the single source of truth
+  // Initialize from Daily's current state, not hardcoded true
+  // ═══════════════════════════════════════════════════════════════════════════════
+  const [isCameraOn, setIsCameraOn] = useState(() => {
+    try {
+      const local = callObject.participants().local;
+      return local?.video !== false;
+    } catch { return true; }
+  });
+  const [isMicOn, setIsMicOn] = useState(() => {
+    try {
+      const local = callObject.participants().local;
+      return local?.audio !== false;
+    } catch { return true; }
+  });
+  
+  // Refs to prevent stale closure issues in event handlers
+  const isCameraOnRef = useRef(isCameraOn);
+  const isMicOnRef = useRef(isMicOn);
+  useEffect(() => { isCameraOnRef.current = isCameraOn; }, [isCameraOn]);
+  useEffect(() => { isMicOnRef.current = isMicOn; }, [isMicOn]);
+
   const [callState, setCallState] = useState<CallState>('loading');
   const callStateRef = useRef<CallState>('loading');
+  const prevCallStateRef = useRef<CallState>('loading');
 
-  // Debug: Log all callState transitions
+  // Debug: Log only callState TRANSITIONS (not every render)
   useEffect(() => {
+    if (prevCallStateRef.current !== callState) {
+      console.log('[CallUI] callState transition:', prevCallStateRef.current, '->', callState);
+      prevCallStateRef.current = callState;
+    }
     callStateRef.current = callState;
-    console.log('[CallUI] callState transition:', callState);
   }, [callState]);
 
   const [participants, setParticipants] = useState<DailyParticipant[]>([]);
@@ -756,6 +787,32 @@ function CallUI({ callObject }: CallUIProps) {
     toast
   );
 
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // SYNC LOCAL MEDIA STATE FROM DAILY
+  // This is the single source of truth for camera/mic button state
+  // ═══════════════════════════════════════════════════════════════════════════════
+  const syncLocalMediaState = useCallback(() => {
+    try {
+      const local = callObject.participants().local;
+      if (!local) return;
+      
+      const videoOn = local.video !== false;
+      const audioOn = local.audio !== false;
+      
+      // Only update state if actually changed (prevent unnecessary renders)
+      if (isCameraOnRef.current !== videoOn) {
+        console.log('[CallUI] Camera state sync:', isCameraOnRef.current, '->', videoOn);
+        setIsCameraOn(videoOn);
+      }
+      if (isMicOnRef.current !== audioOn) {
+        console.log('[CallUI] Mic state sync:', isMicOnRef.current, '->', audioOn);
+        setIsMicOn(audioOn);
+      }
+    } catch (e) {
+      // Ignore errors during destroy
+    }
+  }, [callObject]);
+
   const updateParticipants = useCallback(() => {
     const participantObj = callObject.participants();
     const participantList = Object.values(participantObj);
@@ -764,8 +821,11 @@ function CallUI({ callObject }: CallUIProps) {
     setLocalParticipant(local);
     setParticipants(sanitized);
 
+    // Also sync local media state on participant updates
+    syncLocalMediaState();
+
     logParticipants(participantList, sanitized);
-  }, [callObject]);
+  }, [callObject, syncLocalMediaState]);
 
   useEffect(() => {
     // ══════════════════════════════════════════════════════════════════════════
@@ -839,24 +899,40 @@ function CallUI({ callObject }: CallUIProps) {
     };
 
     const handleTrackStarted = (event: any) => {
-      console.log('[CallUI] track-started event:', {
-        participant: event?.participant?.user_name,
-        trackType: event?.track?.kind,
-        isLocal: event?.participant?.local,
-        trackEnabled: event?.track?.enabled,
-        trackMuted: event?.track?.muted,
-      });
+      // Only log remote track events to reduce noise
+      if (!event?.participant?.local) {
+        console.log('[CallUI] track-started (remote):', {
+          participant: event?.participant?.user_name,
+          trackType: event?.track?.kind,
+        });
+      }
+      // Sync local media state if this is a local track event
+      if (event?.participant?.local) {
+        syncLocalMediaState();
+      }
       updateParticipants();
     };
 
     // Track durduğunda (kamera/mikrofon kapatıldığında) tetiklenir
     const handleTrackStopped = (event: any) => {
-      console.log('[CallUI] track-stopped event:', {
-        participant: event?.participant?.user_name,
-        trackType: event?.track?.kind,
-        isLocal: event?.participant?.local,
-      });
+      // Only log remote track events to reduce noise
+      if (!event?.participant?.local) {
+        console.log('[CallUI] track-stopped (remote):', {
+          participant: event?.participant?.user_name,
+          trackType: event?.track?.kind,
+        });
+      }
+      // Sync local media state if this is a local track event
+      if (event?.participant?.local) {
+        syncLocalMediaState();
+      }
       updateParticipants();
+    };
+    
+    // Camera error handler to sync state when device fails
+    const handleCameraError = () => {
+      console.warn('[CallUI] camera-error event - syncing state');
+      syncLocalMediaState();
     };
 
     updateParticipants();
@@ -870,6 +946,7 @@ function CallUI({ callObject }: CallUIProps) {
     callObject.on('participant-left', handleParticipantLeft);
     callObject.on('track-started', handleTrackStarted);
     callObject.on('track-stopped', handleTrackStopped);
+    callObject.on('camera-error', handleCameraError);
 
     return () => {
       callObject.off('joining-meeting', handleJoiningMeeting);
@@ -881,8 +958,9 @@ function CallUI({ callObject }: CallUIProps) {
       callObject.off('participant-left', handleParticipantLeft);
       callObject.off('track-started', handleTrackStarted);
       callObject.off('track-stopped', handleTrackStopped);
+      callObject.off('camera-error', handleCameraError);
     };
-  }, [callObject, navigate, toast, addNotification, updateParticipants, autoNavigateOnLeaveRef]);
+  }, [callObject, navigate, toast, addNotification, updateParticipants, autoNavigateOnLeaveRef, syncLocalMediaState]);
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // KAMERA/MİKROFON TOGGLE - Kritik Gizlilik Özelliği
@@ -979,9 +1057,20 @@ function CallUI({ callObject }: CallUIProps) {
     callObject.leave();
   }, [callObject, autoNavigateOnLeaveRef]);
 
-  // Debug: Log overlay visibility decision
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // FIX: Overlay visibility log moved to useEffect to prevent spam
+  // This was previously in the render body, causing logs on EVERY re-render
+  // ═══════════════════════════════════════════════════════════════════════════════
   const showLoadingOverlay = callState === 'loading' || callState === 'joining';
-  console.log('[CallUI] Overlay visibility check:', { callState, showLoadingOverlay });
+  
+  // Only log when overlay visibility actually changes
+  const prevShowLoadingRef = useRef(showLoadingOverlay);
+  useEffect(() => {
+    if (prevShowLoadingRef.current !== showLoadingOverlay) {
+      console.log('[CallUI] Overlay visibility changed:', { callState, showLoadingOverlay });
+      prevShowLoadingRef.current = showLoadingOverlay;
+    }
+  }, [callState, showLoadingOverlay]);
 
   if (showLoadingOverlay) {
     return <LoadingScreen message="Görüşme başlatılıyor..." />;
