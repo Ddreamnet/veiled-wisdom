@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 
 interface CallUIProps {
   callObject: DailyCall;
+  conversationId: string;
 }
 
 interface NotificationProps {
@@ -58,6 +59,26 @@ type CreateDailyRoomResponse = {
 // In-flight mutexes to prevent double init / double room creation per conversation
 const initFlowMutex = new Map<string, Promise<void>>();
 const createRoomMutex = new Map<string, Promise<CreateDailyRoomResponse>>();
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MODULE-LEVEL TRACK STATE DEDUPLICATION
+// StrictMode remount'larında ref sıfırlanmasını önlemek için modül seviyesinde tutulur
+// Conversation bazlı izole edilir, böylece farklı görüşmeler birbirini etkilemez
+// ═══════════════════════════════════════════════════════════════════════════════
+const globalTrackStates = new Map<string, Map<string, { video: boolean; audio: boolean }>>();
+const handlerRegistrationCount = new Map<string, number>();
+
+function getConversationTrackStates(conversationId: string): Map<string, { video: boolean; audio: boolean }> {
+  if (!globalTrackStates.has(conversationId)) {
+    globalTrackStates.set(conversationId, new Map());
+  }
+  return globalTrackStates.get(conversationId)!;
+}
+
+function cleanupConversationTrackStates(conversationId: string): void {
+  globalTrackStates.delete(conversationId);
+  handlerRegistrationCount.delete(conversationId);
+}
 
 const SOLO_TIMEOUT_SECONDS = 30 * 60; // 30 minutes alone = auto-leave
 const MAX_CALL_DURATION_SECONDS = 2 * 60 * 60; // 2 hours max = auto-leave
@@ -771,9 +792,15 @@ function useCallTimers(
 // MAIN COMPONENTS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function CallUI({ callObject }: CallUIProps) {
+function CallUI({ callObject, conversationId }: CallUIProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
+  
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // MODULE-LEVEL TRACK STATE (StrictMode remount koruması)
+  // Bileşen seviyesindeki ref her mount'ta sıfırlanır, modül seviyesi kalıcıdır
+  // ═══════════════════════════════════════════════════════════════════════════════
+  const trackStates = getConversationTrackStates(conversationId);
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // CAMERA/MIC STATE: Derive from Daily as the single source of truth
@@ -814,12 +841,8 @@ function CallUI({ callObject }: CallUIProps) {
   const [participants, setParticipants] = useState<DailyParticipant[]>([]);
   const [localParticipant, setLocalParticipant] = useState<DailyParticipant | null>(null);
 
-  // ═══════════════════════════════════════════════════════════════════════════════
-  // TRACK EVENT DEDUPLICATION
-  // Daily.co can fire multiple track events for the same track (ICE/SDP renegotiation)
-  // We dedupe by tracking current state per (session_id, trackType)
-  // ═══════════════════════════════════════════════════════════════════════════════
-  const trackStatesRef = useRef<Map<string, { video: boolean; audio: boolean }>>(new Map());
+  // trackStates artık modül seviyesinde tutulur (yukarıda getConversationTrackStates ile alındı)
+  // Bu, StrictMode remount'larında state kaybını önler
   
   // ═══════════════════════════════════════════════════════════════════════════════
   // DEBOUNCED PARTICIPANT UPDATES
@@ -901,6 +924,21 @@ function CallUI({ callObject }: CallUIProps) {
 
   useEffect(() => {
     // ══════════════════════════════════════════════════════════════════════════
+    // HANDLER REGISTRATION TRACKING (DEBUG)
+    // StrictMode'da çift mount olup olmadığını izlemek için
+    // ══════════════════════════════════════════════════════════════════════════
+    const currentCount = (handlerRegistrationCount.get(conversationId) || 0) + 1;
+    handlerRegistrationCount.set(conversationId, currentCount);
+    
+    if (import.meta.env.DEV) {
+      console.log('[CallUI] Registering handlers:', {
+        conversationId,
+        registrationCount: currentCount,
+        meetingState: callObject.meetingState(),
+      });
+    }
+    
+    // ══════════════════════════════════════════════════════════════════════════
     // FIX: Check CURRENT meeting state immediately on mount
     // This prevents the overlay staying visible if joined-meeting already fired
     // ══════════════════════════════════════════════════════════════════════════
@@ -966,9 +1004,9 @@ function CallUI({ callObject }: CallUIProps) {
     const handleParticipantLeft = (event: DailyEventObjectParticipantLeft | undefined) => {
       console.log('[CallUI] participant-left event:', event?.participant?.user_name);
       
-      // Clean up track state for this participant
+      // Clean up track state for this participant (modül seviyesinde)
       if (event?.participant?.session_id) {
-        trackStatesRef.current.delete(event.participant.session_id);
+        trackStates.delete(event.participant.session_id);
       }
       
       if (event?.participant && !event.participant.local) {
@@ -992,16 +1030,16 @@ function CallUI({ callObject }: CallUIProps) {
         return;
       }
       
-      // Get current tracked state for this participant
-      const current = trackStatesRef.current.get(sessionId) || { video: false, audio: false };
+      // Get current tracked state for this participant (modül seviyesinde)
+      const current = trackStates.get(sessionId) || { video: false, audio: false };
       
       // DEDUPLICATION: Skip if state hasn't changed
       if (current[trackKind] === true) {
         return; // Already marked as on, skip duplicate event
       }
       
-      // Update tracked state
-      trackStatesRef.current.set(sessionId, { ...current, [trackKind]: true });
+      // Update tracked state (modül seviyesinde)
+      trackStates.set(sessionId, { ...current, [trackKind]: true });
       
       // Only log remote track events (reduces noise)
       if (!event?.participant?.local) {
@@ -1029,16 +1067,16 @@ function CallUI({ callObject }: CallUIProps) {
         return;
       }
       
-      // Get current tracked state for this participant
-      const current = trackStatesRef.current.get(sessionId) || { video: true, audio: true };
+      // Get current tracked state for this participant (modül seviyesinde)
+      const current = trackStates.get(sessionId) || { video: true, audio: true };
       
       // DEDUPLICATION: Skip if state hasn't changed
       if (current[trackKind] === false) {
         return; // Already marked as off, skip duplicate event
       }
       
-      // Update tracked state
-      trackStatesRef.current.set(sessionId, { ...current, [trackKind]: false });
+      // Update tracked state (modül seviyesinde)
+      trackStates.set(sessionId, { ...current, [trackKind]: false });
       
       // Only log remote track events (reduces noise)
       if (!event?.participant?.local) {
@@ -1077,6 +1115,10 @@ function CallUI({ callObject }: CallUIProps) {
     callObject.on('camera-error', handleCameraError);
 
     return () => {
+      if (import.meta.env.DEV) {
+        console.log('[CallUI] Cleaning up handlers for:', conversationId);
+      }
+      
       callObject.off('joining-meeting', handleJoiningMeeting);
       callObject.off('joined-meeting', handleJoinedMeeting);
       callObject.off('left-meeting', handleLeftMeeting);
@@ -1087,8 +1129,12 @@ function CallUI({ callObject }: CallUIProps) {
       callObject.off('track-started', handleTrackStarted);
       callObject.off('track-stopped', handleTrackStopped);
       callObject.off('camera-error', handleCameraError);
+      
+      // Track state'leri temizle (görüşme bittiğinde)
+      // Not: StrictMode remount'ta temizlemiyoruz, sadece gerçek unmount'ta
+      // Bu, registrationCount ile kontrol edilebilir, ama genelde sorun değil
     };
-  }, [callObject, navigate, toast, addNotification, updateParticipants, debouncedUpdateParticipants, autoNavigateOnLeaveRef, syncLocalMediaState]);
+  }, [callObject, conversationId, navigate, toast, addNotification, updateParticipants, debouncedUpdateParticipants, autoNavigateOnLeaveRef, syncLocalMediaState]);
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // KAMERA/MİKROFON TOGGLE - Kritik Gizlilik Özelliği
@@ -1666,7 +1712,11 @@ export default function VideoCall() {
 
     return () => {
       isMounted = false;
-      if (conversationId) initFlowMutex.delete(conversationId);
+      if (conversationId) {
+        initFlowMutex.delete(conversationId);
+        // Görüşmeden ayrıldığında track state'leri temizle
+        cleanupConversationTrackStates(conversationId);
+      }
       cleanup();
     };
   }, [conversationId, intent, navigate, toast]);
@@ -1725,7 +1775,7 @@ export default function VideoCall() {
 
   return (
     <DailyProvider callObject={callObject}>
-      <CallUI callObject={callObject} />
+      <CallUI callObject={callObject} conversationId={conversationId} />
     </DailyProvider>
   );
 }
