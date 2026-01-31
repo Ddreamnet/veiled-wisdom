@@ -1,202 +1,265 @@
 
 
-# Video Arama Geçiş Hızlandırma Planı
+# Video Arama Ses Sorunu Çözüm Planı
 
-## Mevcut Durum Analizi
+## Sorun Tanımı
 
-Kullanıcı tarafından bildirilen süreler:
-- **A (Oda kurucusu)**: 2sn "Görüşme hazırlanıyor" + 6sn "Görüşme başlatılıyor" = **~8 saniye**
-- **B (Katılımcı)**: 6-9sn "Görüşme hazırlanıyor" + 2sn "Görüşme başlatılıyor" = **~8-11 saniye**
+Görüntülü aramada ses karşı tarafa iletilmiyor. Konsol loglarından görüldüğü üzere audio track'ler oluşturuluyor (`audioTrackId` mevcut) ancak ses oynatılmıyor.
 
-## Zaman Çizelgesi Analizi
+## Kök Neden Analizi
 
-```text
-═══════════════════════════════════════════════════════════════════════════════
-MEVCUT AKIŞ (Yavaş):
-═══════════════════════════════════════════════════════════════════════════════
-
-"Görüşme hazırlanıyor" (Parent Overlay - callObject === null)
-│
-├── 1. Edge function çağrısı (create-daily-room)     ~1-3sn
-│   └── Supabase auth check + DB query + Daily API
-│
-├── 2. Daily.createCallObject()                      ~0.1sn
-│
-├── 3. setCallObject(call) → Parent overlay kapanır  
-│
-├── 4. requestMediaPermissions()                     ~0-2sn (izin varsa hızlı)
-│
-├── 5. call.startCamera()                            ~1-2sn (async bekleme)
-│
-├── 6. await getDisplayName()                        ~0.5-1sn (DB query)
-│
-├── 7. await supabase.auth.getUser()                 ~0.5-1sn (DB query)
-│
-└── 8. call.join()                                   ~1-2sn (Daily API)
-
-"Görüşme başlatılıyor" (CallUI - callState !== 'joined')
-│
-└── Daily 'joined-meeting' event gelene kadar bekler
-
-═══════════════════════════════════════════════════════════════════════════════
-```
-
-## Tespit Edilen Darboğazlar
-
-| Sıra | Darboğaz | Süre | Çözüm |
-|------|----------|------|-------|
-| 1 | Edge function'a ardışık çağrılar | ~2-4sn | Joiner için URL'i önceden cache'le |
-| 2 | `startCamera()` async bekleme | ~1-2sn | join() ile paralel başlat |
-| 3 | `getDisplayName()` + `getUser()` ardışık | ~1-2sn | Paralel çalıştır |
-| 4 | `call.join()` öncesi gereksiz beklemeler | ~1-2sn | Kritik olmayan işleri ertele |
-| 5 | B kişisi için aktif arama bilgisi geç geliyor | ~3-5sn | ChatWindow'dan room URL'i ile geç |
-
-## Optimizasyon Planı
-
-### Optimizasyon 1: Paralel İşlem Başlatma
-
-**Mevcut (Sıralı)**:
-```typescript
-const roomData = await createRoom();      // 1-3sn bekle
-const call = Daily.createCallObject();
-setCallObject(call);
-await requestMediaPermissions();           // 0-2sn bekle
-await call.startCamera();                  // 1-2sn bekle
-const displayName = await getDisplayName();// 0.5-1sn bekle
-const { data } = await supabase.auth.getUser(); // 0.5-1sn bekle
-await call.join();                         // 1-2sn bekle
-```
-
-**Optimize (Paralel)**:
-```typescript
-// 1. CallObject'i HEMEN oluştur (room beklemeden)
-const call = Daily.createCallObject();
-setCallObject(call); // Parent overlay hemen kapanır!
-
-// 2. Arka planda paralel başlat
-const [roomData, displayName, userData] = await Promise.all([
-  createRoom(),
-  getDisplayName(),
-  supabase.auth.getUser()
-]);
-
-// 3. Kamera ve izinleri join ile paralel
-call.startCamera().catch(console.warn); // Fire-and-forget
-await call.join({ url: roomData.room.url, userName: displayName });
-```
-
-**Kazanç**: ~3-5 saniye
-
-### Optimizasyon 2: Joiner İçin URL'i Önceden Geç
-
-ChatWindow'daki "Katıl" butonundan VideoCall sayfasına yönlendirirken, aktif arama URL'ini query param olarak geç:
-
-```typescript
-// ChatWindow.tsx - Aktif arama banner'ından
-navigate(`/video-call/${conversationId}?intent=join&roomUrl=${encodeURIComponent(activeCall.room_url)}`);
-```
-
-Bu sayede B kişisi edge function çağrısını atlayabilir (veya sadece doğrulama için kullanır).
-
-**Kazanç**: ~2-4 saniye (B kişisi için)
-
-### Optimizasyon 3: CallObject'i Erken Oluştur
-
-`callObject`'i edge function yanıtını beklemeden oluştur. Bu sayede:
-1. Parent overlay hemen kapanır
-2. CallUI mount olur ve kendi loading ekranını gösterir
-3. Kullanıcı "bir şeyler oluyor" hissini alır
-
-```typescript
-// İlk satırda CallObject oluştur
-const call = Daily.createCallObject({ allowMultipleCallInstances: true });
-callObjectRef.current = call;
-setCallObject(call);  // → Parent overlay kapanır, CallUI mount olur
-setIsLoading(false);
-
-// Sonra arka planda room oluştur/al ve join et
-const roomData = await createRoom();
-await call.join({ url: roomData.room.url });
-```
-
-### Optimizasyon 4: Loading State Birleştirme
-
-Parent ve CallUI'daki iki ayrı loading ekranı yerine tek bir akıcı geçiş:
+Konsol loglarından kritik bulgular:
 
 ```text
-MEVCUT:
-[Görüşme hazırlanıyor] → [Görüşme başlatılıyor] → [WaitingRoom/Call]
+[VideoCall] participants(raw) [
+  {
+    "session_id": "a6b41874-ccbf-40cf-a157-1f968266b73d",
+    "local": false,
+    "audioTrackId": "e138e994-2bff-4496-b47b-8fbd237767de"  ← Audio track VAR
+  }
+]
 
-OPTİMİZE:
-[Görüşme hazırlanıyor + kamera önizleme] → [WaitingRoom/Call]
+[CallUI] track-started event: {
+  "trackType": "audio",
+  "isLocal": false  ← Remote audio track başlatıldı
+}
 ```
 
-Kullanıcı beklerken kendi kamerasını görebilir.
+**Sorun**: `VideoTile` bileşeninde yalnızca `<video>` elementi var. Remote katılımcıların **audio track'i için bir `<audio>` elementi oluşturulmuyor**. Video elementi `muted={isLocal}` ayarlı - yani remote katılımcılar için muted değil, ancak **video elementine yalnızca video track bağlanıyor, audio track bağlanmıyor**.
+
+```typescript
+// Mevcut kod - SADECE video track bağlanıyor
+useEffect(() => {
+  if (participant.videoTrack) {
+    const stream = new MediaStream([participant.videoTrack]);  // ← Audio YOK
+    videoRef.current.srcObject = stream;
+  }
+}, [participant.videoTrack]);
+```
+
+## Çözüm Tasarımı
+
+### Seçenek 1: Video Stream'e Audio Track Ekleme (Önerilen)
+
+Video elementi hem video hem audio oynatabilir. `MediaStream`'e her iki track'i de ekleyerek ses sorununu çözebiliriz:
+
+```typescript
+useEffect(() => {
+  if (!videoRef.current) return;
+  
+  const tracks: MediaStreamTrack[] = [];
+  
+  // Video track ekle
+  if (participant.videoTrack) {
+    tracks.push(participant.videoTrack);
+  }
+  
+  // Audio track ekle (remote katılımcılar için)
+  if (!isLocal && participant.audioTrack) {
+    tracks.push(participant.audioTrack);
+  }
+  
+  if (tracks.length > 0) {
+    const stream = new MediaStream(tracks);
+    videoRef.current.srcObject = stream;
+  }
+}, [participant.videoTrack, participant.audioTrack, isLocal]);
+```
+
+### Seçenek 2: Ayrı Audio Elementi (Alternatif)
+
+Remote katılımcılar için ayrı bir `<audio>` elementi oluşturmak:
+
+```typescript
+const audioRef = useRef<HTMLAudioElement>(null);
+
+useEffect(() => {
+  if (!audioRef.current || isLocal) return;
+  if (participant.audioTrack) {
+    const stream = new MediaStream([participant.audioTrack]);
+    audioRef.current.srcObject = stream;
+  }
+}, [participant.audioTrack, isLocal]);
+
+// JSX'te:
+{!isLocal && <audio ref={audioRef} autoPlay />}
+```
+
+### Seçenek 3: Daily.co tracks API Kullanımı (En Güvenilir)
+
+Daily.co'nun yeni `tracks` API'sini kullanarak:
+
+```typescript
+// participant.audioTrack yerine participant.tracks.audio.persistentTrack kullan
+const audioTrack = participant.tracks?.audio?.persistentTrack;
+const videoTrack = participant.tracks?.video?.persistentTrack;
+```
 
 ---
 
-## Teknik Değişiklikler
+## Uygulama Planı
 
-### Dosya 1: `src/pages/VideoCall.tsx`
+### Dosya: `src/pages/VideoCall.tsx`
 
-**initializeCall() fonksiyonunu yeniden yapılandır**:
+#### 1. VideoTile Bileşenini Güncelle
 
-1. CallObject'i HEMEN oluştur (satır 1097-1100 öncesine taşı)
-2. createRoom, getDisplayName, getUser çağrılarını Promise.all ile paralel yap
-3. startCamera'yı fire-and-forget yap (await kaldır)
-4. URL query param'dan roomUrl varsa, edge function'ı atla veya sadece doğrulama için kullan
-
-**Yeni akış sırası**:
-```
-1. Daily.createCallObject() → setCallObject() [~100ms]
-2. Promise.all([createRoom(), getDisplayName(), getUser()]) [paralel ~2-3sn]
-3. call.startCamera() [fire-and-forget, beklemez]
-4. call.join() [~1-2sn]
-5. 'joined-meeting' event → callState='joined'
-```
-
-### Dosya 2: `src/components/chat/ChatWindow.tsx`
-
-**Aktif arama banner'ından room URL'ini geç**:
+**Değişiklik**: Audio track'i stream'e ekle ve audio elementi oluştur.
 
 ```typescript
-const handleJoinActiveCall = () => {
-  navigate(
-    `/video-call/${conversationId}?intent=join&roomUrl=${encodeURIComponent(activeCall.active_call_room_url)}`
+function VideoTile({ participant, isLocal }: { participant: DailyParticipant; isLocal: boolean }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  // Video track bağlama
+  useEffect(() => {
+    if (!videoRef.current) return;
+    if (participant.videoTrack) {
+      const stream = new MediaStream([participant.videoTrack]);
+      videoRef.current.srcObject = stream;
+    }
+  }, [participant.videoTrack, participant.session_id]);
+
+  // YENI: Audio track bağlama (remote katılımcılar için)
+  useEffect(() => {
+    if (!audioRef.current || isLocal) return;
+    
+    const audioTrack = participant.audioTrack || 
+                       (participant as any).tracks?.audio?.persistentTrack;
+    
+    if (audioTrack) {
+      const stream = new MediaStream([audioTrack]);
+      audioRef.current.srcObject = stream;
+      
+      // Safari için autoplay fix
+      audioRef.current.play().catch(e => {
+        console.warn('[VideoTile] Audio autoplay failed:', e);
+      });
+    }
+  }, [participant.audioTrack, (participant as any).tracks?.audio, participant.session_id, isLocal]);
+
+  return (
+    <div className="relative ...">
+      <video
+        ref={videoRef}
+        autoPlay
+        muted={isLocal}  // Local için muted, remote için unmuted
+        playsInline
+        className="w-full h-full object-cover"
+      />
+      
+      {/* YENI: Remote katılımcılar için ayrı audio elementi */}
+      {!isLocal && (
+        <audio 
+          ref={audioRef} 
+          autoPlay 
+          playsInline
+        />
+      )}
+      
+      {/* ... geri kalan JSX ... */}
+    </div>
   );
+}
+```
+
+#### 2. Debug Logging Ekle
+
+Audio track durumunu izlemek için logging ekle:
+
+```typescript
+// track-started event handler'ına debug ekle
+const handleTrackStarted = (event: any) => {
+  console.log('[CallUI] track-started event:', {
+    participant: event?.participant?.user_name,
+    trackType: event?.track?.kind,
+    isLocal: event?.participant?.local,
+    trackId: event?.track?.id,
+    trackEnabled: event?.track?.enabled,
+    trackMuted: event?.track?.muted,
+  });
+  updateParticipants();
 };
 ```
 
-### Dosya 3: `src/hooks/useActiveCall.ts`
+#### 3. Join Options'a Audio Ayarları Ekle
 
-Değişiklik yok - mevcut hook zaten room URL'ini döndürüyor.
+`join()` çağrısında audio'nun açık olduğundan emin ol:
+
+```typescript
+const joinOptions: any = {
+  url: roomUrl,
+  userName: displayName,
+  userData: user?.id ? { appUserId: user.id } : undefined,
+  startAudioOff: false,  // YENI: Ses açık başla
+  startVideoOff: false,  // Video açık başla
+  sendSettings: {
+    video: { maxQuality: 'high' as const },
+  },
+};
+```
+
+#### 4. WaitingRoom Audio Preview
+
+Beklerken de sesin çalıştığından emin ol:
+
+```typescript
+// WaitingRoom bileşeninde audio track kontrolü
+useEffect(() => {
+  if (!localParticipant?.audioTrack) return;
+  // Audio track'in enabled olduğunu doğrula
+  console.log('[WaitingRoom] Local audio track:', {
+    enabled: localParticipant.audioTrack.enabled,
+    muted: localParticipant.audioTrack.muted,
+  });
+}, [localParticipant?.audioTrack]);
+```
 
 ---
 
-## Beklenen Sonuç
+## Teknik Detaylar
 
-| Kullanıcı | Mevcut | Hedef |
-|-----------|--------|-------|
-| A (Kurucu) | ~8sn | ~3-4sn |
-| B (Katılımcı) | ~8-11sn | ~2-3sn |
+### Neden Video Elementi Ses Çalmıyor?
 
-**Toplam tasarruf**: ~5-8 saniye
+1. `<video>` elementi `muted={false}` olsa bile, `srcObject`'e bağlanan `MediaStream`'de audio track yoksa ses çalmaz
+2. Mevcut kod sadece `videoTrack`'i stream'e ekliyor
+3. `audioTrack` asla DOM'a bağlanmıyor
+
+### Daily.co Track API
+
+Daily.co iki farklı track API'si sunuyor:
+
+| Eski API (deprecated) | Yeni API |
+|-----------------------|----------|
+| `participant.audioTrack` | `participant.tracks.audio.persistentTrack` |
+| `participant.videoTrack` | `participant.tracks.video.persistentTrack` |
+
+Her iki API de desteklenmeli (backward compatibility).
+
+### Browser Autoplay Politikaları
+
+Safari ve bazı tarayıcılar, kullanıcı etkileşimi olmadan ses çalmayı engelleyebilir. Çözüm:
+
+```typescript
+audioRef.current.play().catch(e => {
+  if (e.name === 'NotAllowedError') {
+    // Kullanıcıya "Sesi aç" butonu göster
+    console.warn('Audio autoplay blocked. User interaction required.');
+  }
+});
+```
 
 ---
 
-## Uygulama Adımları
+## Değiştirilecek Dosyalar
 
-1. **VideoCall.tsx**:
-   - initializeCall() içindeki sıralı await'leri paralel Promise.all'a çevir
-   - CallObject oluşturmayı en başa taşı
-   - URL query param'dan roomUrl okuma ekle
-   - startCamera'dan await'i kaldır
+| Dosya | Değişiklik |
+|-------|------------|
+| `src/pages/VideoCall.tsx` | VideoTile'a audio elementi ekle, track bağlama mantığını güncelle, join options'a audio ayarları ekle |
 
-2. **ChatWindow.tsx**:
-   - Aktif arama banner'ındaki navigate çağrısına roomUrl param ekle
+## Test Senaryoları
 
-3. **Test**:
-   - A başlatsın, B katılsın
-   - Console loglarından timing'i doğrula
-   - Her iki tarafta da sürenin düştüğünü kontrol et
+1. **A kullanıcısı aramayı başlatır, B katılır** → Her iki taraf birbirinin sesini duymalı
+2. **Mikrofon aç/kapa** → Diğer taraf durumu görsel olarak görmeli ve ses kesilmeli/açılmalı
+3. **Safari'de test** → Autoplay politikası nedeniyle sorun olabilir, gerekirse kullanıcı etkileşimi iste
+4. **Konsol loglarını kontrol et** → `[VideoTile] Audio track attached` logları görünmeli
 
