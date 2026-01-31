@@ -175,9 +175,28 @@ function sanitizeParticipants(participantList: DailyParticipant[]): { local: Dai
       remoteMap.set(key, p);
       continue;
     }
-    const existingHasVideo = !!(existing as any).videoTrack;
-    const pHasVideo = !!(p as any).videoTrack;
-    if (!existingHasVideo && pHasVideo) {
+    const eAny = existing as any;
+    const pAny = p as any;
+
+    const existingHasVideoTrack = !!eAny.videoTrack;
+    const pHasVideoTrack = !!pAny.videoTrack;
+
+    // KRİTİK: Aynı kullanıcı için birden fazla participant gördüğümüzde,
+    // kamera/mikrofon KAPATMA güncellemelerinin eski kopya tarafından ezilmesini istemiyoruz.
+    // Eğer yeni participant video/audio kapalı diyorsa onu tercih et.
+    const existingVideoFlag = !!eAny.video;
+    const pVideoFlag = !!pAny.video;
+    const existingAudioFlag = !!eAny.audio;
+    const pAudioFlag = !!pAny.audio;
+
+    const prefersNewBecauseTurnedOff = (existingVideoFlag && !pVideoFlag) || (existingAudioFlag && !pAudioFlag);
+    if (prefersNewBecauseTurnedOff) {
+      remoteMap.set(key, p);
+      continue;
+    }
+
+    // Aksi halde, video track'i olanı tercih etmeye devam et (kamera açık durumda daha doğru render)
+    if (!existingHasVideoTrack && pHasVideoTrack) {
       remoteMap.set(key, p);
     }
   }
@@ -469,44 +488,62 @@ function VideoTile({ participant, isLocal }: { participant: DailyParticipant; is
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  // Daily.co'dan video durumu: participant.video = true ise kamera açık
-  const isVideoEnabled = participant.video && !!participant.videoTrack;
-  const isAudioEnabled = participant.audio;
+  // Daily.co durumları bazen participant.video/audio flag'lerini anlık güncellemeyebilir;
+  // bu yüzden track'in enabled/readyState bilgilerini de dikkate alıyoruz.
+  const videoTrack = ((participant as any).videoTrack || undefined) as MediaStreamTrack | undefined;
+  const videoTrackEnabled = !!videoTrack && videoTrack.enabled && videoTrack.readyState === 'live';
+
+  const legacyAudioTrack = ((participant as any).audioTrack || undefined) as MediaStreamTrack | undefined;
+  const audioTrackEnabledLegacy = !!legacyAudioTrack && legacyAudioTrack.enabled && legacyAudioTrack.readyState === 'live';
+  const audioTrackNewAny = (participant as any).tracks?.audio?.persistentTrack;
+  const audioTrackNew = (audioTrackNewAny && typeof audioTrackNewAny === 'object' ? audioTrackNewAny : undefined) as MediaStreamTrack | undefined;
+  const audioTrackEnabledNew = !!audioTrackNew && audioTrackNew.enabled && audioTrackNew.readyState === 'live';
+
+  // Kamera/mikrofon “açık” kabulü: hem Daily flag'i, hem de track canlı+enabled olmalı.
+  const isVideoEnabled = !!participant.video && videoTrackEnabled;
+  const isAudioEnabled = !!participant.audio && (audioTrackEnabledLegacy || audioTrackEnabledNew);
 
   // Video track bağlama - track yoksa veya kapalıysa srcObject'i temizle
   useEffect(() => {
     if (!videoRef.current) return;
     
-    if (participant.videoTrack && participant.video) {
+    if (isVideoEnabled && videoTrack) {
       // Kamera açık - video stream'i bağla
-      const stream = new MediaStream([participant.videoTrack]);
+      const stream = new MediaStream([videoTrack]);
       videoRef.current.srcObject = stream;
       console.log('[VideoTile] Video track attached:', participant.user_name, {
-        trackId: participant.videoTrack.id,
+        trackId: videoTrack.id,
         video: participant.video,
+        trackEnabled: videoTrack.enabled,
+        readyState: videoTrack.readyState,
       });
     } else {
       // Kamera kapalı - srcObject'i temizle (son frame'i kaldır)
       videoRef.current.srcObject = null;
       console.log('[VideoTile] Video track cleared:', participant.user_name, {
-        hasTrack: !!participant.videoTrack,
+        hasTrack: !!videoTrack,
         video: participant.video,
+        trackEnabled: videoTrack?.enabled,
+        readyState: videoTrack?.readyState,
       });
     }
-  }, [participant.videoTrack, participant.video, participant.session_id, participant.user_name]);
+  }, [isVideoEnabled, videoTrack, participant.video, participant.session_id, participant.user_name]);
 
   // Audio track bağlama (remote katılımcılar için)
   useEffect(() => {
     if (!audioRef.current || isLocal) return;
     
     // Daily.co'nun hem eski hem yeni track API'sini destekle
-    const audioTrack = participant.audioTrack || 
-                       (participant as any).tracks?.audio?.persistentTrack;
+    const audioTrack = (legacyAudioTrack ?? audioTrackNew) as MediaStreamTrack | undefined;
     
-    if (audioTrack && participant.audio) {
+    const audioLiveEnabled = !!audioTrack && audioTrack.enabled && audioTrack.readyState === 'live';
+
+    if (participant.audio && audioLiveEnabled) {
       console.log('[VideoTile] Audio track attached:', participant.user_name, {
         trackId: audioTrack.id,
         audio: participant.audio,
+        trackEnabled: audioTrack.enabled,
+        readyState: audioTrack.readyState,
       });
       
       const stream = new MediaStream([audioTrack]);
@@ -522,6 +559,8 @@ function VideoTile({ participant, isLocal }: { participant: DailyParticipant; is
       console.log('[VideoTile] Audio track cleared:', participant.user_name, {
         hasTrack: !!audioTrack,
         audio: participant.audio,
+        trackEnabled: audioTrack?.enabled,
+        readyState: audioTrack?.readyState,
       });
     }
   }, [participant.audioTrack, participant.audio, (participant as any).tracks?.audio, participant.session_id, isLocal, participant.user_name]);
