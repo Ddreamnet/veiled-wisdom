@@ -806,7 +806,19 @@ function CallUI({ callObject }: CallUIProps) {
       console.log('[CallUI] track-started event:', {
         participant: event?.participant?.user_name,
         trackType: event?.track?.kind,
-        isLocal: event?.participant?.local
+        isLocal: event?.participant?.local,
+        trackEnabled: event?.track?.enabled,
+        trackMuted: event?.track?.muted,
+      });
+      updateParticipants();
+    };
+
+    // Track durduğunda (kamera/mikrofon kapatıldığında) tetiklenir
+    const handleTrackStopped = (event: any) => {
+      console.log('[CallUI] track-stopped event:', {
+        participant: event?.participant?.user_name,
+        trackType: event?.track?.kind,
+        isLocal: event?.participant?.local,
       });
       updateParticipants();
     };
@@ -821,6 +833,7 @@ function CallUI({ callObject }: CallUIProps) {
     callObject.on('participant-updated', handleParticipantUpdated);
     callObject.on('participant-left', handleParticipantLeft);
     callObject.on('track-started', handleTrackStarted);
+    callObject.on('track-stopped', handleTrackStopped);
 
     return () => {
       callObject.off('joining-meeting', handleJoiningMeeting);
@@ -831,18 +844,67 @@ function CallUI({ callObject }: CallUIProps) {
       callObject.off('participant-updated', handleParticipantUpdated);
       callObject.off('participant-left', handleParticipantLeft);
       callObject.off('track-started', handleTrackStarted);
+      callObject.off('track-stopped', handleTrackStopped);
     };
   }, [callObject, navigate, toast, addNotification, updateParticipants, autoNavigateOnLeaveRef]);
 
-  const toggleCamera = useCallback(() => {
-    callObject.setLocalVideo(!isCameraOn);
-    setIsCameraOn((prev) => !prev);
-  }, [callObject, isCameraOn]);
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // KAMERA/MİKROFON TOGGLE - Kritik Gizlilik Özelliği
+  // setLocalVideo/setLocalAudio true = karşı taraf görebilir/duyabilir
+  // setLocalVideo/setLocalAudio false = karşı tarafa GÖNDERİLMEZ
+  // ═══════════════════════════════════════════════════════════════════════════════
+  
+  const toggleCamera = useCallback(async () => {
+    const newState = !isCameraOn;
+    console.log('[CallUI] toggleCamera:', { currentState: isCameraOn, newState });
+    
+    try {
+      // Daily.co API: false = track'i durdurur ve karşı tarafa göndermez
+      await callObject.setLocalVideo(newState);
+      setIsCameraOn(newState);
+      
+      // Doğrulama: Gerçek track durumunu kontrol et
+      const localParticipantData = callObject.participants().local;
+      console.log('[CallUI] Camera toggle verified:', {
+        requestedState: newState,
+        actualVideoTrack: !!localParticipantData?.videoTrack,
+        videoEnabled: localParticipantData?.video,
+      });
+    } catch (error) {
+      console.error('[CallUI] toggleCamera error:', error);
+      toast({
+        title: "Kamera Hatası",
+        description: "Kamera durumu değiştirilemedi.",
+        variant: "destructive",
+      });
+    }
+  }, [callObject, isCameraOn, toast]);
 
-  const toggleMic = useCallback(() => {
-    callObject.setLocalAudio(!isMicOn);
-    setIsMicOn((prev) => !prev);
-  }, [callObject, isMicOn]);
+  const toggleMic = useCallback(async () => {
+    const newState = !isMicOn;
+    console.log('[CallUI] toggleMic:', { currentState: isMicOn, newState });
+    
+    try {
+      // Daily.co API: false = audio track'i durdurur ve karşı tarafa göndermez
+      await callObject.setLocalAudio(newState);
+      setIsMicOn(newState);
+      
+      // Doğrulama: Gerçek track durumunu kontrol et
+      const localParticipantData = callObject.participants().local;
+      console.log('[CallUI] Mic toggle verified:', {
+        requestedState: newState,
+        actualAudioTrack: !!localParticipantData?.audioTrack,
+        audioEnabled: localParticipantData?.audio,
+      });
+    } catch (error) {
+      console.error('[CallUI] toggleMic error:', error);
+      toast({
+        title: "Mikrofon Hatası",
+        description: "Mikrofon durumu değiştirilemedi.",
+        variant: "destructive",
+      });
+    }
+  }, [callObject, isMicOn, toast]);
 
   const leaveCall = useCallback(() => {
     autoNavigateOnLeaveRef.current = true;
