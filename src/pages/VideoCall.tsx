@@ -469,14 +469,31 @@ function VideoTile({ participant, isLocal }: { participant: DailyParticipant; is
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  // Video track bağlama
+  // Daily.co'dan video durumu: participant.video = true ise kamera açık
+  const isVideoEnabled = participant.video && !!participant.videoTrack;
+  const isAudioEnabled = participant.audio;
+
+  // Video track bağlama - track yoksa veya kapalıysa srcObject'i temizle
   useEffect(() => {
     if (!videoRef.current) return;
-    if (participant.videoTrack) {
+    
+    if (participant.videoTrack && participant.video) {
+      // Kamera açık - video stream'i bağla
       const stream = new MediaStream([participant.videoTrack]);
       videoRef.current.srcObject = stream;
+      console.log('[VideoTile] Video track attached:', participant.user_name, {
+        trackId: participant.videoTrack.id,
+        video: participant.video,
+      });
+    } else {
+      // Kamera kapalı - srcObject'i temizle (son frame'i kaldır)
+      videoRef.current.srcObject = null;
+      console.log('[VideoTile] Video track cleared:', participant.user_name, {
+        hasTrack: !!participant.videoTrack,
+        video: participant.video,
+      });
     }
-  }, [participant.videoTrack, participant.session_id]);
+  }, [participant.videoTrack, participant.video, participant.session_id, participant.user_name]);
 
   // Audio track bağlama (remote katılımcılar için)
   useEffect(() => {
@@ -486,12 +503,10 @@ function VideoTile({ participant, isLocal }: { participant: DailyParticipant; is
     const audioTrack = participant.audioTrack || 
                        (participant as any).tracks?.audio?.persistentTrack;
     
-    if (audioTrack) {
-      console.log('[VideoTile] Attaching audio track for:', participant.user_name, {
+    if (audioTrack && participant.audio) {
+      console.log('[VideoTile] Audio track attached:', participant.user_name, {
         trackId: audioTrack.id,
-        enabled: audioTrack.enabled,
-        muted: audioTrack.muted,
-        readyState: audioTrack.readyState,
+        audio: participant.audio,
       });
       
       const stream = new MediaStream([audioTrack]);
@@ -501,20 +516,31 @@ function VideoTile({ participant, isLocal }: { participant: DailyParticipant; is
       audioRef.current.play().catch(e => {
         console.warn('[VideoTile] Audio autoplay failed:', e.name, e.message);
       });
+    } else {
+      // Mikrofon kapalı - audio'yu temizle
+      audioRef.current.srcObject = null;
+      console.log('[VideoTile] Audio track cleared:', participant.user_name, {
+        hasTrack: !!audioTrack,
+        audio: participant.audio,
+      });
     }
-  }, [participant.audioTrack, (participant as any).tracks?.audio, participant.session_id, isLocal, participant.user_name]);
+  }, [participant.audioTrack, participant.audio, (participant as any).tracks?.audio, participant.session_id, isLocal, participant.user_name]);
 
   const displayName = isLocal ? 'Siz' : (participant.user_name || 'Katılımcı');
   const avatarLetter = isLocal ? 'S' : (participant.user_name?.charAt(0).toUpperCase() || 'K');
 
   return (
     <div className="relative bg-card rounded-xl overflow-hidden aspect-video border border-border shadow-lg group">
+      {/* Video elementi - kamera kapalıyken gizle */}
       <video
         ref={videoRef}
         autoPlay
         muted={isLocal}
         playsInline
-        className="w-full h-full object-cover"
+        className={cn(
+          "w-full h-full object-cover transition-opacity duration-200",
+          isVideoEnabled ? "opacity-100" : "opacity-0"
+        )}
       />
       
       {/* Remote katılımcılar için ayrı audio elementi */}
@@ -538,8 +564,8 @@ function VideoTile({ participant, isLocal }: { participant: DailyParticipant; is
         </div>
       </motion.div>
 
-      {/* Mic status indicator */}
-      {!participant.audio && (
+      {/* Mic status indicator - mikrofon kapalıysa göster */}
+      {!isAudioEnabled && (
         <div className="absolute top-4 right-4">
           <div className="p-2 rounded-full bg-red-500/20 border border-red-500/30">
             <MicOff className="h-4 w-4 text-red-400" />
@@ -547,14 +573,25 @@ function VideoTile({ participant, isLocal }: { participant: DailyParticipant; is
         </div>
       )}
 
-      {/* No video placeholder */}
-      {!participant.videoTrack && (
+      {/* Kamera kapalı placeholder - video kapalıyken göster */}
+      {!isVideoEnabled && (
         <div className="absolute inset-0 flex items-center justify-center bg-muted">
-          <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="text-center">
+          <motion.div 
+            initial={{ scale: 0.8 }} 
+            animate={{ scale: 1 }} 
+            className="text-center"
+            key="avatar-placeholder"
+          >
             <div className="h-20 w-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-3 ring-4 ring-primary/10">
               <span className="text-3xl font-bold text-primary">{avatarLetter}</span>
             </div>
             <p className="text-sm text-muted-foreground">{displayName}</p>
+            <div className="flex items-center justify-center gap-2 mt-2">
+              <div className="px-2 py-1 rounded-full bg-red-500/20 border border-red-500/30 flex items-center gap-1">
+                <VideoOff className="h-3 w-3 text-red-400" />
+                <span className="text-xs text-red-400">Kamera kapalı</span>
+              </div>
+            </div>
           </motion.div>
         </div>
       )}
