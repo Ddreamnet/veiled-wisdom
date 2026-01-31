@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { DailyProvider, DailyVideo, DailyAudio, useVideoTrack, useAudioTrack } from '@daily-co/daily-react';
+import { DailyProvider, DailyVideo, useVideoTrack, useAudioTrack } from '@daily-co/daily-react';
 import Daily, { DailyCall, DailyParticipant, DailyEventObjectParticipant, DailyEventObjectParticipantLeft } from '@daily-co/daily-js';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -602,6 +602,41 @@ function VideoTile({ sessionId, isLocal, displayName }: { sessionId: string; isL
       )}
     </div>
   );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FILTERED AUDIO - Sadece sanitize edilmiş participant'ların sesini çalar
+// DailyAudio varsayılan olarak TÜM participant'ları çalar (duplicate session'lar dahil)
+// Bu bileşen sadece bizim filtrelediğimiz participant'ların sesini çalar
+// ═══════════════════════════════════════════════════════════════════════════════
+function FilteredRemoteAudio({ sessionId }: { sessionId: string }) {
+  const audioTrack = useAudioTrack(sessionId);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el) return;
+    
+    // Track varsa ve kapalı değilse çal
+    if (audioTrack.persistentTrack && !audioTrack.isOff) {
+      const stream = new MediaStream([audioTrack.persistentTrack]);
+      el.srcObject = stream;
+      el.play().catch(() => {
+        // Autoplay engellendi - kullanıcı etkileşimi bekle
+      });
+    } else {
+      // Track kapalı veya yok - ses durdur
+      el.srcObject = null;
+    }
+    
+    return () => {
+      if (el) {
+        el.srcObject = null;
+      }
+    };
+  }, [audioTrack.persistentTrack, audioTrack.isOff]);
+  
+  return <audio ref={audioRef} autoPlay playsInline />;
 }
 
 function LoadingScreen({ message }: { message: string }) {
@@ -1262,11 +1297,16 @@ function CallUI({ callObject }: CallUIProps) {
         </div>
 
         {/* 
-          DailyAudio - Tüm remote katılımcıların sesini otomatik yönetir
-          Bu bileşen audio track'leri merkezi olarak handle eder ve
-          Safari/mobil autoplay sorunlarını çözer
+          FilteredRemoteAudio - SADECE sanitize edilmiş remote participant'ların sesini çalar
+          DailyAudio varsayılan olarak TÜM session'ların sesini çalar (duplicate'ler dahil)
+          Bu, "mikrofon kapalı ama ses geliyor" hatasını önler
         */}
-        <DailyAudio />
+        {remoteParticipants.map((participant) => (
+          <FilteredRemoteAudio 
+            key={`audio-${participant.session_id}`} 
+            sessionId={participant.session_id} 
+          />
+        ))}
 
         {/* Controls */}
         <motion.div
