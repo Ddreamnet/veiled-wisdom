@@ -467,7 +467,9 @@ function WaitingRoom({
 
 function VideoTile({ participant, isLocal }: { participant: DailyParticipant; isLocal: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
+  // Video track bağlama
   useEffect(() => {
     if (!videoRef.current) return;
     if (participant.videoTrack) {
@@ -475,6 +477,32 @@ function VideoTile({ participant, isLocal }: { participant: DailyParticipant; is
       videoRef.current.srcObject = stream;
     }
   }, [participant.videoTrack, participant.session_id]);
+
+  // Audio track bağlama (remote katılımcılar için)
+  useEffect(() => {
+    if (!audioRef.current || isLocal) return;
+    
+    // Daily.co'nun hem eski hem yeni track API'sini destekle
+    const audioTrack = participant.audioTrack || 
+                       (participant as any).tracks?.audio?.persistentTrack;
+    
+    if (audioTrack) {
+      console.log('[VideoTile] Attaching audio track for:', participant.user_name, {
+        trackId: audioTrack.id,
+        enabled: audioTrack.enabled,
+        muted: audioTrack.muted,
+        readyState: audioTrack.readyState,
+      });
+      
+      const stream = new MediaStream([audioTrack]);
+      audioRef.current.srcObject = stream;
+      
+      // Safari ve mobil için autoplay fix
+      audioRef.current.play().catch(e => {
+        console.warn('[VideoTile] Audio autoplay failed:', e.name, e.message);
+      });
+    }
+  }, [participant.audioTrack, (participant as any).tracks?.audio, participant.session_id, isLocal, participant.user_name]);
 
   const displayName = isLocal ? 'Siz' : (participant.user_name || 'Katılımcı');
   const avatarLetter = isLocal ? 'S' : (participant.user_name?.charAt(0).toUpperCase() || 'K');
@@ -488,6 +516,15 @@ function VideoTile({ participant, isLocal }: { participant: DailyParticipant; is
         playsInline
         className="w-full h-full object-cover"
       />
+      
+      {/* Remote katılımcılar için ayrı audio elementi */}
+      {!isLocal && (
+        <audio 
+          ref={audioRef} 
+          autoPlay 
+          playsInline
+        />
+      )}
 
       {/* Name badge */}
       <motion.div
