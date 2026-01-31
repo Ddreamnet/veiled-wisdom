@@ -48,7 +48,11 @@ export function ChatWindow({ conversation, onBack, onMessagesRead }: ChatWindowP
   const isCallStartedByOther = activeCall && activeCall.created_by !== user?.id;
 
   const handleJoinCall = () => {
-    navigate(`/call/${conversation.id}?intent=join`);
+    // Pass roomUrl to skip edge function call for joiner (OPTIMIZATION)
+    const roomUrl = activeCall?.room_url;
+    const params = new URLSearchParams({ intent: 'join' });
+    if (roomUrl) params.set('roomUrl', roomUrl);
+    navigate(`/call/${conversation.id}?${params.toString()}`);
   };
 
   const handleStartCall = () => {
