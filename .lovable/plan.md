@@ -1,255 +1,356 @@
 
-# Video Arama Kamera/Mikrofon Toggle Stabilitesi - UYGULANMIŞ ✅
+# Video Arama Realtime Sorunları - Detaylı Analiz ve Çözüm Planı
 
-## Tespit Edilen Sorunlar
+## Tespit Edilen Kök Nedenler
 
-### Sorun 1: Aynı Kullanıcı İçin Birden Fazla Session
-Konsol loglarından görüldüğü üzere, aynı `appUserId` için birden fazla `session_id` mevcut:
-- "Görkem" kullanıcısı için: `6de3c425-...`, `fabdcd9a-...` (iki farklı session)
-- "Destek" kullanıcısı için: `cd54c718-...`, `4b9ad1c7-...` (iki farklı session)
+### SORUN A: Daily Track Event Spam ve Mikrofon Mute'ta Video Yenilenmesi
 
-`sanitizeParticipants` fonksiyonu bunları dedupe ediyor ancak **hangi kopyayı seçtiği her güncellemede değişebiliyor**. Bu durum `session_id`'nin değişmesine ve React'in VideoTile bileşenini **tamamen yeniden mount etmesine** neden oluyor → flickering.
+#### Kök Neden Analizi
 
-### Sorun 2: AnimatePresence Key Problemi
-VideoTile, `key={participant.session_id}` kullanıyor. Session ID değiştiğinde:
-1. Eski VideoTile unmount oluyor (exit animasyonu)
-2. Yeni VideoTile mount oluyor (enter animasyonu)
-3. Kullanıcı bunu "gir-çık yapmış gibi" görüyor
+**1. Handler Çoğaltması Durumu: SORUN YOK**
+- Mevcut kod `useEffect` içinde `callObject.on(...)` çağrılarını yapıyor (satır 940-949)
+- Cleanup fonksiyonu `callObject.off(...)` ile tüm listener'ları kaldırıyor (satır 951-961)
+- Bu pattern doğru, ancak dependencies array'inde `[callObject, navigate, toast, addNotification, updateParticipants, syncLocalMediaState]` var. Bu fonksiyonlar her render'da yeniden oluşturulabiliyor.
 
-### Sorun 3: Track State Kontrolü Yetersiz
-Mevcut kod `participant.video` ve `participant.videoTrack` kullanıyor ancak Daily.co'nun detaylı tracks API'sini (`participant.tracks.video.state`) tam kullanmıyor. `setLocalVideo(false)` çağrıldığında:
-- `participant.video = false` oluyor
-- `participant.tracks.video.state = 'off'` oluyor
-- Ancak eski `videoTrack` referansı hala mevcut olabiliyor (ended state'te)
+**2. Gerçek Sorun: `updateParticipants` Çok Sık Çağrılıyor**
 
-### Sorun 4: Daily React Bileşenleri Kullanılmıyor
-Proje `@daily-co/daily-react` paketini içeriyor ancak:
-- `DailyVideo` bileşeni kullanılmıyor
-- `DailyAudio` bileşeni kullanılmıyor
-- `useVideoTrack`, `useAudioTrack` hook'ları kullanılmıyor
+Her track olayı `updateParticipants()` çağırıyor:
 
-Bu bileşenler track state'ini otomatik olarak yönetiyor ve güvenlik açısından daha sağlam.
+```typescript
+// satır 913
+if (event?.participant?.local) {
+  syncLocalMediaState();
+}
+updateParticipants();  // HER OLAY İÇİN ÇAĞRILIYOR
+```
+
+Bir mikrofon toggle işlemi şu olayları tetikler:
+1. `track-stopped` (audio) → `updateParticipants()`
+2. `participant-updated` → `updateParticipants()` 
+3. Daily WebRTC renegotiation → birden fazla `participant-updated` olayı
+
+Her `updateParticipants()` çağrısı `setParticipants()` yapıyor, bu da tüm VideoTile'ların re-render olmasına neden oluyor.
+
+**3. Duplicate Session Sorunu**
+
+Aynı kullanıcı için birden fazla `session_id` olduğunda (günlüklerden: "Görkem" ve "Destek" için duplikasyonlar), `sanitizeParticipants` fonksiyonu tutarlı bir şekilde aynı session'ı seçmeyebiliyor. Bu da key değişikliğine ve bileşen remount'una yol açıyor.
+
+**4. Track Event Deduplication Eksik**
+
+Track olayları için herhangi bir deduplication mekanizması yok. Daily.co aynı track için birden fazla olay gönderebilir (ICE renegotiation, SDP renegotiation sırasında).
+
+### SORUN B: Overlay Log Spam
+
+**Kök Neden: ÖNCEKİ DÜZELTME BAŞARILI**
+- Satır 1067-1073'te `useEffect` ile transition-only logging implemente edilmiş
+- Bu sorun zaten çözülmüş görünüyor, ancak doğrulanması gerekir
+
+### SORUN C: Lovable WebSocket Hatası
+
+**Kök Neden: Lovable Runtime - Sizin Kontrolünüzde Değil**
+
+WebSocket bağlantısı `wss://c391e753-6d15-45ab-929e-e1c102409f72.lovableproject.com/` Lovable platformunun geliştirme ortamı tarafından enjekte ediliyor:
+
+1. `vite.config.ts` satır 4: `import { componentTagger } from "lovable-tagger";`
+2. Bu plugin sadece development modunda çalışıyor: `mode === "development" && componentTagger()`
+3. Bu Lovable'ın hot-reload ve canlı önizleme özelliği için kullanılan bir WebSocket
+
+**Sonuç:** Bu hata:
+- Sadece Lovable preview ortamında oluşur
+- Production build'de oluşmaz (componentTagger sadece dev'de aktif)
+- Uygulamanızın çalışmasını etkilemez
+- Kontrol edemeyeceğiniz Lovable altyapısının bir parçasıdır
 
 ---
 
-## Çözüm Tasarımı
+## Teknik Çözüm Planı
 
-### Yaklaşım: Daily React Bileşenlerini Kullanma
+### Değişiklik 1: Track Event Deduplication Sistemi
 
-Daily.co'nun resmi React kütüphanesi (`@daily-co/daily-react`) track yönetimini handle eden hazır bileşenler sunuyor:
-
-- **`DailyVideo`**: Otomatik olarak track state'ini takip eder, `isOff` durumunda video göstermez
-- **`DailyAudio`**: Tüm remote katılımcıların sesini otomatik yönetir
-- **`useVideoTrack`/`useAudioTrack`**: Track state'ini reactive olarak sağlar
-
----
-
-## Teknik Değişiklikler
-
-### Dosya: `src/pages/VideoCall.tsx`
-
-#### Değişiklik 1: Stabil Key Kullanımı
-
-`session_id` yerine `appUserId` kullanarak key stabilitesini sağla:
+Track durumlarını takip eden bir Map ekleyerek aynı durum için duplicate logları ve güncellemeleri önle:
 
 ```typescript
-// ÖNCE (sorunlu)
-{remoteParticipants.map((participant) => (
-  <motion.div key={participant.session_id}>  // Session değişebilir!
-    <VideoTile participant={participant} isLocal={false} />
-  </motion.div>
-))}
+// CallUI içinde yeni state
+const trackStatesRef = useRef<Map<string, { video: boolean; audio: boolean }>>(new Map());
 
-// SONRA (stabil)
-{remoteParticipants.map((participant) => {
-  const stableKey = (participant as any).userData?.appUserId || participant.session_id;
-  return (
-    <motion.div key={stableKey}>  // appUserId değişmez
-      <VideoTile participant={participant} isLocal={false} />
-    </motion.div>
-  );
-})}
-```
-
-#### Değişiklik 2: DailyVideo ve DailyAudio Bileşenlerini Kullanma
-
-VideoTile'ı Daily React bileşenleriyle değiştir:
-
-```typescript
-import { DailyVideo, DailyAudio, useVideoTrack, useAudioTrack } from '@daily-co/daily-react';
-
-function VideoTile({ sessionId, isLocal }: { sessionId: string; isLocal: boolean }) {
-  const videoTrack = useVideoTrack(sessionId);
-  const audioTrack = useAudioTrack(sessionId);
+const handleTrackStarted = (event: any) => {
+  const sessionId = event?.participant?.session_id;
+  const trackKind = event?.track?.kind as 'video' | 'audio';
   
-  const isVideoOff = videoTrack.isOff;
-  const isAudioOff = audioTrack.isOff;
+  if (!sessionId || !trackKind) return;
   
-  return (
-    <div className="relative bg-card rounded-xl overflow-hidden aspect-video">
-      {/* DailyVideo otomatik olarak track durumunu handle eder */}
-      <DailyVideo 
-        sessionId={sessionId}
-        type="video"
-        automirror={isLocal}
-        fit="cover"
-        style={{ 
-          width: '100%', 
-          height: '100%',
-          opacity: isVideoOff ? 0 : 1,
-          transition: 'opacity 200ms'
-        }}
-      />
-      
-      {/* Kamera kapalı placeholder */}
-      {isVideoOff && (
-        <div className="absolute inset-0 flex items-center justify-center bg-muted">
-          <Avatar />
-          <p>Kamera kapalı</p>
-        </div>
-      )}
-      
-      {/* Mikrofon durumu badge */}
-      {isAudioOff && <MicOffBadge />}
-    </div>
-  );
-}
-```
-
-#### Değişiklik 3: DailyAudio Bileşenini Ekle
-
-Tüm remote audio'yu tek bir bileşenle yönet:
-
-```typescript
-function CallUI({ callObject }: CallUIProps) {
-  return (
-    <>
-      {/* Bu bileşen TÜM remote katılımcıların sesini otomatik oynatır */}
-      <DailyAudio />
-      
-      {/* Video grid */}
-      <div className="grid ...">
-        {participants.map(p => (
-          <VideoTile key={stableKey} sessionId={p.session_id} isLocal={p.local} />
-        ))}
-      </div>
-    </>
-  );
-}
-```
-
-#### Değişiklik 4: Sanitize Fonksiyonunu Güçlendir
-
-Aynı kullanıcı için birden fazla session olduğunda **tutarlı seçim** yap:
-
-```typescript
-function sanitizeParticipants(participantList: DailyParticipant[]): { ... } {
-  // ...
+  // Mevcut durumu al
+  const current = trackStatesRef.current.get(sessionId) || { video: false, audio: false };
+  const newState = { ...current, [trackKind]: true };
   
-  for (const p of remoteCandidates) {
-    const key = getParticipantKey(p);
-    const existing = remoteMap.get(key);
-    
-    if (!existing) {
-      remoteMap.set(key, p);
-      continue;
-    }
-    
-    // KRİTİK: Tutarlı seçim için session_id'yi deterministic olarak seç
-    // En düşük session_id'yi seç (alfabetik sıra)
-    // Bu sayede her render'da aynı session seçilir
-    const shouldReplace = p.session_id < existing.session_id;
-    
-    // Ayrıca: media durumu "off" ise onu tercih et (güvenlik)
-    const existingVideoOn = existing.video !== false;
-    const pVideoOn = p.video !== false;
-    
-    if (!pVideoOn && existingVideoOn) {
-      // Yeni participant "video kapalı" diyor - güvenlik için onu tercih et
-      remoteMap.set(key, p);
-    } else if (shouldReplace && existingVideoOn === pVideoOn) {
-      // Aynı durumdalar, deterministic seçim için session_id kullan
-      remoteMap.set(key, p);
-    }
+  // Sadece gerçek bir değişiklik varsa işle
+  if (current[trackKind] === true) {
+    // Duplicate olay - atla
+    return;
   }
   
-  // ...
-}
+  trackStatesRef.current.set(sessionId, newState);
+  
+  // Şimdi log ve güncelle
+  if (!event?.participant?.local) {
+    console.log('[CallUI] track-started (remote):', {
+      participant: event?.participant?.user_name,
+      trackType: trackKind,
+      transition: 'off -> on'
+    });
+  }
+  
+  if (event?.participant?.local) {
+    syncLocalMediaState();
+  }
+  
+  updateParticipants();
+};
 ```
 
-#### Değişiklik 5: Toggle Fonksiyonlarını Doğrulama ile Güçlendir
+### Değişiklik 2: updateParticipants Debounce
+
+Sık güncellemeleri birleştirmek için debounce ekle:
 
 ```typescript
-const toggleCamera = useCallback(async () => {
-  const newState = !isCameraOn;
-  
-  try {
-    await callObject.setLocalVideo(newState);
-    
-    // Doğrulama: Gerçek durumu kontrol et ve state'i ona göre güncelle
-    const local = callObject.participants().local;
-    const actualState = local?.video !== false;
-    
-    if (actualState !== newState) {
-      console.warn('[CallUI] Camera state mismatch! Requested:', newState, 'Actual:', actualState);
-    }
-    
-    setIsCameraOn(actualState);
-    
-    // Participant güncellemesini zorla
+// CallUI içinde
+const updateTimeoutRef = useRef<number | null>(null);
+
+const debouncedUpdateParticipants = useCallback(() => {
+  if (updateTimeoutRef.current) {
+    window.clearTimeout(updateTimeoutRef.current);
+  }
+  updateTimeoutRef.current = window.setTimeout(() => {
     updateParticipants();
-    
-  } catch (error) {
-    console.error('[CallUI] toggleCamera error:', error);
-    // State'i geri al
-    setIsCameraOn(isCameraOn);
-  }
-}, [callObject, isCameraOn, updateParticipants]);
+    updateTimeoutRef.current = null;
+  }, 50); // 50ms debounce
+}, [updateParticipants]);
 ```
 
+### Değişiklik 3: Stabil Participant Seçimi
+
+`sanitizeParticipants` fonksiyonunda deterministic seçim garantisi:
+
+```typescript
+// Mevcut kod (satır 210):
+if (pSessionId < existingSessionId) {
+  remoteMap.set(key, p);
+}
+
+// Güçlendirilmiş versiyon:
+// 1. "Media kapalı" olan participant'ı güvenlik için tercih et
+// 2. Aynıysa, en düşük session_id'yi TUTARLI şekilde seç
+// 3. Track event güncellemelerini de dikkate al
+```
+
+### Değişiklik 4: Handler Registration Logging (Debug için)
+
+Event handler'ların kaç kez register edildiğini izlemek için bir kerelik log:
+
+```typescript
+// useEffect başında
+console.log('[CallUI] Registering Daily event handlers for callObject:', callObject.meetingState?.());
+```
+
+### Değişiklik 5: WebSocket Hatası - Uyarı Notu
+
+Bu bir Lovable platform hatası olduğu için kod değişikliği yapılamaz. Kullanıcıya açıklama:
+- Production'da bu hata olmayacak
+- Development ortamında güvenle görmezden gelinebilir
+- Lovable'ın canlı önizleme özelliğinin bir parçası
+
 ---
 
-## Uygulama Sırası
-
-1. **Import'ları güncelle**: `DailyVideo`, `DailyAudio`, `useVideoTrack`, `useAudioTrack` ekle
-2. **VideoTile'ı yeniden yaz**: Daily React hook'larını kullan
-3. **DailyAudio ekle**: CallUI'ya tek bir DailyAudio bileşeni ekle
-4. **Key stratejisini değiştir**: `session_id` → `appUserId` (stabil key)
-5. **sanitizeParticipants'ı düzelt**: Deterministic seçim mantığı ekle
-6. **Toggle fonksiyonlarını güçlendir**: Doğrulama ve zorla güncelleme ekle
-
----
-
-## Güvenlik Garantisi
-
-Bu değişikliklerle:
-
-1. **Kamera kapatıldığında**: 
-   - `setLocalVideo(false)` → Daily track'i durdurur → veri gönderilmez
-   - `useVideoTrack(sessionId).isOff = true` → UI anında güncellenir
-   - Karşı taraf hiçbir frame görmez
-
-2. **Mikrofon kapatıldığında**:
-   - `setLocalAudio(false)` → Daily audio track'i durdurur → ses gönderilmez
-   - `useAudioTrack(sessionId).isOff = true` → UI anında güncellenir
-   - Karşı taraf hiçbir ses duymaz
-
-3. **Flickering önlenir**:
-   - Stabil key (`appUserId`) kullanılır
-   - React bileşeni yeniden mount edilmez
-   - Sadece props değişir → smooth geçiş
-
----
-
-## Değiştirilecek Dosya
+## Değiştirilecek Dosyalar
 
 | Dosya | Değişiklik |
 |-------|------------|
-| `src/pages/VideoCall.tsx` | VideoTile'ı Daily React bileşenleriyle güncelle, DailyAudio ekle, key stratejisini değiştir, sanitize mantığını düzelt |
+| `src/pages/VideoCall.tsx` | Track deduplication, debounced updates, handler logging |
 
-## Beklenen Sonuç
+---
 
-- Kamera/mikrofon toggle anında karşı tarafta yansır
-- Flickering ("gir-çık" görünümü) tamamen ortadan kalkar
-- Güvenlik garantisi: kapalıyken kesinlikle veri gitmez
-- Stabil, profesyonel video arama deneyimi
+## Uygulama Detayları
+
+### CallUI Değişiklikleri (VideoCall.tsx)
+
+#### 1. Yeni Ref'ler (yaklaşık satır 780 civarına eklenecek):
+
+```typescript
+// Track state deduplication için
+const trackStatesRef = useRef<Map<string, { video: boolean; audio: boolean }>>(new Map());
+
+// updateParticipants debounce için
+const updateDebounceRef = useRef<number | null>(null);
+```
+
+#### 2. Debounced Update Helper (yaklaşık satır 828 civarına eklenecek):
+
+```typescript
+const debouncedUpdateParticipants = useCallback(() => {
+  if (updateDebounceRef.current) {
+    window.clearTimeout(updateDebounceRef.current);
+  }
+  updateDebounceRef.current = window.setTimeout(() => {
+    updateParticipants();
+    updateDebounceRef.current = null;
+  }, 50);
+}, [updateParticipants]);
+
+// Cleanup için effect
+useEffect(() => {
+  return () => {
+    if (updateDebounceRef.current) {
+      window.clearTimeout(updateDebounceRef.current);
+    }
+  };
+}, []);
+```
+
+#### 3. handleTrackStarted Güncelleme (satır 901-914):
+
+```typescript
+const handleTrackStarted = (event: any) => {
+  const sessionId = event?.participant?.session_id;
+  const trackKind = event?.track?.kind as 'video' | 'audio';
+  
+  if (!sessionId || !trackKind) {
+    console.log('[CallUI] track-started incomplete event:', { sessionId, trackKind });
+    return;
+  }
+  
+  const current = trackStatesRef.current.get(sessionId) || { video: false, audio: false };
+  
+  // Duplicate check - aynı durum için işlem yapma
+  if (current[trackKind] === true) {
+    return;
+  }
+  
+  trackStatesRef.current.set(sessionId, { ...current, [trackKind]: true });
+  
+  if (!event?.participant?.local) {
+    console.log('[CallUI] track-started (remote):', {
+      participant: event?.participant?.user_name || 'unknown',
+      trackType: trackKind,
+    });
+  }
+  
+  if (event?.participant?.local) {
+    syncLocalMediaState();
+  }
+  
+  debouncedUpdateParticipants();
+};
+```
+
+#### 4. handleTrackStopped Güncelleme (satır 917-930):
+
+```typescript
+const handleTrackStopped = (event: any) => {
+  const sessionId = event?.participant?.session_id;
+  const trackKind = event?.track?.kind as 'video' | 'audio';
+  
+  if (!sessionId || !trackKind) {
+    // Bazen participant bilgisi eksik olabilir - sadece bir kez logla
+    if (import.meta.env.DEV) {
+      console.log('[CallUI] track-stopped incomplete event (ignored)');
+    }
+    return;
+  }
+  
+  const current = trackStatesRef.current.get(sessionId) || { video: true, audio: true };
+  
+  // Duplicate check - zaten kapalıysa işlem yapma
+  if (current[trackKind] === false) {
+    return;
+  }
+  
+  trackStatesRef.current.set(sessionId, { ...current, [trackKind]: false });
+  
+  if (!event?.participant?.local) {
+    console.log('[CallUI] track-stopped (remote):', {
+      participant: event?.participant?.user_name || 'unknown',
+      trackType: trackKind,
+    });
+  }
+  
+  if (event?.participant?.local) {
+    syncLocalMediaState();
+  }
+  
+  debouncedUpdateParticipants();
+};
+```
+
+#### 5. handleParticipantUpdated Güncelleme (satır 889-891):
+
+```typescript
+const handleParticipantUpdated = () => {
+  debouncedUpdateParticipants();
+};
+```
+
+#### 6. Participant Left Cleanup (satır 893-899'a ek):
+
+```typescript
+const handleParticipantLeft = (event: DailyEventObjectParticipantLeft | undefined) => {
+  console.log('[CallUI] participant-left event:', event?.participant?.user_name);
+  
+  // Track state'i temizle
+  if (event?.participant?.session_id) {
+    trackStatesRef.current.delete(event.participant.session_id);
+  }
+  
+  if (event?.participant && !event.participant.local) {
+    addNotification('leave', event.participant.user_name || 'Katılımcı');
+  }
+  
+  updateParticipants(); // Ayrılma anında, debounce olmadan güncelle
+};
+```
+
+#### 7. Handler Registration ID (satır 830 civarına):
+
+```typescript
+// Debug: Handler registration (sadece dev modda)
+if (import.meta.env.DEV) {
+  console.log('[CallUI] Registering event handlers. MeetingState:', callObject.meetingState?.());
+}
+```
+
+---
+
+## Doğrulama Kontrol Listesi
+
+### Sorun A Test Adımları:
+1. Video aramasını başlat, iki kullanıcıyla katıl
+2. A kullanıcısı mikrofonu bir kez kapat
+3. B kullanıcısının video tile'ı yenilenmemeli (animasyon/hareket olmamalı)
+4. Konsolda `track-stopped (remote)` sadece BİR KERE loglanmalı
+5. "off -> off" veya duplicate loglar olmamalı
+
+### Sorun A Test Adımları (Devam):
+6. A kullanıcısı kamerayı 10 kez hızlıca aç-kapat
+7. Her toggle için sadece 1 transition logu görülmeli
+8. B'deki video tile stabil kalmalı, remount olmamalı
+
+### Sorun B Doğrulama:
+1. Aramaya katıldıktan sonra konsolu izle
+2. "Overlay visibility check" spam'i olmamalı
+3. Sadece "Overlay visibility changed" transition logları görülmeli
+
+### Sorun C Açıklama:
+1. WebSocket hatası Lovable platform kaynaklı
+2. Production deploy'da oluşmayacak
+3. Uygulama fonksiyonelliğini etkilemiyor
+
+---
+
+## Özet
+
+| Sorun | Kök Neden | Çözüm |
+|-------|-----------|-------|
+| A - Track spam | Deduplication eksik, debounce yok | Track state Map + 50ms debounce |
+| A - Video refresh on mic mute | Çok sık `updateParticipants` | Debounced updates |
+| B - Overlay log spam | (Zaten düzeltilmiş) | Doğrulama |
+| C - WebSocket retry | Lovable platform | Kod değişikliği gerekmiyor, production'da olmayacak |
+
