@@ -1087,31 +1087,56 @@ export default function VideoCall() {
         if (!conversationId) throw new Error('Conversation ID is required');
         console.log('[VideoCall] Initializing call for conversation:', conversationId, 'intent:', intent);
 
-        // For "start" intent, we might create a new room or join existing active call
-        // For "join" intent, we must have an active call
-        const roomData = await createRoom({ forceNew: false, callIntent: intent });
-        if (!isMounted) return;
+        const initStart = performance.now();
 
-        console.log('Room data:', roomData);
-
+        // ══════════════════════════════════════════════════════════════════════
+        // OPTIMIZATION 1: Create CallObject IMMEDIATELY (before room fetch)
+        // This clears the parent "Preparing" overlay and lets CallUI mount early
+        // ══════════════════════════════════════════════════════════════════════
         const call = Daily.createCallObject({ allowMultipleCallInstances: true });
         callObjectRef.current = call;
-
         setCallObject(call);
         setIsLoading(false);
+        console.log('[VideoCall] CallObject created early at', Math.round(performance.now() - initStart), 'ms');
 
-        await requestMediaPermissions();
+        // ══════════════════════════════════════════════════════════════════════
+        // OPTIMIZATION 2: Check for roomUrl from query param (joiner shortcut)
+        // If ChatWindow passed roomUrl, we can skip the edge function call!
+        // ══════════════════════════════════════════════════════════════════════
+        const roomUrlFromParam = searchParams.get('roomUrl');
+        
+        // ══════════════════════════════════════════════════════════════════════
+        // OPTIMIZATION 3: Run room fetch, displayName, auth, and permissions IN PARALLEL
+        // ══════════════════════════════════════════════════════════════════════
+        const roomPromise = roomUrlFromParam && intent === 'join'
+          ? Promise.resolve({ room: { url: roomUrlFromParam, name: 'cached' } } as CreateDailyRoomResponse)
+          : createRoom({ forceNew: false, callIntent: intent });
 
-        try {
-          await call.startCamera();
+        const [roomData, displayName, authData] = await Promise.all([
+          roomPromise,
+          getDisplayName(),
+          supabase.auth.getUser(),
+        ]);
+
+        if (!isMounted) return;
+        console.log('[VideoCall] Parallel fetches done at', Math.round(performance.now() - initStart), 'ms');
+
+        const user = authData?.data?.user ?? null;
+        const roomUrl = roomData.room!.url;
+        currentRoomUrlRef.current = roomUrl;
+
+        // ══════════════════════════════════════════════════════════════════════
+        // OPTIMIZATION 4: Start camera fire-and-forget (don't await)
+        // Join doesn't require camera to be started first
+        // ══════════════════════════════════════════════════════════════════════
+        requestMediaPermissions().catch(console.warn);
+        call.startCamera().then(() => {
           try {
             (call as any).setLocalAudio?.(true);
           } catch (e) {
             console.warn('[VideoCall] setLocalAudio(true) failed:', e);
           }
-        } catch (e) {
-          console.warn('startCamera failed:', e);
-        }
+        }).catch((e) => console.warn('[VideoCall] startCamera failed:', e));
 
         joinTimeout = window.setTimeout(() => {
           if (!isMounted) return;
@@ -1119,23 +1144,19 @@ export default function VideoCall() {
         }, JOIN_TIMEOUT_MS);
 
         call.on('joined-meeting', () => {
-          console.log('Successfully joined meeting');
+          console.log('[VideoCall] Successfully joined meeting at', Math.round(performance.now() - initStart), 'ms');
           if (joinTimeout) window.clearTimeout(joinTimeout);
         });
 
         call.on('error', (e) => {
-          console.error('Daily call error:', e);
+          console.error('[VideoCall] Daily call error:', e);
           if (joinTimeout) window.clearTimeout(joinTimeout);
           if (!isMounted) return;
           setError('Bağlantı hatası oluştu');
         });
 
-        const displayName = await getDisplayName();
-        const { data: authData } = await supabase.auth.getUser();
-        const user = authData?.user ?? null;
-
         const joinOptions: any = {
-          url: roomData.room!.url,
+          url: roomUrl,
           userName: displayName,
           userData: user?.id ? { appUserId: user.id } : undefined,
           sendSettings: {
@@ -1143,11 +1164,11 @@ export default function VideoCall() {
           },
         };
 
-        console.log('[VideoCall] Attempting to join room:', roomData.room!.url);
+        console.log('[VideoCall] Attempting to join room:', roomUrl);
 
         try {
           await call.join(joinOptions);
-          console.log('[VideoCall] Successfully joined room');
+          console.log('[VideoCall] Successfully joined room at', Math.round(performance.now() - initStart), 'ms');
         } catch (e: any) {
           console.error('[VideoCall] Initial join failed:', e);
 
@@ -1177,6 +1198,8 @@ export default function VideoCall() {
         } catch (e) {
           console.warn('[VideoCall] Post-join setLocalAudio/Video failed:', e);
         }
+
+        console.log('[VideoCall] Init complete at', Math.round(performance.now() - initStart), 'ms');
       } catch (err) {
         console.error('Error initializing call:', err);
         if (!isMounted) return;
