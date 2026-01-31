@@ -666,8 +666,10 @@ function CallUI({ callObject }: CallUIProps) {
   const [callState, setCallState] = useState<CallState>('loading');
   const callStateRef = useRef<CallState>('loading');
 
+  // Debug: Log all callState transitions
   useEffect(() => {
     callStateRef.current = callState;
+    console.log('[CallUI] callState transition:', callState);
   }, [callState]);
 
   const [participants, setParticipants] = useState<DailyParticipant[]>([]);
@@ -693,14 +695,38 @@ function CallUI({ callObject }: CallUIProps) {
   }, [callObject]);
 
   useEffect(() => {
+    // ══════════════════════════════════════════════════════════════════════════
+    // FIX: Check CURRENT meeting state immediately on mount
+    // This prevents the overlay staying visible if joined-meeting already fired
+    // ══════════════════════════════════════════════════════════════════════════
+    const currentMeetingState = callObject.meetingState();
+    console.log('[CallUI] Initial meeting state on mount:', currentMeetingState);
+    
+    if (currentMeetingState === 'joined-meeting') {
+      console.log('[CallUI] Already joined on mount - transitioning callState to joined');
+      setCallState('joined');
+      updateParticipants();
+    } else if (currentMeetingState === 'joining-meeting') {
+      console.log('[CallUI] Currently joining on mount - transitioning callState to joining');
+      setCallState('joining');
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // Event handlers for FUTURE state changes
+    // ══════════════════════════════════════════════════════════════════════════
+    const handleJoiningMeeting = () => {
+      console.log('[CallUI] joining-meeting event fired');
+      setCallState('joining');
+    };
+
     const handleJoinedMeeting = () => {
-      console.log('Joined meeting');
+      console.log('[CallUI] joined-meeting event fired');
       setCallState('joined');
       updateParticipants();
     };
 
     const handleLeftMeeting = () => {
-      console.log('Left meeting');
+      console.log('[CallUI] left-meeting event fired');
       setCallState('leaving');
 
       if (autoNavigateOnLeaveRef.current) {
@@ -710,7 +736,7 @@ function CallUI({ callObject }: CallUIProps) {
     };
 
     const handleError = (e: any) => {
-      console.error('Daily error:', e);
+      console.error('[CallUI] Daily error event:', e);
       setCallState('error');
       toast({
         title: "Bağlantı Hatası",
@@ -720,7 +746,7 @@ function CallUI({ callObject }: CallUIProps) {
     };
 
     const handleParticipantJoined = (event: DailyEventObjectParticipant | undefined) => {
-      console.log('Participant joined:', event);
+      console.log('[CallUI] participant-joined event:', event?.participant?.user_name);
       if (event?.participant && !event.participant.local) {
         addNotification('join', event.participant.user_name || 'Katılımcı');
       }
@@ -732,29 +758,42 @@ function CallUI({ callObject }: CallUIProps) {
     };
 
     const handleParticipantLeft = (event: DailyEventObjectParticipantLeft | undefined) => {
-      console.log('Participant left:', event);
+      console.log('[CallUI] participant-left event:', event?.participant?.user_name);
       if (event?.participant && !event.participant.local) {
         addNotification('leave', event.participant.user_name || 'Katılımcı');
       }
       updateParticipants();
     };
 
+    const handleTrackStarted = (event: any) => {
+      console.log('[CallUI] track-started event:', {
+        participant: event?.participant?.user_name,
+        trackType: event?.track?.kind,
+        isLocal: event?.participant?.local
+      });
+      updateParticipants();
+    };
+
     updateParticipants();
 
+    callObject.on('joining-meeting', handleJoiningMeeting);
     callObject.on('joined-meeting', handleJoinedMeeting);
     callObject.on('left-meeting', handleLeftMeeting);
     callObject.on('error', handleError);
     callObject.on('participant-joined', handleParticipantJoined);
     callObject.on('participant-updated', handleParticipantUpdated);
     callObject.on('participant-left', handleParticipantLeft);
+    callObject.on('track-started', handleTrackStarted);
 
     return () => {
+      callObject.off('joining-meeting', handleJoiningMeeting);
       callObject.off('joined-meeting', handleJoinedMeeting);
       callObject.off('left-meeting', handleLeftMeeting);
       callObject.off('error', handleError);
       callObject.off('participant-joined', handleParticipantJoined);
       callObject.off('participant-updated', handleParticipantUpdated);
       callObject.off('participant-left', handleParticipantLeft);
+      callObject.off('track-started', handleTrackStarted);
     };
   }, [callObject, navigate, toast, addNotification, updateParticipants, autoNavigateOnLeaveRef]);
 
@@ -773,7 +812,11 @@ function CallUI({ callObject }: CallUIProps) {
     callObject.leave();
   }, [callObject, autoNavigateOnLeaveRef]);
 
-  if (callState === 'loading' || callState === 'joining') {
+  // Debug: Log overlay visibility decision
+  const showLoadingOverlay = callState === 'loading' || callState === 'joining';
+  console.log('[CallUI] Overlay visibility check:', { callState, showLoadingOverlay });
+
+  if (showLoadingOverlay) {
     return <LoadingScreen message="Görüşme başlatılıyor..." />;
   }
 
