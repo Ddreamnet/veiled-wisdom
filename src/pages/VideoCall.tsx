@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { DailyProvider } from '@daily-co/daily-react';
+import { DailyProvider, DailyVideo, DailyAudio, useVideoTrack, useAudioTrack } from '@daily-co/daily-react';
 import Daily, { DailyCall, DailyParticipant, DailyEventObjectParticipant, DailyEventObjectParticipantLeft } from '@daily-co/daily-js';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,6 @@ import { Video, VideoOff, Mic, MicOff, PhoneOff, Loader2, Users, Clock, Phone, U
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES & CONSTANTS
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -178,26 +177,40 @@ function sanitizeParticipants(participantList: DailyParticipant[]): { local: Dai
     const eAny = existing as any;
     const pAny = p as any;
 
-    const existingHasVideoTrack = !!eAny.videoTrack;
-    const pHasVideoTrack = !!pAny.videoTrack;
+    // ═══════════════════════════════════════════════════════════════════════════
+    // KRİTİK GÜVENLİK: Kamera/mikrofon kapatma durumunu ÖNCELIKLE algıla
+    // Eğer yeni participant video/audio KAPALI diyorsa, GÜVENLİK için onu tercih et
+    // Bu, "son frame" veya "ses sızıntısı" problemlerini önler
+    // ═══════════════════════════════════════════════════════════════════════════
+    const existingVideoFlag = eAny.video !== false;
+    const pVideoFlag = pAny.video !== false;
+    const existingAudioFlag = eAny.audio !== false;
+    const pAudioFlag = pAny.audio !== false;
 
-    // KRİTİK: Aynı kullanıcı için birden fazla participant gördüğümüzde,
-    // kamera/mikrofon KAPATMA güncellemelerinin eski kopya tarafından ezilmesini istemiyoruz.
-    // Eğer yeni participant video/audio kapalı diyorsa onu tercih et.
-    const existingVideoFlag = !!eAny.video;
-    const pVideoFlag = !!pAny.video;
-    const existingAudioFlag = !!eAny.audio;
-    const pAudioFlag = !!pAny.audio;
-
-    const prefersNewBecauseTurnedOff = (existingVideoFlag && !pVideoFlag) || (existingAudioFlag && !pAudioFlag);
-    if (prefersNewBecauseTurnedOff) {
+    // Güvenlik önceliği: "kapalı" güncellemesi her zaman kazanır
+    if (existingVideoFlag && !pVideoFlag) {
+      remoteMap.set(key, p);
+      continue;
+    }
+    if (existingAudioFlag && !pAudioFlag) {
       remoteMap.set(key, p);
       continue;
     }
 
-    // Aksi halde, video track'i olanı tercih etmeye devam et (kamera açık durumda daha doğru render)
-    if (!existingHasVideoTrack && pHasVideoTrack) {
-      remoteMap.set(key, p);
+    // ═══════════════════════════════════════════════════════════════════════════
+    // DETERMİNİSTİK SEÇİM: Aynı kullanıcı için tutarlı session_id seç
+    // Alfabetik olarak en düşük session_id'yi seç - her render'da aynı sonuç
+    // Bu, AnimatePresence key değişikliği kaynaklı flickering'i önler
+    // ═══════════════════════════════════════════════════════════════════════════
+    const existingSessionId = existing.session_id;
+    const pSessionId = p.session_id;
+    
+    // Aynı media durumundalarsa, deterministik olarak en düşük session_id'yi seç
+    if (existingVideoFlag === pVideoFlag && existingAudioFlag === pAudioFlag) {
+      if (pSessionId < existingSessionId) {
+        remoteMap.set(key, p);
+      }
+      // else: existing zaten daha düşük, değiştirme
     }
   }
 
@@ -484,112 +497,59 @@ function WaitingRoom({
   );
 }
 
-function VideoTile({ participant, isLocal }: { participant: DailyParticipant; isLocal: boolean }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const audioRef = useRef<HTMLAudioElement>(null);
+// ═══════════════════════════════════════════════════════════════════════════════
+// VideoTile - Daily React Hook'ları ile Güvenli Track Yönetimi
+// useVideoTrack/useAudioTrack hook'ları track durumunu reactive olarak takip eder
+// DailyVideo bileşeni track lifecycle'ını otomatik yönetir
+// ═══════════════════════════════════════════════════════════════════════════════
 
-  // Daily.co durumları bazen participant.video/audio flag'lerini anlık güncellemeyebilir;
-  // bu yüzden track'in enabled/readyState bilgilerini de dikkate alıyoruz.
-  const videoTrack = ((participant as any).videoTrack || undefined) as MediaStreamTrack | undefined;
-  const videoTrackEnabled = !!videoTrack && videoTrack.enabled && videoTrack.readyState === 'live';
+function VideoTile({ sessionId, isLocal, displayName }: { sessionId: string; isLocal: boolean; displayName: string }) {
+  // Daily React Hook'ları - track durumunu reactive olarak sağlar
+  // isOff = true olduğunda karşı tarafta kesinlikle veri gelmez
+  const videoTrackState = useVideoTrack(sessionId);
+  const audioTrackState = useAudioTrack(sessionId);
 
-  const legacyAudioTrack = ((participant as any).audioTrack || undefined) as MediaStreamTrack | undefined;
-  const audioTrackEnabledLegacy = !!legacyAudioTrack && legacyAudioTrack.enabled && legacyAudioTrack.readyState === 'live';
-  const audioTrackNewAny = (participant as any).tracks?.audio?.persistentTrack;
-  const audioTrackNew = (audioTrackNewAny && typeof audioTrackNewAny === 'object' ? audioTrackNewAny : undefined) as MediaStreamTrack | undefined;
-  const audioTrackEnabledNew = !!audioTrackNew && audioTrackNew.enabled && audioTrackNew.readyState === 'live';
+  // Track durumu kontrolü - hook'ların isOff değeri güvenilir kaynak
+  const isVideoOff = videoTrackState.isOff;
+  const isAudioOff = audioTrackState.isOff;
 
-  // Kamera/mikrofon “açık” kabulü: hem Daily flag'i, hem de track canlı+enabled olmalı.
-  const isVideoEnabled = !!participant.video && videoTrackEnabled;
-  const isAudioEnabled = !!participant.audio && (audioTrackEnabledLegacy || audioTrackEnabledNew);
-
-  // Video track bağlama - track yoksa veya kapalıysa srcObject'i temizle
+  // Debug logging
   useEffect(() => {
-    if (!videoRef.current) return;
-    
-    if (isVideoEnabled && videoTrack) {
-      // Kamera açık - video stream'i bağla
-      const stream = new MediaStream([videoTrack]);
-      videoRef.current.srcObject = stream;
-      console.log('[VideoTile] Video track attached:', participant.user_name, {
-        trackId: videoTrack.id,
-        video: participant.video,
-        trackEnabled: videoTrack.enabled,
-        readyState: videoTrack.readyState,
-      });
-    } else {
-      // Kamera kapalı - srcObject'i temizle (son frame'i kaldır)
-      videoRef.current.srcObject = null;
-      console.log('[VideoTile] Video track cleared:', participant.user_name, {
-        hasTrack: !!videoTrack,
-        video: participant.video,
-        trackEnabled: videoTrack?.enabled,
-        readyState: videoTrack?.readyState,
-      });
-    }
-  }, [isVideoEnabled, videoTrack, participant.video, participant.session_id, participant.user_name]);
+    console.log('[VideoTile] Track state update:', {
+      sessionId,
+      displayName,
+      isLocal,
+      isVideoOff,
+      isAudioOff,
+      videoState: videoTrackState.state,
+      audioState: audioTrackState.state,
+    });
+  }, [sessionId, displayName, isLocal, isVideoOff, isAudioOff, videoTrackState.state, audioTrackState.state]);
 
-  // Audio track bağlama (remote katılımcılar için)
-  useEffect(() => {
-    if (!audioRef.current || isLocal) return;
-    
-    // Daily.co'nun hem eski hem yeni track API'sini destekle
-    const audioTrack = (legacyAudioTrack ?? audioTrackNew) as MediaStreamTrack | undefined;
-    
-    const audioLiveEnabled = !!audioTrack && audioTrack.enabled && audioTrack.readyState === 'live';
-
-    if (participant.audio && audioLiveEnabled) {
-      console.log('[VideoTile] Audio track attached:', participant.user_name, {
-        trackId: audioTrack.id,
-        audio: participant.audio,
-        trackEnabled: audioTrack.enabled,
-        readyState: audioTrack.readyState,
-      });
-      
-      const stream = new MediaStream([audioTrack]);
-      audioRef.current.srcObject = stream;
-      
-      // Safari ve mobil için autoplay fix
-      audioRef.current.play().catch(e => {
-        console.warn('[VideoTile] Audio autoplay failed:', e.name, e.message);
-      });
-    } else {
-      // Mikrofon kapalı - audio'yu temizle
-      audioRef.current.srcObject = null;
-      console.log('[VideoTile] Audio track cleared:', participant.user_name, {
-        hasTrack: !!audioTrack,
-        audio: participant.audio,
-        trackEnabled: audioTrack?.enabled,
-        readyState: audioTrack?.readyState,
-      });
-    }
-  }, [participant.audioTrack, participant.audio, (participant as any).tracks?.audio, participant.session_id, isLocal, participant.user_name]);
-
-  const displayName = isLocal ? 'Siz' : (participant.user_name || 'Katılımcı');
-  const avatarLetter = isLocal ? 'S' : (participant.user_name?.charAt(0).toUpperCase() || 'K');
+  const avatarLetter = isLocal ? 'S' : (displayName?.charAt(0).toUpperCase() || 'K');
+  const shownName = isLocal ? 'Siz' : (displayName || 'Katılımcı');
 
   return (
     <div className="relative bg-card rounded-xl overflow-hidden aspect-video border border-border shadow-lg group">
-      {/* Video elementi - kamera kapalıyken gizle */}
-      <video
-        ref={videoRef}
-        autoPlay
+      {/* 
+        DailyVideo bileşeni - Daily React'ın resmi video render bileşeni
+        - Track state değişikliklerini otomatik handle eder
+        - srcObject yönetimini internal olarak yapar
+        - isOff durumunda hiçbir frame göstermez
+      */}
+      <DailyVideo
+        sessionId={sessionId}
+        type="video"
+        automirror={isLocal}
+        fit="cover"
+        style={{
+          width: '100%',
+          height: '100%',
+          opacity: isVideoOff ? 0 : 1,
+          transition: 'opacity 200ms ease-in-out',
+        }}
         muted={isLocal}
-        playsInline
-        className={cn(
-          "w-full h-full object-cover transition-opacity duration-200",
-          isVideoEnabled ? "opacity-100" : "opacity-0"
-        )}
       />
-      
-      {/* Remote katılımcılar için ayrı audio elementi */}
-      {!isLocal && (
-        <audio 
-          ref={audioRef} 
-          autoPlay 
-          playsInline
-        />
-      )}
 
       {/* Name badge */}
       <motion.div
@@ -599,12 +559,12 @@ function VideoTile({ participant, isLocal }: { participant: DailyParticipant; is
       >
         <div className="px-3 py-1.5 bg-background/80 backdrop-blur-sm rounded-full border border-border flex items-center gap-2">
           {isLocal && <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />}
-          <span className="text-sm font-medium">{displayName}</span>
+          <span className="text-sm font-medium">{shownName}</span>
         </div>
       </motion.div>
 
       {/* Mic status indicator - mikrofon kapalıysa göster */}
-      {!isAudioEnabled && (
+      {isAudioOff && (
         <div className="absolute top-4 right-4">
           <div className="p-2 rounded-full bg-red-500/20 border border-red-500/30">
             <MicOff className="h-4 w-4 text-red-400" />
@@ -613,7 +573,7 @@ function VideoTile({ participant, isLocal }: { participant: DailyParticipant; is
       )}
 
       {/* Kamera kapalı placeholder - video kapalıyken göster */}
-      {!isVideoEnabled && (
+      {isVideoOff && (
         <div className="absolute inset-0 flex items-center justify-center bg-muted">
           <motion.div 
             initial={{ scale: 0.8 }} 
@@ -624,7 +584,7 @@ function VideoTile({ participant, isLocal }: { participant: DailyParticipant; is
             <div className="h-20 w-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-3 ring-4 ring-primary/10">
               <span className="text-3xl font-bold text-primary">{avatarLetter}</span>
             </div>
-            <p className="text-sm text-muted-foreground">{displayName}</p>
+            <p className="text-sm text-muted-foreground">{shownName}</p>
             <div className="flex items-center justify-center gap-2 mt-2">
               <div className="px-2 py-1 rounded-full bg-red-500/20 border border-red-500/30 flex items-center gap-1">
                 <VideoOff className="h-3 w-3 text-red-400" />
@@ -928,59 +888,91 @@ function CallUI({ callObject }: CallUIProps) {
   // KAMERA/MİKROFON TOGGLE - Kritik Gizlilik Özelliği
   // setLocalVideo/setLocalAudio true = karşı taraf görebilir/duyabilir
   // setLocalVideo/setLocalAudio false = karşı tarafa GÖNDERİLMEZ
+  // 
+  // GÜVENLİK GARANTİSİ:
+  // 1. await ile Daily API çağrısının tamamlanmasını bekle
+  // 2. Gerçek participant durumunu doğrula
+  // 3. State'i gerçek duruma göre güncelle (request'e değil)
+  // 4. Participant listesini zorla güncelle (UI anında yansısın)
   // ═══════════════════════════════════════════════════════════════════════════════
   
   const toggleCamera = useCallback(async () => {
     const newState = !isCameraOn;
-    console.log('[CallUI] toggleCamera:', { currentState: isCameraOn, newState });
+    console.log('[CallUI] toggleCamera:', { currentState: isCameraOn, requestedNewState: newState });
     
     try {
       // Daily.co API: false = track'i durdurur ve karşı tarafa göndermez
       await callObject.setLocalVideo(newState);
-      setIsCameraOn(newState);
       
-      // Doğrulama: Gerçek track durumunu kontrol et
+      // DOĞRULAMA: İstenen durumun gerçekten uygulandığını kontrol et
       const localParticipantData = callObject.participants().local;
+      const actualState = localParticipantData?.video !== false;
+      
       console.log('[CallUI] Camera toggle verified:', {
         requestedState: newState,
-        actualVideoTrack: !!localParticipantData?.videoTrack,
-        videoEnabled: localParticipantData?.video,
+        actualState,
+        match: actualState === newState,
+        videoTrackPresent: !!localParticipantData?.videoTrack,
       });
+      
+      // State'i GERÇEK duruma göre güncelle (güvenlik için)
+      if (actualState !== newState) {
+        console.warn('[CallUI] Camera state mismatch! Using actual state:', actualState);
+      }
+      setIsCameraOn(actualState);
+      
+      // Participant listesini zorla güncelle - karşı tarafta da anında yansısın
+      updateParticipants();
+      
     } catch (error) {
       console.error('[CallUI] toggleCamera error:', error);
+      // Hata durumunda state'i değiştirme (mevcut durumu koru)
       toast({
         title: "Kamera Hatası",
         description: "Kamera durumu değiştirilemedi.",
         variant: "destructive",
       });
     }
-  }, [callObject, isCameraOn, toast]);
+  }, [callObject, isCameraOn, toast, updateParticipants]);
 
   const toggleMic = useCallback(async () => {
     const newState = !isMicOn;
-    console.log('[CallUI] toggleMic:', { currentState: isMicOn, newState });
+    console.log('[CallUI] toggleMic:', { currentState: isMicOn, requestedNewState: newState });
     
     try {
       // Daily.co API: false = audio track'i durdurur ve karşı tarafa göndermez
       await callObject.setLocalAudio(newState);
-      setIsMicOn(newState);
       
-      // Doğrulama: Gerçek track durumunu kontrol et
+      // DOĞRULAMA: İstenen durumun gerçekten uygulandığını kontrol et
       const localParticipantData = callObject.participants().local;
+      const actualState = localParticipantData?.audio !== false;
+      
       console.log('[CallUI] Mic toggle verified:', {
         requestedState: newState,
-        actualAudioTrack: !!localParticipantData?.audioTrack,
-        audioEnabled: localParticipantData?.audio,
+        actualState,
+        match: actualState === newState,
+        audioTrackPresent: !!localParticipantData?.audioTrack,
       });
+      
+      // State'i GERÇEK duruma göre güncelle (güvenlik için)
+      if (actualState !== newState) {
+        console.warn('[CallUI] Mic state mismatch! Using actual state:', actualState);
+      }
+      setIsMicOn(actualState);
+      
+      // Participant listesini zorla güncelle - karşı tarafta da anında yansısın
+      updateParticipants();
+      
     } catch (error) {
       console.error('[CallUI] toggleMic error:', error);
+      // Hata durumunda state'i değiştirme (mevcut durumu koru)
       toast({
         title: "Mikrofon Hatası",
         description: "Mikrofon durumu değiştirilemedi.",
         variant: "destructive",
       });
     }
-  }, [callObject, isMicOn, toast]);
+  }, [callObject, isMicOn, toast, updateParticipants]);
 
   const leaveCall = useCallback(() => {
     autoNavigateOnLeaveRef.current = true;
@@ -1047,28 +1039,52 @@ function CallUI({ callObject }: CallUIProps) {
           <AnimatePresence>
             {localParticipant && (
               <motion.div
-                key={localParticipant.session_id}
+                key={(localParticipant as any).userData?.appUserId || localParticipant.session_id}
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
                 transition={{ delay: 0 }}
               >
-                <VideoTile participant={localParticipant} isLocal={true} />
+                <VideoTile 
+                  sessionId={localParticipant.session_id} 
+                  isLocal={true} 
+                  displayName={localParticipant.user_name || 'Siz'} 
+                />
               </motion.div>
             )}
-            {remoteParticipants.map((participant, index) => (
-              <motion.div
-                key={participant.session_id}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ delay: (index + 1) * 0.1 }}
-              >
-                <VideoTile participant={participant} isLocal={false} />
-              </motion.div>
-            ))}
+            {remoteParticipants.map((participant, index) => {
+              // ═══════════════════════════════════════════════════════════════════
+              // STABİL KEY: appUserId kullan (session_id yerine)
+              // Bu, aynı kullanıcı için session değişse bile bileşenin
+              // yeniden mount edilmesini (flickering) önler
+              // ═══════════════════════════════════════════════════════════════════
+              const stableKey = (participant as any).userData?.appUserId || participant.session_id;
+              
+              return (
+                <motion.div
+                  key={stableKey}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ delay: (index + 1) * 0.1 }}
+                >
+                  <VideoTile 
+                    sessionId={participant.session_id} 
+                    isLocal={false} 
+                    displayName={participant.user_name || 'Katılımcı'} 
+                  />
+                </motion.div>
+              );
+            })}
           </AnimatePresence>
         </div>
+
+        {/* 
+          DailyAudio - Tüm remote katılımcıların sesini otomatik yönetir
+          Bu bileşen audio track'leri merkezi olarak handle eder ve
+          Safari/mobil autoplay sorunlarını çözer
+        */}
+        <DailyAudio />
 
         {/* Controls */}
         <motion.div
