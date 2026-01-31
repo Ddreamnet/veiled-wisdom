@@ -1195,7 +1195,31 @@ export default function VideoCall() {
     if (conversationId) {
       const existingInit = initFlowMutex.get(conversationId);
       if (existingInit) {
-        console.log('[VideoCall] initFlow mutex hit; skipping duplicate init', { conversationId });
+        // IMPORTANT:
+        // We must NOT permanently skip initialization on this mount.
+        // Otherwise the page can get stuck on the parent overlay (callObject stays null)
+        // if a previous init promise is still in-flight or was started by a previous mount.
+        console.log('[VideoCall] initFlow mutex hit; waiting existing init then ensuring init for this mount', { conversationId });
+
+        (async () => {
+          try {
+            await existingInit;
+          } catch (e) {
+            // Ignore; we'll attempt our own init below if still mounted.
+            console.warn('[VideoCall] existing init promise rejected; will attempt fresh init', e);
+          }
+
+          if (!isMounted) return;
+
+          // If we still don't have a call object in THIS component instance, run init now.
+          if (!callObjectRef.current) {
+            console.log('[VideoCall] No callObject after waiting existing init; starting init for this mount');
+            const p = initializeCall().finally(() => {
+              initFlowMutex.delete(conversationId);
+            });
+            initFlowMutex.set(conversationId, p);
+          }
+        })();
       } else {
         const p = initializeCall().finally(() => {
           initFlowMutex.delete(conversationId);
