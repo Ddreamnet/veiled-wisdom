@@ -938,6 +938,16 @@ export default function VideoCall() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Debug: parent-level loading gate (this is the overlay that says "Görüşme hazırlanıyor")
+  useEffect(() => {
+    console.log('[VideoCall] Parent gate state:', {
+      isLoading,
+      hasCallObject: !!callObject,
+      intent,
+      conversationId,
+    });
+  }, [isLoading, callObject, intent, conversationId]);
+
   const initAttemptedRef = useRef(false);
   const callObjectRef = useRef<DailyCall | null>(null);
   const currentRoomUrlRef = useRef<string | null>(null);
@@ -1219,7 +1229,9 @@ export default function VideoCall() {
     );
   }
 
-  if (isLoading || !callObject) {
+  // IMPORTANT: Only show the parent "preparing" overlay before we have a callObject.
+  // Once callObject exists, CallUI must mount and self-synchronize via Daily events.
+  if (!callObject) {
     return (
       <div className="h-screen bg-gradient-to-br from-background via-purple-950/20 to-background flex items-center justify-center">
         <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center space-y-6">
