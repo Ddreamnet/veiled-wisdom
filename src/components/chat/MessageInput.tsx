@@ -165,24 +165,7 @@ export function MessageInput({ onSendMessage, sending }: MessageInputProps) {
           <div className="flex-1 relative flex items-center rounded-2xl border border-input bg-muted/30 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/50 transition-all duration-200">
             {/* Scrollable textarea wrapper - scrollbar appears at its right edge, left of mic */}
             <div 
-              className={cn(
-                "flex-1 max-h-[120px] overflow-y-auto",
-                // Custom scrollbar - very thin, short, hidden when not scrolling
-                "[&::-webkit-scrollbar]:w-[3px]",
-                "[&::-webkit-scrollbar]:opacity-0",
-                "[&::-webkit-scrollbar]:transition-opacity",
-                "[&::-webkit-scrollbar-track]:bg-transparent",
-                "[&::-webkit-scrollbar-track]:my-4",
-                "[&::-webkit-scrollbar-thumb]:bg-primary/50",
-                "[&::-webkit-scrollbar-thumb]:rounded-full",
-                "[&::-webkit-scrollbar-thumb]:hover:bg-primary/70",
-                // Hide scrollbar by default, show on hover/scroll
-                "[&::-webkit-scrollbar-thumb]:opacity-0",
-                "hover:[&::-webkit-scrollbar-thumb]:opacity-100",
-                "[&::-webkit-scrollbar-thumb]:transition-opacity",
-                // Firefox
-                "scrollbar-thin scrollbar-track-transparent scrollbar-thumb-primary/50"
-              )}
+              className="flex-1 max-h-[120px] overflow-y-auto [&::-webkit-scrollbar]:w-[3px]"
               style={{ scrollbarGutter: 'stable' }}
             >
               <textarea
