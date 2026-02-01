@@ -106,14 +106,15 @@ function AppRoutes() {
       </div>
 
       {/* Mobile Layout */}
-      <div className="min-h-screen flex flex-col md:hidden">
+      {/* Mobile Layout - Shell structure with contained scroll */}
+      <div className="h-[100dvh] flex flex-col md:hidden overflow-hidden">
         {/* Hide MobileHeader on Messages page - it has its own header */}
         <Routes>
           <Route path="/messages" element={null} />
           <Route path="*" element={<MobileHeader />} />
         </Routes>
         <main 
-          className="flex-1"
+          className="flex-1 overflow-y-auto overflow-x-hidden"
           style={{ paddingBottom: "calc(80px + env(safe-area-inset-bottom, 0px))" }}
         >
           <Suspense fallback={<PageLoader />}>
