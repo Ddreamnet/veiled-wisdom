@@ -37,7 +37,7 @@ const TeacherEdit = lazy(() => import('./pages/admin/TeacherEdit'));
 const CategoriesManagement = lazy(() => import('./pages/admin/Categories'));
 const PagesManagement = lazy(() => import('./pages/admin/Pages'));
 const CuriositiesManagement = lazy(() => import('./pages/admin/Curiosities'));
-const VideoCall = lazy(() => import('./pages/VideoCall'));
+const VideoCall = lazy(() => import('./pages/VideoCall/index'));
 const About = lazy(() => import('./pages/static/About'));
 const HowItWorks = lazy(() => import('./pages/static/HowItWorks'));
 const Production = lazy(() => import('./pages/static/Production'));
