@@ -54,7 +54,7 @@ export function VideoTile({ sessionId, isLocal, displayName }: VideoTileProps) {
       <DailyVideo
         sessionId={sessionId}
         type="video"
-        automirror={false}
+        automirror={isLocal}
         fit="cover"
         style={{
           width: '100%',
