@@ -52,6 +52,12 @@
     
     --radius: 1rem;
     
+    /* === GLOBAL SCROLLBAR === */
+    --scrollbar-track: 270 60% 8%;
+    --scrollbar-thumb: 270 45% 22%;
+    --scrollbar-thumb-hover: 270 60% 35%;
+    --scrollbar-size: 6px;
+    
     /* Sidebar */
     --sidebar-background: 270 55% 10%;
     --sidebar-foreground: 220 15% 75%;
@@ -67,6 +73,27 @@
 @layer base {
   * {
     @apply border-border;
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--scrollbar-thumb)) hsl(var(--scrollbar-track));
+  }
+  
+  *::-webkit-scrollbar {
+    width: var(--scrollbar-size);
+    height: var(--scrollbar-size);
+  }
+  
+  *::-webkit-scrollbar-track {
+    background: hsl(var(--scrollbar-track));
+    border-radius: 50px;
+  }
+  
+  *::-webkit-scrollbar-thumb {
+    background: hsl(var(--scrollbar-thumb));
+    border-radius: 50px;
+  }
+  
+  *::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--scrollbar-thumb-hover));
   }
   
   body {
