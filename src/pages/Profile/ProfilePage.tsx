@@ -85,7 +85,6 @@ export default function ProfilePage() {
     if (role === "admin") {
       return [
         ...baseItems,
-        { icon: MessageSquare, label: "Destek Mesajları", href: "/messages", description: "Kullanıcı mesajları ve destek" },
         { icon: HelpCircle, label: "Yardım", href: "/how-it-works", description: "Sık sorulan sorular" },
       ];
     }
