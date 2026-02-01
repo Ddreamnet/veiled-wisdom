@@ -1,76 +1,56 @@
 
-# Global Scrollbar Styling Planı
+# "Onaylamalar"ı Dashboard Hızlı Erişim Kartına Taşıma Planı
 
 ## Özet
-Sitenin tüm native scrollbar'larını tek bir yerden (CSS değişkenleri + global stiller) yönetecek şekilde yapılandırma. Bu, hem `body` scrollbar'ı hem de tüm overflow elementleri için geçerli olacak.
+"Onaylamalar" bölümü navbar ve mobile navigation'dan tamamen kaldırılacak. Erişim sadece Dashboard sayfasındaki "Hızlı Erişim" bölümüne eklenecek yeni bir kart aracılığıyla sağlanacak.
 
 ---
 
-## Renk Eşleştirmesi
+## Değişiklik Listesi
 
-Verilen renkler ile mevcut sistem renkleri karşılaştırması:
+### 1. Desktop Navbar'dan Kaldırma
+**Dosya:** `src/components/header/navConfig.ts`
 
-| Verilen | Hex | En Yakın Sistem Rengi | HSL |
-|---------|-----|----------------------|-----|
-| Track | `#140821` | `--background` | `270 60% 8%` ≈ `#13021E` |
-| Thumb | `#3c1d57` | `--primary-dark` | `270 70% 45%` ≈ `#7B2CBF` |
-
-Thumb için `--primary-dark` biraz açık kalıyor. Daha uyumlu bir renk için yeni bir CSS değişkeni tanımlanabilir veya mevcut `--primary-subtle` (`#3C1053`) kullanılabilir - bu renk `#3c1d57`'ye çok yakın.
-
----
-
-## Uygulama Planı
-
-### Adım 1: CSS Değişkenleri Ekleme
-`src/index.css` dosyasındaki `:root` bloğuna scrollbar için özel değişkenler eklenecek:
-
+Admin navigation menüsünden "Onaylamalar" linki kaldırılacak:
 ```text
---scrollbar-track: 270 60% 8%;      /* background ile aynı */
---scrollbar-thumb: 270 45% 22%;     /* #3c1d57'ye yakın */
---scrollbar-thumb-hover: 270 60% 35%; /* hover için biraz açık */
---scrollbar-size: 6px;
+// ÖNCE (3 item)
+[Dashboard, Onaylamalar, Gelirler]
+
+// SONRA (2 item)  
+[Dashboard, Gelirler]
 ```
 
-### Adım 2: Global Scrollbar Stilleri
-`src/index.css` dosyasına global scrollbar CSS kuralları eklenecek:
+### 2. Mobile Bottom Navigation'dan Kaldırma
+**Dosya:** `src/components/mobile/MobileBottomNav.tsx`
 
+Admin için tanımlı navigation items'dan "Onaylar" tab'ı kaldırılacak:
 ```text
-/* === GLOBAL SCROLLBAR === */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: hsl(var(--scrollbar-thumb)) hsl(var(--scrollbar-track));
-}
+// ÖNCE (4 item)
+[Dashboard, Onaylar, Gelirler, Profil]
 
-*::-webkit-scrollbar {
-  width: var(--scrollbar-size);
-  height: var(--scrollbar-size);
-}
+// SONRA (3 item)
+[Dashboard, Gelirler, Profil]
+```
 
-*::-webkit-scrollbar-track {
-  background: hsl(var(--scrollbar-track));
-  border-radius: 50px;
-}
+### 3. Mobile Header ROOT_TAB_PATHS Güncelleme
+**Dosya:** `src/components/mobile/MobileHeader.tsx`
 
-*::-webkit-scrollbar-thumb {
-  background: hsl(var(--scrollbar-thumb));
-  border-radius: 50px;
-}
+`/admin/approvals` artık bir root tab olmadığı için listeden çıkarılacak. Bu sayede Approvals sayfasına gidildiğinde geri butonu görünecek.
 
-*::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--scrollbar-thumb-hover));
+### 4. Dashboard'a Hızlı Erişim Kartı Ekleme
+**Dosya:** `src/pages/admin/Dashboard.tsx`
+
+`adminCards` array'ine "Onaylamalar" kartı eklenecek:
+```text
+{
+  title: "Onaylamalar",
+  description: "Uzman başvurularını incele ve onayla",
+  icon: UserCheck,
+  href: "/admin/approvals",
 }
 ```
 
-### Adım 3: ScrollArea Bileşeni Güncelleme
-`src/components/ui/scroll-area.tsx` dosyasındaki thumb rengi, yeni CSS değişkenlerini kullanacak şekilde güncellenecek:
-
-```text
-// Mevcut: bg-primary/50
-// Yeni: bg-[hsl(var(--scrollbar-thumb))] veya Tailwind utility
-```
-
-### Adım 4: MessageInput Temizliği
-`src/components/chat/MessageInput.tsx` dosyasındaki inline scrollbar stilleri kaldırılacak çünkü artık global stil devralınacak. Sadece özel davranışlar (auto-hide, thin) korunacak.
+Not: `UserCheck` ikonu zaten import edilmiş durumda (statCards'ta kullanılıyor).
 
 ---
 
@@ -78,28 +58,28 @@ Thumb için `--primary-dark` biraz açık kalıyor. Daha uyumlu bir renk için y
 
 ### Dosya Değişiklikleri
 
-| Dosya | Değişiklik |
-|-------|-----------|
-| `src/index.css` | +15 satır (değişkenler + global kurallar) |
-| `src/components/ui/scroll-area.tsx` | Thumb rengi güncelleme (~1 satır) |
-| `src/components/chat/MessageInput.tsx` | Gereksiz scrollbar renk stilleri kaldırma |
+| Dosya | Değişiklik | Satır Etkisi |
+|-------|-----------|--------------|
+| `src/components/header/navConfig.ts` | 1 satır silme | -1 |
+| `src/components/mobile/MobileBottomNav.tsx` | 1 nav item silme | -1 |
+| `src/components/mobile/MobileHeader.tsx` | 1 path silme | -1 |
+| `src/pages/admin/Dashboard.tsx` | 1 kart ekleme | +5 |
 
-### Desteklenen Tarayıcılar
-- Chrome, Edge, Safari: `-webkit-scrollbar` pseudo-elements
-- Firefox: `scrollbar-color` ve `scrollbar-width` properties
+### Korunacak Dosyalar (Değişiklik Yok)
 
-### Avantajlar
-1. Tek kaynak: Tüm scrollbar stilleri CSS değişkenlerinden yönetilir
-2. Kod tekrarı yok: Her bileşende ayrı scrollbar stili tanımlamaya gerek kalmaz
-3. Kolay güncelleme: Renk değişikliği sadece `:root` bloğunda yapılır
-4. Tutarlı görünüm: Tüm site genelinde aynı scrollbar tasarımı
+| Dosya | Sebep |
+|-------|-------|
+| `src/routes/routeConfig.ts` | Route tanımı gerekli - sayfa hala erişilebilir |
+| `src/components/UnifiedBreadcrumb.tsx` | Breadcrumb label'ı korunmalı |
+| `src/pages/admin/Approvals/*` | Sayfa dosyaları aynen kalacak |
 
 ---
 
 ## Sonuç
 
-Bu plan uygulandığında:
-- Site genelinde tutarlı 6px genişliğinde rounded scrollbar
-- Mevcut dark purple tema ile uyumlu renk paleti
-- Hem Webkit hem Firefox desteği
-- Merkezi yönetim ile kolay bakım
+Bu değişikliklerden sonra:
+- Admin paneli navigasyonu 3'ten 2 linke sadeleşecek (Dashboard, Gelirler)
+- Mobile bottom nav 4'ten 3 tab'a düşecek
+- "Onaylamalar"a erişim tek bir yerden: Dashboard > Hızlı Erişim > Onaylamalar kartı
+- Mevcut istatistik kartı ("Bekleyen Onay") bilgi amaçlı kalacak, yönlendirme yapmayacak
+- Tüm eski navigation referansları temizlenmiş olacak
