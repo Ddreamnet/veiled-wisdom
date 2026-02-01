@@ -277,10 +277,17 @@ Tek kaynak, her iki component kullanir.
 
 ## Implementation Phases
 
-### Phase 1: Foundation (1-2 gun)
-- [ ] Route configuration extraction (App.tsx)
-- [ ] Query hooks ayirimi (queries.ts)
-- [ ] Hook naming standardization
+### Phase 1: Foundation ✅ COMPLETED
+- [x] Route configuration extraction (App.tsx) → `src/routes/routeConfig.ts`, `src/routes/ProtectedRoute.tsx`
+- [x] Query hooks ayirimi (queries.ts) → `src/lib/queries/` folder with domain-specific files
+- [x] Hook naming standardization → `useMobile.tsx`, `useToast.ts` (backward-compatible re-exports kept)
+
+**Changes Made:**
+- Created `src/routes/` directory with route configuration and ProtectedRoute component
+- App.tsx reduced from 251 to 139 lines (route duplication eliminated)
+- Created `src/lib/queries/` with 6 domain-specific query files
+- queries.ts now re-exports from modular structure (backward compatible)
+- New camelCase hooks created, old kebab-case files re-export for compatibility
 
 ### Phase 2: High-Impact Pages (3-5 gun)
 - [ ] MyListings.tsx modularization
