@@ -44,7 +44,7 @@ export function VideoTile({ sessionId, isLocal, displayName }: VideoTileProps) {
   const shownName = isLocal ? 'Siz' : (displayName || 'Katılımcı');
 
   return (
-    <div className="relative bg-card rounded-xl overflow-hidden aspect-video border border-border shadow-lg group">
+    <div className="relative bg-card rounded-lg md:rounded-xl overflow-hidden aspect-[4/3] md:aspect-video border border-border shadow-lg group h-full">
       {/* 
         DailyVideo component - Daily React's official video renderer
         - Automatically handles track state changes
@@ -72,19 +72,19 @@ export function VideoTile({ sessionId, isLocal, displayName }: VideoTileProps) {
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="absolute bottom-4 left-4 flex items-center gap-2"
+        className="absolute bottom-2 left-2 md:bottom-4 md:left-4 flex items-center gap-2"
       >
-        <div className="px-3 py-1.5 bg-background/80 backdrop-blur-sm rounded-full border border-border flex items-center gap-2">
-          {isLocal && <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />}
-          <span className="text-sm font-medium">{shownName}</span>
+        <div className="px-2 py-1 md:px-3 md:py-1.5 bg-background/80 backdrop-blur-sm rounded-full border border-border flex items-center gap-1.5 md:gap-2">
+          {isLocal && <span className="h-1.5 w-1.5 md:h-2 md:w-2 rounded-full bg-primary animate-pulse" />}
+          <span className="text-xs md:text-sm font-medium">{shownName}</span>
         </div>
       </motion.div>
 
       {/* Mic status indicator - show when muted */}
       {isAudioOff && (
-        <div className="absolute top-4 right-4">
-          <div className="p-2 rounded-full bg-red-500/20 border border-red-500/30">
-            <MicOff className="h-4 w-4 text-red-400" />
+        <div className="absolute top-2 right-2 md:top-4 md:right-4">
+          <div className="p-1.5 md:p-2 rounded-full bg-red-500/20 border border-red-500/30">
+            <MicOff className="h-3 w-3 md:h-4 md:w-4 text-red-400" />
           </div>
         </div>
       )}
@@ -98,14 +98,14 @@ export function VideoTile({ sessionId, isLocal, displayName }: VideoTileProps) {
             className="text-center"
             key="avatar-placeholder"
           >
-            <div className="h-20 w-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-3 ring-4 ring-primary/10">
-              <span className="text-3xl font-bold text-primary">{avatarLetter}</span>
+            <div className="h-16 w-16 md:h-20 md:w-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-2 md:mb-3 ring-4 ring-primary/10">
+              <span className="text-2xl md:text-3xl font-bold text-primary">{avatarLetter}</span>
             </div>
-            <p className="text-sm text-muted-foreground">{shownName}</p>
-            <div className="flex items-center justify-center gap-2 mt-2">
-              <div className="px-2 py-1 rounded-full bg-red-500/20 border border-red-500/30 flex items-center gap-1">
+            <p className="text-xs md:text-sm text-muted-foreground">{shownName}</p>
+            <div className="flex items-center justify-center gap-2 mt-1.5 md:mt-2">
+              <div className="px-2 py-0.5 md:py-1 rounded-full bg-red-500/20 border border-red-500/30 flex items-center gap-1">
                 <VideoOff className="h-3 w-3 text-red-400" />
-                <span className="text-xs text-red-400">Kamera kapalı</span>
+                <span className="text-[10px] md:text-xs text-red-400">Kamera kapalı</span>
               </div>
             </div>
           </motion.div>

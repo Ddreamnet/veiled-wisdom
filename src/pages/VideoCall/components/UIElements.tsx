@@ -86,14 +86,15 @@ export function ControlButton({
   variant, 
   onClick, 
   children, 
-  withHoverScale = false 
+  withHoverScale = false,
+  className 
 }: ControlButtonProps) {
   return (
     <Button
       size="lg"
       variant={variant}
       onClick={onClick}
-      className={cn("h-14 w-14 rounded-full", withHoverScale && "transition-all hover:scale-110")}
+      className={cn("h-14 w-14 rounded-full", withHoverScale && "transition-all hover:scale-110", className)}
     >
       {children}
     </Button>

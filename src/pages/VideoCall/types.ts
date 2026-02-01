@@ -65,6 +65,7 @@ export interface ControlButtonProps {
   onClick: () => void;
   children: React.ReactNode;
   withHoverScale?: boolean;
+  className?: string;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
