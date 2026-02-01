@@ -1,42 +1,13 @@
 import { useState, useCallback, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import useEmblaCarousel from "embla-carousel-react";
-import { supabase } from "@/lib/supabase";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, ArrowRight, User, Sparkles, Users } from "lucide-react";
+import { ArrowLeft, ArrowRight, User, Sparkles } from "lucide-react";
 import { getOptimizedAvatarUrl } from "@/lib/imageOptimizer";
 import { cn } from "@/lib/utils";
-
-interface Expert {
-  id: string;
-  username: string | null;
-  avatar_url: string | null;
-  bio: string | null;
-}
-
-const fetchApprovedExperts = async (): Promise<Expert[]> => {
-  const { data: teacherRoles, error: rolesError } = await supabase
-    .from("user_roles")
-    .select("user_id")
-    .eq("role", "teacher");
-    
-  if (rolesError) throw rolesError;
-  if (!teacherRoles || teacherRoles.length === 0) return [];
-  
-  const teacherIds = teacherRoles.map(r => r.user_id);
-  
-  const { data: profiles, error: profilesError } = await supabase
-    .from("profiles")
-    .select("id, username, avatar_url, bio")
-    .in("id", teacherIds)
-    .limit(10); // Limit for performance on homepage
-    
-  if (profilesError) throw profilesError;
-  return profiles || [];
-};
+import { useApprovedExperts, type Expert } from "@/lib/queries";
 
 function ExpertSlide({ expert, isActive }: { expert: Expert; isActive: boolean }) {
   const truncatedBio = expert.bio 
@@ -134,11 +105,7 @@ function ExpertSlideSkeleton() {
 }
 
 export function ExpertsCarousel() {
-  const { data: experts = [], isLoading, error } = useQuery({
-    queryKey: ["homepage-experts"],
-    queryFn: fetchApprovedExperts,
-    staleTime: 5 * 60 * 1000,
-  });
+  const { data: experts = [], isLoading, error } = useApprovedExperts(10, "homepage-experts");
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [emblaRef, emblaApi] = useEmblaCarousel({
