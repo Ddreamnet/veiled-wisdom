@@ -54,7 +54,9 @@ export function VideoTile({ sessionId, isLocal, displayName }: VideoTileProps) {
       <DailyVideo
         sessionId={sessionId}
         type="video"
-        mirror={isLocal}
+        // Local self-view should be mirrored (selfie-style)
+        // Daily's automirror can be unreliable across browsers/constraints, so we also apply a CSS fallback.
+        automirror={isLocal}
         fit="cover"
         style={{
           width: '100%',
