@@ -167,7 +167,12 @@ const MobileBottomNavComponent = () => {
   const isActive = (href: string) => activeHref === href;
 
   const measurePill = () => {
-    if (!activeHref || !containerRef.current) return;
+    // activeHref yoksa pill'i gizle
+    if (!activeHref) {
+      setPillPosition(null);
+      return;
+    }
+    if (!containerRef.current) return;
 
     const activeElement = itemRefs.current.get(activeHref);
     if (!activeElement) return;
@@ -186,7 +191,11 @@ const MobileBottomNavComponent = () => {
   // - the active tab's layout (icon+label vs icon-only) has settled
   // - route changes that also change header/content height don't cause a "jump from top"
   useLayoutEffect(() => {
-    if (!activeHref) return;
+    // activeHref yoksa pill'i gizle ve effect'ten çık
+    if (!activeHref) {
+      setPillPosition(null);
+      return;
+    }
 
     let raf1 = 0;
     let raf2 = 0;
