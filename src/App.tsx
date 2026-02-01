@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef } from 'react';
+import { Suspense, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import ScrollToTop from './components/ScrollToTop';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -11,43 +11,8 @@ import { MobileHeader, MobileBottomNav } from './components/mobile';
 import { Skeleton } from './components/ui/skeleton';
 import { prefetchCriticalRoutes } from './lib/routePrefetch';
 import { usePresence } from './hooks/usePresence';
+import { ProtectedRoute, allRoutes, RouteConfig } from './routes';
 import './App.css';
-
-// Lazy load pages for better performance
-const Index = lazy(() => import('./pages/Index'));
-const SignIn = lazy(() => import('./pages/auth/SignIn'));
-const SignUp = lazy(() => import('./pages/auth/SignUp'));
-const Explore = lazy(() => import('./pages/Explore'));
-const Messages = lazy(() => import('./pages/Messages'));
-const Profile = lazy(() => import('./pages/Profile'));
-const PublicProfile = lazy(() => import('./pages/PublicProfile'));
-const Appointments = lazy(() => import('./pages/Appointments'));
-const CategoryDetail = lazy(() => import('./pages/CategoryDetail'));
-const SubCategoryDetail = lazy(() => import('./pages/SubCategoryDetail'));
-const CuriosityDetail = lazy(() => import('./pages/CuriosityDetail'));
-const ListingDetail = lazy(() => import('./pages/ListingDetail'));
-const MyListings = lazy(() => import('./pages/teacher/MyListings'));
-const TeacherEarnings = lazy(() => import('./pages/teacher/Earnings'));
-const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
-const Approvals = lazy(() => import('./pages/admin/Approvals'));
-const AdminEarnings = lazy(() => import('./pages/admin/Earnings'));
-const TeachersManagement = lazy(() => import('./pages/admin/Teachers'));
-const UsersManagement = lazy(() => import('./pages/admin/Users'));
-const TeacherEdit = lazy(() => import('./pages/admin/TeacherEdit'));
-const CategoriesManagement = lazy(() => import('./pages/admin/Categories'));
-const PagesManagement = lazy(() => import('./pages/admin/Pages'));
-const CuriositiesManagement = lazy(() => import('./pages/admin/Curiosities'));
-const VideoCall = lazy(() => import('./pages/VideoCall/index'));
-const About = lazy(() => import('./pages/static/About'));
-const HowItWorks = lazy(() => import('./pages/static/HowItWorks'));
-const Production = lazy(() => import('./pages/static/Production'));
-const Contact = lazy(() => import('./pages/static/Contact'));
-const Terms = lazy(() => import('./pages/static/Terms'));
-const Privacy = lazy(() => import('./pages/static/Privacy'));
-const FAQ = lazy(() => import('./pages/static/FAQ'));
-const Experts = lazy(() => import('./pages/Experts'));
-const Settings = lazy(() => import('./pages/Settings'));
-const NotFound = lazy(() => import('./pages/NotFound'));
 
 // Loading component
 const PageLoader = () => (
@@ -65,8 +30,8 @@ const PageLoader = () => (
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
+      staleTime: 5 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
       refetchOnWindowFocus: false,
       refetchOnReconnect: 'always',
       retry: 1,
@@ -74,29 +39,42 @@ const queryClient = new QueryClient({
   },
 });
 
-function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode; requiredRole?: string[] }) {
-  const { user, role, loading } = useAuth();
-
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Yükleniyor...</div>;
+// Render a single route based on its configuration
+function renderRoute(route: RouteConfig, user: any) {
+  const { path, element: Element, protected: isProtected, requiredRole, authRedirect } = route;
+  
+  // Auth routes redirect to home if user is logged in
+  if (authRedirect && user) {
+    return <Route key={path} path={path} element={<Navigate to="/" replace />} />;
   }
-
-  if (!user) {
-    return <Navigate to="/auth/sign-in" replace />;
+  
+  // Protected routes require authentication
+  if (isProtected) {
+    return (
+      <Route
+        key={path}
+        path={path}
+        element={
+          <ProtectedRoute requiredRole={requiredRole}>
+            <Element />
+          </ProtectedRoute>
+        }
+      />
+    );
   }
-
-  if (requiredRole && role && !requiredRole.includes(role)) {
-    return <Navigate to="/" replace />;
-  }
-
-  return <>{children}</>;
+  
+  // Public routes
+  return <Route key={path} path={path} element={<Element />} />;
 }
+
+// Import NotFound lazily for catch-all route
+import { NotFound } from './routes/routeConfig';
 
 function AppRoutes() {
   const { user, loading } = useAuth();
   const hasRenderedRef = useRef(false);
   
-  // Kullanıcı aktifliğini takip et (heartbeat)
+  // Track user presence (heartbeat)
   usePresence();
 
   // Once routes have rendered once, never show loading screen again to prevent remounting
@@ -109,6 +87,8 @@ function AppRoutes() {
     return <div className="min-h-screen flex items-center justify-center">Yükleniyor...</div>;
   }
 
+  const routeElements = allRoutes.map(route => renderRoute(route, user));
+
   return (
     <>
       {/* Desktop & Tablet Layout */}
@@ -117,46 +97,7 @@ function AppRoutes() {
         <main className="flex-1">
           <Suspense fallback={<PageLoader />}>
             <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/auth/sign-in" element={user ? <Navigate to="/" replace /> : <SignIn />} />
-              <Route path="/auth/sign-up" element={user ? <Navigate to="/" replace /> : <SignUp />} />
-              <Route path="/explore" element={<Explore />} />
-              <Route path="/experts" element={<Experts />} />
-              
-              <Route path="/categories/:slug" element={<CategoryDetail />} />
-              <Route path="/categories/:slug/:subslug" element={<SubCategoryDetail />} />
-              <Route path="/curiosities/:slug" element={<CuriosityDetail />} />
-              <Route path="/listings/:id" element={<ListingDetail />} />
-              
-              <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
-              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-              <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-              <Route path="/profile/:id" element={<PublicProfile />} />
-              <Route path="/call/:conversationId" element={<ProtectedRoute><VideoCall /></ProtectedRoute>} />
-              <Route path="/appointments" element={<ProtectedRoute><Appointments /></ProtectedRoute>} />
-              
-              <Route path="/teacher/my-listings" element={<ProtectedRoute requiredRole={['teacher']}><MyListings /></ProtectedRoute>} />
-              <Route path="/teacher/earnings" element={<ProtectedRoute requiredRole={['teacher']}><TeacherEarnings /></ProtectedRoute>} />
-              
-              <Route path="/admin" element={<ProtectedRoute requiredRole={['admin']}><AdminDashboard /></ProtectedRoute>} />
-              <Route path="/admin/dashboard" element={<ProtectedRoute requiredRole={['admin']}><AdminDashboard /></ProtectedRoute>} />
-              <Route path="/admin/users" element={<ProtectedRoute requiredRole={['admin']}><UsersManagement /></ProtectedRoute>} />
-              <Route path="/admin/approvals" element={<ProtectedRoute requiredRole={['admin']}><Approvals /></ProtectedRoute>} />
-              <Route path="/admin/earnings" element={<ProtectedRoute requiredRole={['admin']}><AdminEarnings /></ProtectedRoute>} />
-              <Route path="/admin/teachers" element={<ProtectedRoute requiredRole={['admin']}><TeachersManagement /></ProtectedRoute>} />
-              <Route path="/admin/teachers/:id" element={<ProtectedRoute requiredRole={['admin']}><TeacherEdit /></ProtectedRoute>} />
-              <Route path="/admin/categories" element={<ProtectedRoute requiredRole={['admin']}><CategoriesManagement /></ProtectedRoute>} />
-              <Route path="/admin/pages" element={<ProtectedRoute requiredRole={['admin']}><PagesManagement /></ProtectedRoute>} />
-              <Route path="/admin/curiosities" element={<ProtectedRoute requiredRole={['admin']}><CuriositiesManagement /></ProtectedRoute>} />
-              
-              <Route path="/about" element={<About />} />
-              <Route path="/how-it-works" element={<HowItWorks />} />
-              <Route path="/production" element={<Production />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/terms" element={<Terms />} />
-              <Route path="/privacy" element={<Privacy />} />
-              <Route path="/faq" element={<FAQ />} />
-              
+              {routeElements}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
@@ -177,46 +118,7 @@ function AppRoutes() {
         >
           <Suspense fallback={<PageLoader />}>
             <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/auth/sign-in" element={user ? <Navigate to="/" replace /> : <SignIn />} />
-              <Route path="/auth/sign-up" element={user ? <Navigate to="/" replace /> : <SignUp />} />
-              <Route path="/explore" element={<Explore />} />
-              <Route path="/experts" element={<Experts />} />
-              
-              <Route path="/categories/:slug" element={<CategoryDetail />} />
-              <Route path="/categories/:slug/:subslug" element={<SubCategoryDetail />} />
-              <Route path="/curiosities/:slug" element={<CuriosityDetail />} />
-              <Route path="/listings/:id" element={<ListingDetail />} />
-              
-              <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
-              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-              <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-              <Route path="/profile/:id" element={<PublicProfile />} />
-              <Route path="/call/:conversationId" element={<ProtectedRoute><VideoCall /></ProtectedRoute>} />
-              <Route path="/appointments" element={<ProtectedRoute><Appointments /></ProtectedRoute>} />
-              
-              <Route path="/teacher/my-listings" element={<ProtectedRoute requiredRole={['teacher']}><MyListings /></ProtectedRoute>} />
-              <Route path="/teacher/earnings" element={<ProtectedRoute requiredRole={['teacher']}><TeacherEarnings /></ProtectedRoute>} />
-              
-              <Route path="/admin" element={<ProtectedRoute requiredRole={['admin']}><AdminDashboard /></ProtectedRoute>} />
-              <Route path="/admin/dashboard" element={<ProtectedRoute requiredRole={['admin']}><AdminDashboard /></ProtectedRoute>} />
-              <Route path="/admin/users" element={<ProtectedRoute requiredRole={['admin']}><UsersManagement /></ProtectedRoute>} />
-              <Route path="/admin/approvals" element={<ProtectedRoute requiredRole={['admin']}><Approvals /></ProtectedRoute>} />
-              <Route path="/admin/earnings" element={<ProtectedRoute requiredRole={['admin']}><AdminEarnings /></ProtectedRoute>} />
-              <Route path="/admin/teachers" element={<ProtectedRoute requiredRole={['admin']}><TeachersManagement /></ProtectedRoute>} />
-              <Route path="/admin/teachers/:id" element={<ProtectedRoute requiredRole={['admin']}><TeacherEdit /></ProtectedRoute>} />
-              <Route path="/admin/categories" element={<ProtectedRoute requiredRole={['admin']}><CategoriesManagement /></ProtectedRoute>} />
-              <Route path="/admin/pages" element={<ProtectedRoute requiredRole={['admin']}><PagesManagement /></ProtectedRoute>} />
-              <Route path="/admin/curiosities" element={<ProtectedRoute requiredRole={['admin']}><CuriositiesManagement /></ProtectedRoute>} />
-              
-              <Route path="/about" element={<About />} />
-              <Route path="/how-it-works" element={<HowItWorks />} />
-              <Route path="/production" element={<Production />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/terms" element={<Terms />} />
-              <Route path="/privacy" element={<Privacy />} />
-              <Route path="/faq" element={<FAQ />} />
-              
+              {routeElements}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
