@@ -15,3 +15,6 @@ export { useCuriosities, useCuriosity } from './contentQueries';
 
 // Home queries
 export { useHomeData } from './homeQueries';
+
+// Expert queries
+export { useApprovedExperts, type Expert } from './expertQueries';

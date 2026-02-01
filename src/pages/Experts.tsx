@@ -1,47 +1,22 @@
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageBreadcrumb } from "@/components/PageBreadcrumb";
 import { User, Sparkles } from "lucide-react";
 import { getOptimizedAvatarUrl } from "@/lib/imageOptimizer";
-interface Expert {
-  id: string;
-  username: string | null;
-  avatar_url: string | null;
-  bio: string | null;
-}
-const fetchApprovedExperts = async (): Promise<Expert[]> => {
-  // Get all users with teacher role from user_roles table (same logic as admin panel)
-  const {
-    data: teacherRoles,
-    error: rolesError
-  } = await supabase.from("user_roles").select("user_id").eq("role", "teacher");
-  if (rolesError) throw rolesError;
-  if (!teacherRoles || teacherRoles.length === 0) return [];
-  const teacherIds = teacherRoles.map(r => r.user_id);
+import { useApprovedExperts, type Expert } from "@/lib/queries";
 
-  // Fetch profiles for these teachers
-  const {
-    data: profiles,
-    error: profilesError
-  } = await supabase.from("profiles").select("id, username, avatar_url, bio").in("id", teacherIds);
-  if (profilesError) throw profilesError;
-  return profiles || [];
-};
-function ExpertCard({
-  expert
-}: {
-  expert: Expert;
-}) {
-  const truncatedBio = expert.bio ? expert.bio.length > 100 ? expert.bio.slice(0, 100) + "..." : expert.bio : "Uzman hakkında bilgi bulunmuyor.";
-  return <Link to={`/profile/${expert.id}`} state={{ from: "experts" }} className="group relative block">
+function ExpertCard({ expert }: { expert: Expert }) {
+  const truncatedBio = expert.bio 
+    ? expert.bio.length > 100 ? expert.bio.slice(0, 100) + "..." : expert.bio 
+    : "Uzman hakkında bilgi bulunmuyor.";
+  
+  return (
+    <Link to={`/profile/${expert.id}`} state={{ from: "experts" }} className="group relative block">
       {/* Card container with futuristic design */}
       <div className="relative mt-16 pt-20 pb-6 px-6 rounded-2xl border border-primary/20 bg-gradient-to-br from-card via-card to-primary/5 shadow-elegant transition-all duration-500 hover:shadow-glow hover:border-primary/40 hover:-translate-y-2 overflow-visible">
         {/* Animated border glow effect */}
         <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary/0 via-primary/10 to-primary/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-        
         
         {/* Floating avatar - centered and overlapping */}
         <div className="absolute -top-14 left-1/2 -translate-x-1/2">
@@ -82,10 +57,13 @@ function ExpertCard({
           </div>
         </div>
       </div>
-    </Link>;
+    </Link>
+  );
 }
+
 function ExpertCardSkeleton() {
-  return <div className="relative mt-16 pt-20 pb-6 px-6 rounded-2xl border border-primary/10 bg-card">
+  return (
+    <div className="relative mt-16 pt-20 pb-6 px-6 rounded-2xl border border-primary/10 bg-card">
       {/* Avatar skeleton */}
       <div className="absolute -top-14 left-1/2 -translate-x-1/2">
         <Skeleton className="h-28 w-28 rounded-full" />
@@ -95,27 +73,20 @@ function ExpertCardSkeleton() {
         <Skeleton className="h-4 w-48 mx-auto" />
         <Skeleton className="h-4 w-40 mx-auto" />
       </div>
-    </div>;
+    </div>
+  );
 }
+
 export default function Experts() {
-  const {
-    data: experts = [],
-    isLoading,
-    error
-  } = useQuery({
-    queryKey: ["approved-experts"],
-    queryFn: fetchApprovedExperts,
-    staleTime: 5 * 60 * 1000
-  });
-  return <div className="min-h-screen liquid-gradient">
+  const { data: experts = [], isLoading, error } = useApprovedExperts(undefined, "approved-experts");
+
+  return (
+    <div className="min-h-screen liquid-gradient">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 max-w-7xl">
-        <PageBreadcrumb customItems={[{
-        label: "Uzmanlarımız"
-      }]} />
+        <PageBreadcrumb customItems={[{ label: "Uzmanlarımız" }]} />
 
         {/* Hero Section */}
         <div className="text-center mb-12 sm:mb-16 space-y-4">
-          
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gradient-silver font-serif">
             Uzmanlarımız
           </h1>
@@ -125,24 +96,33 @@ export default function Experts() {
         </div>
 
         {/* Error State */}
-        {error && <div className="text-center py-12">
+        {error && (
+          <div className="text-center py-12">
             <p className="text-destructive">Uzmanlar yüklenirken bir hata oluştu.</p>
-          </div>}
+          </div>
+        )}
 
         {/* Loading State */}
-        {isLoading && <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
-            {Array.from({
-          length: 8
-        }).map((_, i) => <ExpertCardSkeleton key={i} />)}
-          </div>}
+        {isLoading && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <ExpertCardSkeleton key={i} />
+            ))}
+          </div>
+        )}
 
         {/* Experts Grid */}
-        {!isLoading && !error && experts.length > 0 && <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
-            {experts.map(expert => <ExpertCard key={expert.id} expert={expert} />)}
-          </div>}
+        {!isLoading && !error && experts.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
+            {experts.map(expert => (
+              <ExpertCard key={expert.id} expert={expert} />
+            ))}
+          </div>
+        )}
 
         {/* Empty State */}
-        {!isLoading && !error && experts.length === 0 && <div className="text-center py-16 sm:py-24 space-y-4">
+        {!isLoading && !error && experts.length === 0 && (
+          <div className="text-center py-16 sm:py-24 space-y-4">
             <div className="w-20 h-20 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
               <User className="h-10 w-10 text-primary" />
             </div>
@@ -152,7 +132,9 @@ export default function Experts() {
             <p className="text-muted-foreground max-w-md mx-auto">
               Yakında uzmanlarımız bu sayfada yer alacak.
             </p>
-          </div>}
+          </div>
+        )}
       </div>
-    </div>;
+    </div>
+  );
 }
