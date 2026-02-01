@@ -80,17 +80,22 @@ const MobileBottomNavComponent = () => {
       "/appointments",
     ];
 
-    // Admin navigation - NO Home, NO Messages in bottom nav
+    // Admin navigation - Dashboard, Gelirler, Mesajlar, Profil
     if (role === "admin") {
       return [
-        { icon: LayoutDashboard, label: "Dashboard", href: "/admin/dashboard", matchPrefixes: ["/admin"] },
+        { 
+          icon: LayoutDashboard, 
+          label: "Dashboard", 
+          href: "/admin/dashboard", 
+          matchPrefixes: ["/admin/dashboard", "/admin/users", "/admin/teachers", "/admin/categories", "/admin/curiosities", "/admin/pages", "/admin/approvals"] 
+        },
         { icon: TurkishLiraIcon, label: "Gelirler", href: "/admin/earnings", matchPrefixes: ["/admin/earnings"] },
+        { icon: MessageSquare, label: "Mesajlar", href: "/messages", badge: unreadCount, matchPrefixes: messagesMatchPrefixes },
         {
           icon: User,
           label: "Profil",
           href: "/profile",
-          // Admin reaches support messages through profile; keep profile highlighted on those pages.
-          matchPrefixes: [...profileMatchPrefixes, ...messagesMatchPrefixes],
+          matchPrefixes: profileMatchPrefixes,
         },
       ];
     }
@@ -154,7 +159,8 @@ const MobileBottomNavComponent = () => {
       }
     }
 
-    // If nothing matches (should be rare now), keep the previous position instead of unmounting the pill.
+    // If nothing matches, return undefined to hide the pill
+    if (bestLen === 0) return undefined;
     return bestHref;
   }, [location.pathname, navItems]);
 
