@@ -54,13 +54,14 @@ export function VideoTile({ sessionId, isLocal, displayName }: VideoTileProps) {
       <DailyVideo
         sessionId={sessionId}
         type="video"
-        automirror={isLocal}
+        mirror={isLocal}
         fit="cover"
         style={{
           width: '100%',
           height: '100%',
           opacity: isVideoOff ? 0 : 1,
           transition: 'opacity 200ms ease-in-out',
+          transform: isLocal ? 'scaleX(-1)' : 'none',
         }}
         muted={isLocal}
       />
