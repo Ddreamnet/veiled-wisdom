@@ -1,295 +1,386 @@
 
-# İterasyon 2: Paket 3 - UI Bileşen Ayrıştırma
+# Site-Wide Codebase Review & Refactoring Plan
 
-## Amaç
+## Executive Summary
 
-`VideoCall.tsx` dosyasını 1746 satırdan ~600 satıra düşürmek için UI bileşenlerini ayrı dosyalara taşımak.
-
----
-
-## Mevcut Durum Analizi
-
-**VideoCall.tsx içindeki bileşenler (satır numaraları):**
-
-| Bileşen | Satır Aralığı | Boyut | Öncelik |
-|---------|---------------|-------|---------|
-| ParticipantNotification | 288-322 | 35 | Orta |
-| NotificationsOverlay | 324-339 | 16 | Orta |
-| AnimatedBackground | 342-356 | 15 | Düşük |
-| MediaStatusBadge | 359-370 | 12 | Düşük |
-| WaitingIndicator | 373-393 | 21 | Düşük |
-| ControlButton | 396-417 | 22 | Düşük |
-| **WaitingRoom** | 419-536 | **118** | **Yüksek** |
-| **VideoTile** | 544-641 | **98** | **Yüksek** |
-| FilteredRemoteAudio | 648-676 | 29 | Orta |
-| LoadingScreen | 678-689 | 12 | Düşük |
-| ErrorScreen | 691-700 | 10 | Düşük |
-
-**Toplam UI bileşen satırları:** ~388 satır (taşınabilir)
+Bu plan, kod tabanının kapsamli bir incelemesini ve refactoring onerilerini icerir. Amac: kod yapisini, okunabilirligi ve surdurulebilirligi artirmak; UI ve islevselligi degistirmeden. Tum oneriler artimli, dusuk riskli ve test ile desteklenmis olacaktir.
 
 ---
 
-## Yeni Dosya Yapısı
+## Priority Ranking System
+
+Files are ranked based on:
+- **Usage Frequency**: How often the component/page is used
+- **Complexity**: Lines of code, cognitive load
+- **Maintainability Issues**: Code duplication, coupling, separation of concerns
+- **Impact**: How many other parts of the codebase depend on it
+
+| Priority | Criteria |
+|----------|----------|
+| P1 - Critical | High usage, significant complexity, immediate benefit |
+| P2 - High | Moderate usage, notable improvement potential |
+| P3 - Medium | Lower usage, would benefit from cleanup |
+| P4 - Low | Minimal impact, nice-to-have improvements |
+
+---
+
+## Findings & Recommendations
+
+### P1 - Critical Priority
+
+#### 1. `src/App.tsx` (251 lines) - Route Duplication
+**Issue**: Desktop ve mobile route tanimlari tamamen tekrarlanmis (lines 119-161 ve 179-221).
+
+**Recommendation**:
+- Route configuration'i ayri bir dosyaya tasiyarak tekrarlanan kodu ortadan kaldir
+- Single route definition with responsive layout wrapper
+
+**Proposed Structure**:
+```text
+src/
+  routes/
+    routeConfig.ts       (route definitions array)
+    ProtectedRoute.tsx   (extracted component)
+```
+
+**Impact**: ~80 satir azalma, route degisikliklerinde tek bir yer guncelleme
+
+**Testing Strategy**: 
+- Tum route'larin hem desktop hem mobile'da erisilebilir oldugunu dogrula
+- Protected route'larin yonlendirme davranisini test et
+
+---
+
+#### 2. `src/pages/teacher/MyListings.tsx` (1142 lines)
+**Issue**: Cok buyuk dosya - form yonetimi, API cagrilari, UI rendering, state management hepsi bir arada.
+
+**Recommendation**:
+Dosyayi modullere ayir:
 
 ```text
-src/pages/VideoCall/
-├── index.tsx                    (ana export - yönlendirme)
-├── VideoCallPage.tsx            (ana VideoCall bileşeni)
-├── CallUI.tsx                   (CallUI bileşeni)
-├── components/
-│   ├── WaitingRoom.tsx          (118 satır)
-│   ├── VideoTile.tsx            (98 satır)
-│   ├── FilteredRemoteAudio.tsx  (29 satır)
-│   ├── Notifications.tsx        (51 satır - overlay + notification)
-│   ├── Screens.tsx              (22 satır - loading + error)
-│   └── UIElements.tsx           (70 satır - badge, indicator, button, bg)
-├── utils/
-│   ├── helpers.ts               (helper fonksiyonlar)
-│   ├── participantUtils.ts      (sanitize + logging)
-│   └── constants.ts             (sabitler)
-└── types.ts                     (interface'ler)
+src/pages/teacher/MyListings/
+  index.tsx              (main export)
+  ListingsPage.tsx       (ana container, ~200 lines)
+  components/
+    ListingCard.tsx      (ilan karti)
+    ListingDialog.tsx    (create/edit dialog)
+    ListingForm.tsx      (form component)
+    FiltersBar.tsx       (search & filter UI)
+  hooks/
+    useListings.ts       (CRUD operations)
+    useCategories.ts     (category fetching)
+  types.ts               (ListingFormValues, etc.)
+```
+
+**Impact**: 
+- Ana dosya 1142 -> ~200 satir
+- Daha kolay test yazimi
+- Izole edilmis concerns
+
+**Testing Strategy**:
+- Listing CRUD islemlerini test et
+- Form validation'i dogrula
+- Filter/search islevini kontrol et
+
+---
+
+#### 3. `src/pages/ListingDetail.tsx` (680 lines)
+**Issue**: Uzun dosya, tekrarlanan UI bloklari (mobile ve desktop icin ayni "Uzman Hakkinda" karti iki kez yazilmis - lines 256-313 ve 615-674).
+
+**Recommendation**:
+```text
+src/pages/ListingDetail/
+  index.tsx
+  ListingDetailPage.tsx
+  components/
+    TeacherInfoCard.tsx      (extracted, reused for mobile/desktop)
+    BookingCard.tsx          (randevu karti)
+    ProductPurchaseCard.tsx  (urun satin alma)
+    ReviewsSection.tsx       (yorumlar)
+    ListingHeader.tsx        (baslik + gorsel)
+```
+
+**Impact**: 
+- ~60 satir duplicate kod kaldirimi
+- Daha okunabilir ana component
+
+**Testing Strategy**:
+- Randevu olusturma akisini test et
+- Urun satin alma akisini test et
+- Responsive layout'u dogrula
+
+---
+
+#### 4. `src/pages/Profile.tsx` (644 lines)
+**Issue**: Mobile ve desktop tamamen farkli render mantigi (line 288-419 mobile, line 423-639 desktop). Cok buyuk tek dosya.
+
+**Recommendation**:
+```text
+src/pages/Profile/
+  index.tsx
+  ProfilePage.tsx           (container, router)
+  MobileProfile.tsx         (mobile-specific UI)
+  DesktopProfile.tsx        (desktop-specific UI)
+  components/
+    ProfileHeader.tsx       (avatar, name, badges)
+    ProfileEditForm.tsx     (kullanici adi, bio)
+    SecuritySettings.tsx    (sifre degistirme)
+    AccountInfo.tsx         (hesap bilgileri)
+    MobileMenuItem.tsx      (mobile menu items)
+  hooks/
+    useProfile.ts           (profile CRUD)
+```
+
+**Impact**: 
+- Her layout icin ayri, anlasilir component
+- Ortak parcalar paylasiliyor
+
+**Testing Strategy**:
+- Profile guncelleme islemini test et
+- Sifre degistirme akisini dogrula
+- Mobile/desktop layout'lari kontrol et
+
+---
+
+### P2 - High Priority
+
+#### 5. `src/pages/admin/Approvals.tsx` (651 lines)
+**Issue**: Buyuk dosya, approval logic + UI karismis.
+
+**Recommendation**:
+```text
+src/pages/admin/Approvals/
+  index.tsx
+  ApprovalsPage.tsx
+  components/
+    ApprovalCard.tsx
+    ApprovalTabs.tsx
+  hooks/
+    useApprovals.ts         (fetch, approve, reject, repair)
+  types.ts
+```
+
+**Impact**: ~300 satir hook'a tasindi, UI daha temiz
+
+---
+
+#### 6. `src/contexts/AuthContext.tsx` (563 lines)
+**Issue**: Cok fazla sorumluluk - auth state, helper functions, approval checks, role management.
+
+**Recommendation**:
+Yardimci fonksiyonlari ayir:
+
+```text
+src/contexts/
+  AuthContext.tsx           (~200 lines, core provider)
+  auth/
+    authHelpers.ts          (ensureUserProfile, ensureUserRole, etc.)
+    teacherApproval.ts      (createTeacherApproval, checkTeacherApprovalStatus)
+    roleHelpers.ts          (fetchUserRoleFromDB)
+    types.ts                (AuthContextType, TeacherApplicationData)
+```
+
+**Impact**: 
+- AuthContext.tsx 563 -> ~200 satir
+- Test edilebilir helper fonksiyonlar
+
+---
+
+#### 7. `src/lib/queries.ts` (447 lines)
+**Issue**: Tum query hook'lari tek dosyada.
+
+**Recommendation**:
+Domain'e gore ayir:
+
+```text
+src/lib/queries/
+  index.ts                  (barrel export)
+  categoryQueries.ts        (useCategories, useCategoryWithSubcategories)
+  listingQueries.ts         (useListing, useSubCategoryListings)
+  profileQueries.ts         (useProfile, usePublicProfile)
+  appointmentQueries.ts     (useAppointments)
+  contentQueries.ts         (useCuriosities, useCuriosity)
+  homeQueries.ts            (useHomeData)
+```
+
+**Impact**: Ilgili query'leri bulmak kolaylasir
+
+---
+
+### P3 - Medium Priority
+
+#### 8. `src/components/Header.tsx` (237 lines)
+**Issue**: Navigation items ve dropdown menu logic inline.
+
+**Recommendation**:
+- `UserDropdownMenu.tsx` extract et
+- `navConfig.ts` for navigation items based on role
+
+---
+
+#### 9. Code Duplication: Expert Fetching
+
+**Issue**: `ExpertsCarousel.tsx` ve `Experts.tsx` ayni `fetchApprovedExperts` fonksiyonunu icerir.
+
+**Recommendation**:
+```typescript
+// src/lib/queries/expertQueries.ts
+export function useApprovedExperts(limit?: number) {
+  return useQuery({...});
+}
+```
+
+Tek kaynak, her iki component kullanir.
+
+---
+
+#### 10. `src/pages/PublicProfile.tsx` (292 lines)
+**Issue**: Inline component'ler (ListingCard, StatBadge).
+
+**Recommendation**:
+- `ListingCard` -> `src/components/ListingCard.tsx` (reusable)
+- `StatBadge` -> `src/components/ui/stat-badge.tsx`
+
+---
+
+### P4 - Low Priority
+
+#### 11. Static Pages Pattern
+
+**Issue**: 7 static page (`About`, `HowItWorks`, `Contact`, `Terms`, `Privacy`, `FAQ`, `Production`) benzer yapi kullanir.
+
+**Recommendation**:
+- `StaticPageLayout.tsx` wrapper component
+- Her sayfa sadece slug ve ozel content konfigurasyonu saglayacak
+
+---
+
+#### 12. Hook Naming Consistency
+
+**Issue**: Bazi hook'lar `use-mobile.tsx` (kebab-case), bazilari `usePresence.ts` (camelCase).
+
+**Recommendation**:
+- Tum hook dosyalarini `useXxx.ts` formatina standardize et
+- `use-mobile.tsx` -> `useMobile.tsx`
+- `use-toast.ts` -> `useToast.ts`
+
+---
+
+#### 13. Breadcrumb Duplication
+
+**Issue**: `AdminBreadcrumb.tsx` ve `PageBreadcrumb.tsx` benzer logic.
+
+**Recommendation**:
+- Tek `Breadcrumb` component, farkli config ile
+
+---
+
+## Implementation Phases
+
+### Phase 1: Foundation (1-2 gun)
+- [ ] Route configuration extraction (App.tsx)
+- [ ] Query hooks ayirimi (queries.ts)
+- [ ] Hook naming standardization
+
+### Phase 2: High-Impact Pages (3-5 gun)
+- [ ] MyListings.tsx modularization
+- [ ] ListingDetail.tsx component extraction
+- [ ] Profile.tsx mobile/desktop split
+
+### Phase 3: Supporting Components (2-3 gun)
+- [ ] AuthContext helper extraction
+- [ ] Approvals.tsx refactoring
+- [ ] Header.tsx cleanup
+
+### Phase 4: Polish (1-2 gun)
+- [ ] Expert fetching consolidation
+- [ ] Static pages pattern
+- [ ] Breadcrumb unification
+
+---
+
+## Testing Requirements
+
+Her refactoring adimi icin:
+
+1. **Unit Tests**: Extracted hook'lar ve helper'lar icin
+2. **Component Tests**: Vitest + React Testing Library ile
+3. **Manual Testing Checklist**:
+   - Tum route'larin erisilebilir oldugunu kontrol et
+   - Form submission'larin calıstigini dogrula
+   - Mobile/desktop responsive davranisini test et
+   - Auth flow'un bozulmadığını kontrol et
+
+---
+
+## Risk Mitigation
+
+| Risk | Mitigation |
+|------|------------|
+| Breaking changes | Incremental refactoring, feature by feature |
+| Import errors | Barrel exports, IDE refactoring tools |
+| Lost functionality | Manual testing checklist per phase |
+| Style changes | CSS-in-JS/Tailwind classes preserved as-is |
+
+---
+
+## Success Metrics
+
+| Metric | Before | After Target |
+|--------|--------|--------------|
+| Largest file | 1142 lines (MyListings) | <400 lines |
+| Duplicate code blocks | ~8 identified | 0 |
+| Files >500 lines | 6 files | 0 files |
+| Hook naming consistency | Mixed | 100% camelCase |
+
+---
+
+## Technical Details
+
+### Route Configuration Extract Example
+
+```typescript
+// src/routes/routeConfig.ts
+export const routes = [
+  { path: "/", element: Index, protected: false },
+  { path: "/messages", element: Messages, protected: true },
+  { path: "/admin/approvals", element: Approvals, protected: true, roles: ["admin"] },
+  // ... etc
+];
+```
+
+### Component Extraction Pattern
+
+```typescript
+// Before (inline in page)
+const TeacherInfo = () => <Card>...</Card>;
+
+// After (extracted)
+// src/components/TeacherInfoCard.tsx
+export function TeacherInfoCard({ teacher, reviews }: TeacherInfoCardProps) {
+  return <Card>...</Card>;
+}
+```
+
+### Hook Extraction Pattern
+
+```typescript
+// Before (inline in component)
+const fetchListings = async () => { ... };
+useEffect(() => { fetchListings(); }, []);
+
+// After (custom hook)
+// src/hooks/useListings.ts
+export function useListings(userId: string) {
+  return useQuery({
+    queryKey: ['listings', userId],
+    queryFn: async () => { ... },
+  });
+}
 ```
 
 ---
 
-## Detaylı Değişiklikler
+## Conclusion
 
-### 1. `src/pages/VideoCall/types.ts` (YENİ)
-
-Tüm interface'leri ve type'ları merkezi bir dosyaya taşı:
-
-- `CallUIProps`
-- `NotificationProps`
-- `WaitingRoomProps`
-- `NotificationItem`
-- `CallState`
-- `CallIntent`
-- `CreateDailyRoomResponse`
-
-### 2. `src/pages/VideoCall/utils/constants.ts` (YENİ)
-
-Sabit değerleri ayır:
-
-```typescript
-export const SOLO_TIMEOUT_SECONDS = 30 * 60;
-export const MAX_CALL_DURATION_SECONDS = 2 * 60 * 60;
-export const NOTIFICATION_DURATION_MS = 4000;
-export const DUPLICATE_NOTIFICATION_THRESHOLD_MS = 5000;
-export const JOIN_TIMEOUT_MS = 20000;
-export const MAX_DURATION_CHECK_INTERVAL_MS = 10000;
-```
-
-### 3. `src/pages/VideoCall/utils/helpers.ts` (YENİ)
-
-Yardımcı fonksiyonları taşı:
-
-- `formatTime`
-- `assertValidDailyUrl`
-- `isExpRoomError`
-- `isNoRoomError`
-- `parseEdgeFunctionError`
-- `getErrorMessage`
-
-### 4. `src/pages/VideoCall/utils/participantUtils.ts` (YENİ)
-
-Katılımcı mantığını ayır:
-
-- `getParticipantKey`
-- `isMirrorOfLocal`
-- `sanitizeParticipants`
-- `logParticipantsTransition`
-- `logParticipants`
-
-### 5. `src/pages/VideoCall/components/WaitingRoom.tsx` (YENİ)
-
-WaitingRoom bileşenini ayrı dosyaya taşı (118 satır):
-
-```typescript
-// Bağımlılıklar
-import { useRef, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { DailyParticipant } from '@daily-co/daily-js';
-import { Users, Video, VideoOff, Mic, MicOff, PhoneOff, Clock } from 'lucide-react';
-
-import { WaitingRoomProps } from '../types';
-import { formatTime } from '../utils/helpers';
-import { AnimatedBackground, MediaStatusBadge, WaitingIndicator, ControlButton } from './UIElements';
-```
-
-### 6. `src/pages/VideoCall/components/VideoTile.tsx` (YENİ)
-
-VideoTile bileşenini ayrı dosyaya taşı (98 satır):
-
-```typescript
-// Daily React hook'ları ile track yönetimi
-import { useRef, useEffect } from 'react';
-import { DailyVideo, useVideoTrack, useAudioTrack } from '@daily-co/daily-react';
-import { motion } from 'framer-motion';
-import { VideoOff, MicOff } from 'lucide-react';
-
-import { devLog } from '@/lib/debug';
-```
-
-### 7. `src/pages/VideoCall/components/FilteredRemoteAudio.tsx` (YENİ)
-
-Remote audio bileşeni (29 satır):
-
-```typescript
-import { useRef, useEffect } from 'react';
-import { useAudioTrack } from '@daily-co/daily-react';
-```
-
-### 8. `src/pages/VideoCall/components/Notifications.tsx` (YENİ)
-
-Bildirim bileşenlerini birleştir:
-
-- `ParticipantNotification`
-- `NotificationsOverlay`
-
-### 9. `src/pages/VideoCall/components/Screens.tsx` (YENİ)
-
-Ekran bileşenlerini birleştir:
-
-- `LoadingScreen`
-- `ErrorScreen`
-
-### 10. `src/pages/VideoCall/components/UIElements.tsx` (YENİ)
-
-Küçük UI parçalarını birleştir:
-
-- `AnimatedBackground`
-- `MediaStatusBadge`
-- `WaitingIndicator`
-- `ControlButton`
-
-### 11. `src/pages/VideoCall/CallUI.tsx` (YENİ)
-
-CallUI bileşenini ana dosyadan ayır (~500 satır):
-
-- State management
-- Daily event handlers
-- useNotifications hook (inline)
-- useCallTimers hook (inline)
-- Toggle handlers
-- Render logic
-
-### 12. `src/pages/VideoCall/VideoCallPage.tsx` (YENİ)
-
-Ana VideoCall bileşeni (~350 satır):
-
-- URL parsing
-- Module-level mutexes
-- Room creation logic
-- Call initialization
-
-### 13. `src/pages/VideoCall/index.tsx` (YENİ)
-
-Export dosyası:
-
-```typescript
-export { default } from './VideoCallPage';
-```
-
-### 14. `src/App.tsx` Güncellemesi
-
-Route import'unu güncelle:
-
-```typescript
-// Eski
-const VideoCall = lazy(() => import('./pages/VideoCall'));
-
-// Yeni (değişiklik gerekmiyor - index.tsx otomatik çözülür)
-const VideoCall = lazy(() => import('./pages/VideoCall'));
-```
-
----
-
-## Uygulama Sırası
-
-1. **types.ts** - Tüm type'lar (bağımlılık yok)
-2. **constants.ts** - Sabitler (bağımlılık yok)
-3. **helpers.ts** - Yardımcı fonksiyonlar (constants'a bağlı)
-4. **participantUtils.ts** - Katılımcı mantığı (types'a bağlı)
-5. **UIElements.tsx** - Küçük UI parçaları (bağımlılık az)
-6. **Screens.tsx** - Loading/Error ekranları
-7. **Notifications.tsx** - Bildirim bileşenleri
-8. **FilteredRemoteAudio.tsx** - Audio bileşeni
-9. **VideoTile.tsx** - Video tile (Daily hooks kullanır)
-10. **WaitingRoom.tsx** - Bekleme odası
-11. **CallUI.tsx** - Ana call UI
-12. **VideoCallPage.tsx** - Ana sayfa bileşeni
-13. **index.tsx** - Export
-
----
-
-## Risk Değerlendirmesi
-
-| Risk | Seviye | Önlem |
-|------|--------|-------|
-| Import döngüsü | Düşük | Type'ları ayrı dosyada tut |
-| Module-level state kaybı | Orta | Mutex'leri VideoCallPage'de tut |
-| Hook bağımlılıkları | Düşük | useCallTimers parametreleri koru |
-| Daily React context | Düşük | DailyProvider CallUI'yi sarmaya devam etsin |
-
----
-
-## Beklenen Sonuç
-
-| Metrik | Önce | Sonra |
-|--------|------|-------|
-| VideoCall.tsx satır sayısı | 1746 | 0 (silinecek) |
-| VideoCallPage.tsx | - | ~350 |
-| CallUI.tsx | - | ~500 |
-| Toplam dosya sayısı | 1 | 13 |
-| En büyük dosya | 1746 | ~500 |
-
----
-
-## Teknik Detaylar
-
-### Module-Level State Taşıma
-
-```typescript
-// VideoCallPage.tsx içinde kalacak
-const initFlowMutex = new Map<string, Promise<void>>();
-const createRoomMutex = new Map<string, Promise<CreateDailyRoomResponse>>();
-
-// participantUtils.ts'e taşınacak
-const globalTrackStates = new Map<string, Map<string, { video: boolean; audio: boolean }>>();
-const handlerRegistrationCount = new Map<string, number>();
-```
-
-### Import Yapısı
-
-```typescript
-// CallUI.tsx
-import { WaitingRoom } from './components/WaitingRoom';
-import { VideoTile } from './components/VideoTile';
-import { FilteredRemoteAudio } from './components/FilteredRemoteAudio';
-import { NotificationsOverlay } from './components/Notifications';
-import { LoadingScreen, ErrorScreen } from './components/Screens';
-import { formatTime } from './utils/helpers';
-import { sanitizeParticipants, logParticipants } from './utils/participantUtils';
-import type { CallUIProps, NotificationItem, CallState } from './types';
-```
-
----
-
-## Test Stratejisi
-
-### Manuel Test Checklist
-
-- [ ] Video arama başlat (start intent)
-- [ ] Video aramaya katıl (join intent)
-- [ ] WaitingRoom görünümü doğru render
-- [ ] Karşı taraf katıldığında VideoTile'lar görünür
-- [ ] Kamera toggle çalışır
-- [ ] Mikrofon toggle çalışır
-- [ ] Katılımcı bildirimleri görünür
-- [ ] Arama sonlandırma çalışır
-- [ ] Hata ekranı doğru görünür
-- [ ] Console'da import hataları yok
-
-### Otomatik Test (Sonraki İterasyon)
-
-Bileşen bazlı unit test'ler eklenecek.
+Bu refactoring plani, kod tabaninin surdurulebilirligini onemli olcude artirmadan UI ve islevsellige dokunmadan yapisal iyilestirmeler onerır. Her adim artimli, test edilebilir ve geri alinabilir sekilde planlanmistir.
