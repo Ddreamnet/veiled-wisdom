@@ -299,10 +299,15 @@ Tek kaynak, her iki component kullanir.
 - Profile: Separated into MobileProfile and DesktopProfile components, extracted useProfileData and usePasswordChange hooks
 - MyListings: Created types.ts, useListings hook, useCategories hook, ListingCard, ListingStats, FiltersBar components
 
-### Phase 3: Supporting Components (2-3 gun)
-- [ ] AuthContext helper extraction
-- [ ] Approvals.tsx refactoring
-- [ ] Header.tsx cleanup
+### Phase 3: Supporting Components ✅ COMPLETED
+- [x] AuthContext helper extraction → `src/contexts/auth/` with types.ts, profileHelpers.ts, roleHelpers.ts, teacherApproval.ts
+- [x] Approvals.tsx refactoring → `src/pages/admin/Approvals/` with hooks/useApprovals.ts, components/ApprovalCard.tsx, ApprovalsList.tsx
+- [x] Header.tsx cleanup → `src/components/header/` with navConfig.ts, UserDropdownMenu.tsx
+
+**Changes Made:**
+- AuthContext.tsx reduced from 563 to ~270 lines (helper functions extracted to auth/ folder)
+- Approvals.tsx split into ApprovalsPage.tsx (~60 lines), useApprovals hook (~280 lines), ApprovalCard, ApprovalsList components
+- Header.tsx now uses extracted UserDropdownMenu and getCenterNavItems from header/ folder
 
 ### Phase 4: Polish (1-2 gun)
 - [ ] Expert fetching consolidation

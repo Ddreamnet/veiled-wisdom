@@ -3,20 +3,12 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/logo.webp";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { User, LogOut, Settings, MessageSquare, BookOpen } from "lucide-react";
-import { TurkishLiraIcon } from "@/components/icons/TurkishLiraIcon";
+import { MessageSquare } from "lucide-react";
 import { useScrollPosition } from "@/hooks/useScrollPosition";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/lib/supabase";
+import { getCenterNavItems, UserDropdownMenu } from "@/components/header";
 
 const HeaderComponent = () => {
   const { user, role, signOut } = useAuth();
@@ -38,23 +30,7 @@ const HeaderComponent = () => {
     fetchAvatar();
   }, [user]);
 
-  // Navigation items based on role
-  const getCenterNavItems = () => {
-    if (role === "admin") {
-      return [
-        { label: "Dashboard", href: "/admin/dashboard" },
-        { label: "Onaylamalar", href: "/admin/approvals" },
-        { label: "Gelirler", href: "/admin/earnings" },
-      ];
-    }
-    // For non-logged-in users, customers, and teachers
-    return [
-      { label: "Keşfet", href: "/explore" },
-      { label: "Uzmanlarımız", href: "/experts" },
-    ];
-  };
-
-  const centerNavItems = getCenterNavItems();
+  const centerNavItems = getCenterNavItems(role);
 
   return (
     <header
@@ -104,7 +80,7 @@ const HeaderComponent = () => {
             </div>
           </Link>
 
-          {/* CENTER AREA - Main Navigation (Desktop/Tablet) */}
+          {/* CENTER AREA - Main Navigation */}
           <nav className="hidden md:flex items-center justify-center flex-1 gap-1">
             {centerNavItems.map((item) => (
               <Link
@@ -139,76 +115,7 @@ const HeaderComponent = () => {
                 )}
 
                 {/* Profile Avatar Dropdown */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="rounded-full h-9 w-9 p-0 transition-all duration-200 ease-out hover:ring-2 hover:ring-primary/50"
-                    >
-                      <Avatar className="h-9 w-9">
-                        <AvatarImage src={avatarUrl || undefined} />
-                        <AvatarFallback className="bg-primary/20">
-                          <User className="h-4 w-4 text-primary" />
-                        </AvatarFallback>
-                      </Avatar>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    align="end"
-                    className="w-56 glass-effect border-silver/20 bg-background/95 backdrop-blur-xl z-[100]"
-                  >
-                    {/* Common items for all logged-in users */}
-                    <DropdownMenuItem asChild>
-                      <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
-                        <User className="h-4 w-4" />
-                        Profil
-                      </Link>
-                    </DropdownMenuItem>
-
-                    {/* Teacher-specific items */}
-                    {role === "teacher" && (
-                      <>
-                        <DropdownMenuSeparator className="bg-silver/10" />
-                        <DropdownMenuItem asChild>
-                          <Link to="/teacher/my-listings" className="flex items-center gap-2 cursor-pointer">
-                            <BookOpen className="h-4 w-4" />
-                            İlanlarım
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link to="/teacher/earnings" className="flex items-center gap-2 cursor-pointer">
-                            <TurkishLiraIcon className="h-4 w-4" />
-                            Gelirlerim
-                          </Link>
-                        </DropdownMenuItem>
-                      </>
-                    )}
-
-                    {/* Settings - Only for non-admin users */}
-                    {role !== "admin" && (
-                      <>
-                        <DropdownMenuSeparator className="bg-silver/10" />
-                        <DropdownMenuItem asChild>
-                          <Link to="/settings" className="flex items-center gap-2 cursor-pointer">
-                            <Settings className="h-4 w-4" />
-                            Ayarlar
-                          </Link>
-                        </DropdownMenuItem>
-                      </>
-                    )}
-
-                    <DropdownMenuSeparator className="bg-silver/10" />
-
-                    <DropdownMenuItem
-                      onClick={signOut}
-                      className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      Çıkış Yap
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <UserDropdownMenu avatarUrl={avatarUrl} role={role} onSignOut={signOut} />
               </>
             ) : (
               /* Non-logged-in users - Visible buttons */
