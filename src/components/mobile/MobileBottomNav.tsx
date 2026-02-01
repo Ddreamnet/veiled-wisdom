@@ -84,7 +84,6 @@ const MobileBottomNavComponent = () => {
     if (role === "admin") {
       return [
         { icon: LayoutDashboard, label: "Dashboard", href: "/admin/dashboard", matchPrefixes: ["/admin"] },
-        { icon: CheckCircle, label: "Onaylar", href: "/admin/approvals", matchPrefixes: ["/admin/approvals"] },
         { icon: TurkishLiraIcon, label: "Gelirler", href: "/admin/earnings", matchPrefixes: ["/admin/earnings"] },
         {
           icon: User,

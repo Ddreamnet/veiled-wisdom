@@ -119,6 +119,12 @@ export default function AdminDashboard() {
 
   const adminCards = [
     {
+      title: "Onaylamalar",
+      description: "Uzman başvurularını incele ve onayla",
+      icon: UserCheck,
+      href: "/admin/approvals",
+    },
+    {
       title: "Kullanıcı Yönetimi",
       description: "Tüm kullanıcıları görüntüle ve rolleri yönet",
       icon: Users,

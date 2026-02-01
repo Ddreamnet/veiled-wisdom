@@ -19,7 +19,6 @@ const ROOT_TAB_PATHS = [
   "/appointments",
   "/profile",
   "/admin/dashboard",
-  "/admin/approvals",
   "/admin/earnings",
 ];
 
