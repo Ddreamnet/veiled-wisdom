@@ -497,27 +497,27 @@ export function CallUI({ callObject, conversationId }: CallUIProps) {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="h-screen bg-gradient-to-br from-background via-purple-950/20 to-background flex flex-col"
+        className="h-[100dvh] md:h-screen bg-gradient-to-br from-background via-purple-950/20 to-background flex flex-col overflow-hidden"
       >
         {/* Connection status bar */}
         <motion.div
           initial={{ y: -50 }}
           animate={{ y: 0 }}
-          className="px-4 py-2 bg-green-500/10 border-b border-green-500/20 flex items-center justify-center gap-3"
+          className="px-3 py-1.5 md:px-4 md:py-2 bg-green-500/10 border-b border-green-500/20 flex items-center justify-center gap-2 md:gap-3"
         >
           <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-          <span className="text-sm text-green-400">Görüşme aktif</span>
-          <span className="text-sm text-muted-foreground">
+          <span className="text-xs md:text-sm text-green-400">Görüşme aktif</span>
+          <span className="text-xs md:text-sm text-muted-foreground">
             • {(localParticipant ? 1 : 0) + remoteParticipants.length} katılımcı
           </span>
-          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-background/50">
-            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-sm font-medium">{formatTime(callDuration)}</span>
+          <div className="flex items-center gap-1 md:gap-1.5 px-2 py-0.5 rounded-full bg-background/50">
+            <Clock className="h-3 w-3 md:h-3.5 md:w-3.5 text-muted-foreground" />
+            <span className="text-xs md:text-sm font-medium">{formatTime(callDuration)}</span>
           </div>
         </motion.div>
 
-        {/* Video Grid */}
-        <div className="flex-1 p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Video Grid - mobilde ekranın tamamını kaplar */}
+        <div className="flex-1 px-0 py-1 md:p-4 grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4 content-start md:content-center pb-[calc(68px+env(safe-area-inset-bottom,0px)+56px)] md:pb-0">
           <AnimatePresence>
             {localParticipant && (
               <motion.div
@@ -526,6 +526,7 @@ export function CallUI({ callObject, conversationId }: CallUIProps) {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
                 transition={{ delay: 0 }}
+                className="h-full"
               >
                 <VideoTile 
                   sessionId={localParticipant.session_id} 
@@ -541,6 +542,7 @@ export function CallUI({ callObject, conversationId }: CallUIProps) {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
                 transition={{ delay: 0.1 * (idx + 1) }}
+                className="h-full"
               >
                 <VideoTile 
                   sessionId={participant.session_id} 
@@ -560,28 +562,35 @@ export function CallUI({ callObject, conversationId }: CallUIProps) {
           />
         ))}
 
-        {/* Control Bar */}
+        {/* Control Bar - mobilde navbar üzerinde sticky */}
         <motion.div
           initial={{ y: 50 }}
           animate={{ y: 0 }}
-          className="p-4 flex items-center justify-center gap-3 bg-background/50 backdrop-blur-sm border-t border-border"
+          className="fixed bottom-[calc(68px+env(safe-area-inset-bottom,0px))] md:relative md:bottom-auto left-0 right-0 z-40 p-3 md:p-4 flex items-center justify-center gap-3 bg-background/80 backdrop-blur-xl border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.3)] md:shadow-none"
         >
           <ControlButton 
             variant={isCameraOn ? "secondary" : "destructive"} 
             onClick={toggleCamera}
             withHoverScale
+            className="h-12 w-12 md:h-14 md:w-14"
           >
-            {isCameraOn ? <Video className="h-6 w-6" /> : <VideoOff className="h-6 w-6" />}
+            {isCameraOn ? <Video className="h-5 w-5 md:h-6 md:w-6" /> : <VideoOff className="h-5 w-5 md:h-6 md:w-6" />}
           </ControlButton>
           <ControlButton 
             variant={isMicOn ? "secondary" : "destructive"} 
             onClick={toggleMic}
             withHoverScale
+            className="h-12 w-12 md:h-14 md:w-14"
           >
-            {isMicOn ? <Mic className="h-6 w-6" /> : <MicOff className="h-6 w-6" />}
+            {isMicOn ? <Mic className="h-5 w-5 md:h-6 md:w-6" /> : <MicOff className="h-5 w-5 md:h-6 md:w-6" />}
           </ControlButton>
-          <ControlButton variant="destructive" onClick={leaveCall} withHoverScale>
-            <PhoneOff className="h-6 w-6" />
+          <ControlButton 
+            variant="destructive" 
+            onClick={leaveCall} 
+            withHoverScale
+            className="h-12 w-12 md:h-14 md:w-14"
+          >
+            <PhoneOff className="h-5 w-5 md:h-6 md:w-6" />
           </ControlButton>
         </motion.div>
       </motion.div>
