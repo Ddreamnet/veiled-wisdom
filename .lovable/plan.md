@@ -289,10 +289,15 @@ Tek kaynak, her iki component kullanir.
 - queries.ts now re-exports from modular structure (backward compatible)
 - New camelCase hooks created, old kebab-case files re-export for compatibility
 
-### Phase 2: High-Impact Pages (3-5 gun)
-- [ ] MyListings.tsx modularization
-- [ ] ListingDetail.tsx component extraction
-- [ ] Profile.tsx mobile/desktop split
+### Phase 2: High-Impact Pages ✅ COMPLETED
+- [x] MyListings.tsx modularization → `src/pages/teacher/MyListings/` with types.ts, hooks/, components/
+- [x] ListingDetail.tsx component extraction → `src/pages/ListingDetail/` with TeacherInfoCard, ReviewsSection, ListingDescriptionCard (duplicate code eliminated)
+- [x] Profile.tsx mobile/desktop split → `src/pages/Profile/` with MobileProfile, DesktopProfile, hooks/
+
+**Changes Made:**
+- ListingDetail: Extracted TeacherInfoCard (was duplicated for mobile/desktop), ReviewsSection, ListingDescriptionCard
+- Profile: Separated into MobileProfile and DesktopProfile components, extracted useProfileData and usePasswordChange hooks
+- MyListings: Created types.ts, useListings hook, useCategories hook, ListingCard, ListingStats, FiltersBar components
 
 ### Phase 3: Supporting Components (2-3 gun)
 - [ ] AuthContext helper extraction
