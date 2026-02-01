@@ -5,18 +5,32 @@
 
 ---
 
+## ✅ Tamamlanan İşler (İterasyon 1)
+
+### Paket 1: Log Temizliği - ✅ TAMAMLANDI
+- `src/lib/debug.ts` oluşturuldu: `createTransitionLogger`, `devLog`, `devWarn`, `conditionalLog`
+- `VideoCall.tsx` içindeki ~180 console.log/warn → 5'e düşürüldü (sadece kritik hatalar)
+- Transition-based logging: `logParticipantsTransition`, `logCallStateTransition`, `logParentGateState`, `logOverlayVisibility`
+- Tüm dev-only loglar `devLog()` ile sarmalandı
+
+### Paket 2: Hook Çıkarımı - ✅ TAMAMLANDI
+**Oluşturulan yeni dosyalar:**
+```text
+src/hooks/video-call/
+├── index.ts              (barrel export)
+├── useCallNotifications.ts  (participant join/leave notifications)
+├── useCallTimers.ts         (solo timeout, max duration)
+├── useMediaControls.ts      (camera/mic toggle with Daily sync)
+└── useParticipants.ts       (sanitizeParticipants, debounced updates)
+```
+
+**Not:** Hook'lar ayrı dosyalarda oluşturuldu. VideoCall.tsx hâlâ local implementasyonları kullanıyor (stability için). Gelecek iterasyonda migrate edilebilir.
+
+---
+
 ## Executive Summary
 
-**Dosya Boyutu**: `VideoCall.tsx` 1781 satır - tek bir dosyada çok fazla sorumluluk
-
-**Kritik Bulgular**:
-- Monolitik bileşen yapısı (tek dosyada 15+ bileşen/hook)
-- Potansiyel race condition'lar ve cleanup eksiklikleri
-- Duplicate kod path'leri ve gereksiz karmaşıklık
-- Log spam hâlâ mümkün (bazı edge case'lerde)
-- Performans darboğazları (frequent re-render)
-
-**Risk Değerlendirmesi**: Düşük-Orta (incremental refactoring ile)
+**Dosya Boyutu**: `VideoCall.tsx` ~1745 satır (önceki: 1781) - log temizliği ile azaltıldı
 
 ---
 

@@ -8,6 +8,9 @@ import { Video, VideoOff, Mic, MicOff, PhoneOff, Loader2, Users, Clock, Phone, U
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { createTransitionLogger, devLog } from '@/lib/debug';
+// Note: useCallNotifications, useCallTimers, useParticipants hooks available in src/hooks/video-call/
+// for gradual migration. Currently using local implementations for stability.
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES & CONSTANTS
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -243,25 +246,39 @@ function sanitizeParticipants(participantList: DailyParticipant[]): { local: Dai
   return { local, sanitized };
 }
 
-function logParticipants(raw: DailyParticipant[], sanitized: DailyParticipant[]): void {
-  if (!import.meta.env.DEV) return;
+// ═══════════════════════════════════════════════════════════════════════════════
+// TRANSITION-BASED PARTICIPANT LOGGING
+// Only logs when participant count or composition actually changes
+// ═══════════════════════════════════════════════════════════════════════════════
+const logParticipantsTransition = (() => {
+  let prevCount = -1;
+  let prevKeys = '';
+  
+  return (raw: DailyParticipant[], sanitized: DailyParticipant[]): void => {
+    if (!import.meta.env.DEV) return;
+    
+    const count = sanitized.length;
+    const keys = sanitized.map((p: any) => p.session_id).sort().join(',');
+    
+    // Only log if count or composition changed
+    if (count !== prevCount || keys !== prevKeys) {
+      devLog('Participants', 'Transition:', {
+        count: { from: prevCount, to: count },
+        sanitized: sanitized.map((p: any) => ({
+          session_id: p.session_id.substring(0, 8),
+          local: p.local,
+          user_name: p.user_name,
+        })),
+      });
+      prevCount = count;
+      prevKeys = keys;
+    }
+  };
+})();
 
-  console.log('[VideoCall] participants(raw)', raw.map((p: any) => ({
-    session_id: p.session_id,
-    local: p.local,
-    user_id: p.user_id,
-    user_name: p.user_name,
-    appUserId: p?.userData?.appUserId,
-    videoTrackId: p?.videoTrack?.id,
-    audioTrackId: p?.audioTrack?.id,
-  })));
-  console.log('[VideoCall] participants(sanitized)', sanitized.map((p: any) => ({
-    session_id: p.session_id,
-    local: p.local,
-    user_id: p.user_id,
-    user_name: p.user_name,
-    appUserId: p?.userData?.appUserId,
-  })));
+// Legacy function kept for compatibility - redirects to transition logger
+function logParticipants(raw: DailyParticipant[], sanitized: DailyParticipant[]): void {
+  logParticipantsTransition(raw, sanitized);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -542,12 +559,10 @@ function VideoTile({ sessionId, isLocal, displayName }: { sessionId: string; isL
     const audioChanged = prevAudioOffRef.current !== isAudioOff;
     
     if (videoChanged || audioChanged) {
-      console.log('[VideoTile] Track state changed:', {
-        displayName,
-        isLocal,
-        video: videoChanged ? `${prevVideoOffRef.current ? 'off' : 'on'} -> ${isVideoOff ? 'off' : 'on'}` : (isVideoOff ? 'off' : 'on'),
-        audio: audioChanged ? `${prevAudioOffRef.current ? 'off' : 'on'} -> ${isAudioOff ? 'off' : 'on'}` : (isAudioOff ? 'off' : 'on'),
-      });
+      devLog('VideoTile', `${displayName} track changed:`,
+        videoChanged ? `video: ${prevVideoOffRef.current ? 'off' : 'on'} -> ${isVideoOff ? 'off' : 'on'}` : '',
+        audioChanged ? `audio: ${prevAudioOffRef.current ? 'off' : 'on'} -> ${isAudioOff ? 'off' : 'on'}` : ''
+      );
       prevVideoOffRef.current = isVideoOff;
       prevAudioOffRef.current = isAudioOff;
     }
@@ -698,9 +713,7 @@ function useNotifications() {
     const lastShown = recentRef.current.get(dedupeKey) || 0;
 
     if (now - lastShown < DUPLICATE_NOTIFICATION_THRESHOLD_MS) {
-      if (import.meta.env.DEV) {
-        console.log('[VideoCall] Duplicate notification suppressed:', dedupeKey);
-      }
+      devLog('Notifications', 'Duplicate suppressed:', dedupeKey);
       return;
     }
 
@@ -829,12 +842,10 @@ function CallUI({ callObject, conversationId }: CallUIProps) {
   const callStateRef = useRef<CallState>('loading');
   const prevCallStateRef = useRef<CallState>('loading');
 
-  // Debug: Log only callState TRANSITIONS (not every render)
+  // Transition-based callState logging
+  const logCallStateTransition = createTransitionLogger<CallState>('CallUI.callState');
   useEffect(() => {
-    if (prevCallStateRef.current !== callState) {
-      console.log('[CallUI] callState transition:', prevCallStateRef.current, '->', callState);
-      prevCallStateRef.current = callState;
-    }
+    logCallStateTransition(callState);
     callStateRef.current = callState;
   }, [callState]);
 
@@ -873,11 +884,11 @@ function CallUI({ callObject, conversationId }: CallUIProps) {
       
       // Only update state if actually changed (prevent unnecessary renders)
       if (isCameraOnRef.current !== videoOn) {
-        console.log('[CallUI] Camera state sync:', isCameraOnRef.current, '->', videoOn);
+        devLog('MediaSync', 'Camera:', isCameraOnRef.current, '->', videoOn);
         setIsCameraOn(videoOn);
       }
       if (isMicOnRef.current !== audioOn) {
-        console.log('[CallUI] Mic state sync:', isMicOnRef.current, '->', audioOn);
+        devLog('MediaSync', 'Mic:', isMicOnRef.current, '->', audioOn);
         setIsMicOn(audioOn);
       }
     } catch (e) {
@@ -930,27 +941,25 @@ function CallUI({ callObject, conversationId }: CallUIProps) {
     const currentCount = (handlerRegistrationCount.get(conversationId) || 0) + 1;
     handlerRegistrationCount.set(conversationId, currentCount);
     
-    if (import.meta.env.DEV) {
-      console.log('[CallUI] Registering handlers:', {
-        conversationId,
-        registrationCount: currentCount,
-        meetingState: callObject.meetingState(),
-      });
-    }
+    devLog('CallUI', 'Registering handlers:', {
+      conversationId,
+      registrationCount: currentCount,
+      meetingState: callObject.meetingState(),
+    });
     
     // ══════════════════════════════════════════════════════════════════════════
     // FIX: Check CURRENT meeting state immediately on mount
     // This prevents the overlay staying visible if joined-meeting already fired
     // ══════════════════════════════════════════════════════════════════════════
     const currentMeetingState = callObject.meetingState();
-    console.log('[CallUI] Initial meeting state on mount:', currentMeetingState);
+    devLog('CallUI', 'Initial meeting state on mount:', currentMeetingState);
     
     if (currentMeetingState === 'joined-meeting') {
-      console.log('[CallUI] Already joined on mount - transitioning callState to joined');
+      devLog('CallUI', 'Already joined on mount - transitioning callState to joined');
       setCallState('joined');
       updateParticipants();
     } else if (currentMeetingState === 'joining-meeting') {
-      console.log('[CallUI] Currently joining on mount - transitioning callState to joining');
+      devLog('CallUI', 'Currently joining on mount - transitioning callState to joining');
       setCallState('joining');
     }
 
@@ -958,18 +967,18 @@ function CallUI({ callObject, conversationId }: CallUIProps) {
     // Event handlers for FUTURE state changes
     // ══════════════════════════════════════════════════════════════════════════
     const handleJoiningMeeting = () => {
-      console.log('[CallUI] joining-meeting event fired');
+      devLog('CallUI', 'joining-meeting event fired');
       setCallState('joining');
     };
 
     const handleJoinedMeeting = () => {
-      console.log('[CallUI] joined-meeting event fired');
+      devLog('CallUI', 'joined-meeting event fired');
       setCallState('joined');
       updateParticipants();
     };
 
     const handleLeftMeeting = () => {
-      console.log('[CallUI] left-meeting event fired');
+      devLog('CallUI', 'left-meeting event fired');
       setCallState('leaving');
 
       if (autoNavigateOnLeaveRef.current) {
@@ -989,7 +998,7 @@ function CallUI({ callObject, conversationId }: CallUIProps) {
     };
 
     const handleParticipantJoined = (event: DailyEventObjectParticipant | undefined) => {
-      console.log('[CallUI] participant-joined event:', event?.participant?.user_name);
+      devLog('CallUI', 'participant-joined:', event?.participant?.user_name);
       if (event?.participant && !event.participant.local) {
         addNotification('join', event.participant.user_name || 'Katılımcı');
       }
@@ -1002,7 +1011,7 @@ function CallUI({ callObject, conversationId }: CallUIProps) {
     };
 
     const handleParticipantLeft = (event: DailyEventObjectParticipantLeft | undefined) => {
-      console.log('[CallUI] participant-left event:', event?.participant?.user_name);
+      devLog('CallUI', 'participant-left:', event?.participant?.user_name);
       
       // Clean up track state for this participant (modül seviyesinde)
       if (event?.participant?.session_id) {
@@ -1043,10 +1052,7 @@ function CallUI({ callObject, conversationId }: CallUIProps) {
       
       // Only log remote track events (reduces noise)
       if (!event?.participant?.local) {
-        console.log('[CallUI] track-started (remote):', {
-          participant: event?.participant?.user_name || 'unknown',
-          trackType: trackKind,
-        });
+        devLog('TrackEvent', 'started (remote):', event?.participant?.user_name, trackKind);
       }
       
       // Sync local media state if this is a local track event
@@ -1080,10 +1086,7 @@ function CallUI({ callObject, conversationId }: CallUIProps) {
       
       // Only log remote track events (reduces noise)
       if (!event?.participant?.local) {
-        console.log('[CallUI] track-stopped (remote):', {
-          participant: event?.participant?.user_name || 'unknown',
-          trackType: trackKind,
-        });
+        devLog('TrackEvent', 'stopped (remote):', event?.participant?.user_name, trackKind);
       }
       
       // Sync local media state if this is a local track event
@@ -1097,7 +1100,7 @@ function CallUI({ callObject, conversationId }: CallUIProps) {
     
     // Camera error handler to sync state when device fails
     const handleCameraError = () => {
-      console.warn('[CallUI] camera-error event - syncing state');
+      devLog('CallUI', 'camera-error event - syncing state');
       syncLocalMediaState();
     };
 
@@ -1115,9 +1118,7 @@ function CallUI({ callObject, conversationId }: CallUIProps) {
     callObject.on('camera-error', handleCameraError);
 
     return () => {
-      if (import.meta.env.DEV) {
-        console.log('[CallUI] Cleaning up handlers for:', conversationId);
-      }
+      devLog('CallUI', 'Cleaning up handlers for:', conversationId);
       
       callObject.off('joining-meeting', handleJoiningMeeting);
       callObject.off('joined-meeting', handleJoinedMeeting);
@@ -1150,7 +1151,7 @@ function CallUI({ callObject, conversationId }: CallUIProps) {
   
   const toggleCamera = useCallback(async () => {
     const newState = !isCameraOn;
-    console.log('[CallUI] toggleCamera:', { currentState: isCameraOn, requestedNewState: newState });
+    devLog('Toggle', 'Camera:', isCameraOn, '->', newState);
     
     try {
       // Daily.co API: false = track'i durdurur ve karşı tarafa göndermez
@@ -1160,16 +1161,9 @@ function CallUI({ callObject, conversationId }: CallUIProps) {
       const localParticipantData = callObject.participants().local;
       const actualState = localParticipantData?.video !== false;
       
-      console.log('[CallUI] Camera toggle verified:', {
-        requestedState: newState,
-        actualState,
-        match: actualState === newState,
-        videoTrackPresent: !!localParticipantData?.videoTrack,
-      });
-      
       // State'i GERÇEK duruma göre güncelle (güvenlik için)
       if (actualState !== newState) {
-        console.warn('[CallUI] Camera state mismatch! Using actual state:', actualState);
+        devLog('Toggle', 'Camera mismatch! Actual:', actualState);
       }
       setIsCameraOn(actualState);
       
@@ -1177,7 +1171,7 @@ function CallUI({ callObject, conversationId }: CallUIProps) {
       updateParticipants();
       
     } catch (error) {
-      console.error('[CallUI] toggleCamera error:', error);
+      console.error('[Toggle] Camera error:', error);
       // Hata durumunda state'i değiştirme (mevcut durumu koru)
       toast({
         title: "Kamera Hatası",
@@ -1189,7 +1183,7 @@ function CallUI({ callObject, conversationId }: CallUIProps) {
 
   const toggleMic = useCallback(async () => {
     const newState = !isMicOn;
-    console.log('[CallUI] toggleMic:', { currentState: isMicOn, requestedNewState: newState });
+    devLog('Toggle', 'Mic:', isMicOn, '->', newState);
     
     try {
       // Daily.co API: false = audio track'i durdurur ve karşı tarafa göndermez
@@ -1199,16 +1193,9 @@ function CallUI({ callObject, conversationId }: CallUIProps) {
       const localParticipantData = callObject.participants().local;
       const actualState = localParticipantData?.audio !== false;
       
-      console.log('[CallUI] Mic toggle verified:', {
-        requestedState: newState,
-        actualState,
-        match: actualState === newState,
-        audioTrackPresent: !!localParticipantData?.audioTrack,
-      });
-      
       // State'i GERÇEK duruma göre güncelle (güvenlik için)
       if (actualState !== newState) {
-        console.warn('[CallUI] Mic state mismatch! Using actual state:', actualState);
+        devLog('Toggle', 'Mic mismatch! Actual:', actualState);
       }
       setIsMicOn(actualState);
       
@@ -1216,7 +1203,7 @@ function CallUI({ callObject, conversationId }: CallUIProps) {
       updateParticipants();
       
     } catch (error) {
-      console.error('[CallUI] toggleMic error:', error);
+      console.error('[Toggle] Mic error:', error);
       // Hata durumunda state'i değiştirme (mevcut durumu koru)
       toast({
         title: "Mikrofon Hatası",
@@ -1239,11 +1226,9 @@ function CallUI({ callObject, conversationId }: CallUIProps) {
   
   // Only log when overlay visibility actually changes
   const prevShowLoadingRef = useRef(showLoadingOverlay);
+  const logOverlayVisibility = createTransitionLogger<boolean>('CallUI.Overlay');
   useEffect(() => {
-    if (prevShowLoadingRef.current !== showLoadingOverlay) {
-      console.log('[CallUI] Overlay visibility changed:', { callState, showLoadingOverlay });
-      prevShowLoadingRef.current = showLoadingOverlay;
-    }
+    logOverlayVisibility(showLoadingOverlay);
   }, [callState, showLoadingOverlay]);
 
   if (showLoadingOverlay) {
@@ -1397,14 +1382,10 @@ export default function VideoCall() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Debug: parent-level loading gate (this is the overlay that says "Görüşme hazırlanıyor")
+  // Transition-based logging for parent gate state
+  const logParentGateState = createTransitionLogger<{ isLoading: boolean; hasCallObject: boolean; intent: string }>('VideoCall.ParentGate');
   useEffect(() => {
-    console.log('[VideoCall] Parent gate state:', {
-      isLoading,
-      hasCallObject: !!callObject,
-      intent,
-      conversationId,
-    });
+    logParentGateState({ isLoading, hasCallObject: !!callObject, intent });
   }, [isLoading, callObject, intent, conversationId]);
 
   const initAttemptedRef = useRef(false);
@@ -1413,7 +1394,7 @@ export default function VideoCall() {
 
   useEffect(() => {
     if (initAttemptedRef.current) {
-      console.log('[VideoCall] Init already attempted, skipping duplicate');
+      devLog('VideoCall', 'Init already attempted, skipping duplicate');
       return;
     }
     initAttemptedRef.current = true;
@@ -1426,11 +1407,11 @@ export default function VideoCall() {
       joinTimeout = null;
 
       if (callObjectRef.current) {
-        console.log('Destroying call object on unmount...');
+        devLog('VideoCall', 'Destroying call object on unmount...');
         try {
           callObjectRef.current.destroy();
         } catch (e) {
-          console.warn('Failed to destroy call object:', e);
+          // Ignore destroy errors
         }
         callObjectRef.current = null;
       }
@@ -1457,12 +1438,12 @@ export default function VideoCall() {
       const mutexKey = `${conversationId}:${effectiveIntent}:${opts?.forceNew ? 'forceNew' : 'reuse'}`;
       const existing = createRoomMutex.get(mutexKey);
       if (existing) {
-        console.log('[VideoCall] create-daily-room mutex hit; reusing in-flight promise', { mutexKey });
+        devLog('VideoCall', 'create-daily-room mutex hit; reusing in-flight promise');
         return await existing;
       }
 
       const p = (async () => {
-        console.log('[VideoCall] Calling create-daily-room edge function...', { intent: effectiveIntent });
+        devLog('VideoCall', 'Calling create-daily-room edge function...', { intent: effectiveIntent });
 
         const { data: roomData, error: roomError } = await supabase.functions.invoke('create-daily-room', {
           body: { 
@@ -1472,12 +1453,11 @@ export default function VideoCall() {
           },
         });
 
-        console.log('[VideoCall] create-daily-room response:', { roomData, roomError });
+        devLog('VideoCall', 'create-daily-room response:', { success: roomData?.success, error: !!roomError });
 
         if (roomError) {
           console.error('[VideoCall] create-daily-room error:', roomError);
           const { errorCode, errorDetails, status, functionVersion } = parseEdgeFunctionError(roomError);
-          console.error('[VideoCall] Error details:', { errorCode, errorDetails, status, functionVersion });
           throw new Error(`${getErrorMessage(errorCode, status)} (fn: ${functionVersion || 'missing'})`);
         }
 
@@ -1485,40 +1465,27 @@ export default function VideoCall() {
         if (!raw) throw new Error('Oda oluşturulamadı. (fn: missing)');
 
         if (typeof raw.success !== 'boolean') {
-          console.error('[VideoCall] NON-STANDARD create-daily-room payload (wrong deployment?)', raw);
+          console.error('[VideoCall] NON-STANDARD create-daily-room payload (wrong deployment?)');
           throw new Error('Sunucu yanıtı standart değil (yanlış/stale edge function). (fn: missing)');
         }
 
         const typed = raw as CreateDailyRoomResponse;
-        console.log('[VideoCall] create-daily-room function_version:', typed.function_version ?? 'missing');
-
-        if (!typed.function_version) {
-          console.warn('[VideoCall] Missing function_version => likely wrong deployment or stale function');
-        }
+        devLog('VideoCall', 'function_version:', typed.function_version ?? 'missing');
 
         if (typed.success !== true) {
           const errorCode = typed.error?.code || 'UNKNOWN';
-          console.error('[VideoCall] create-daily-room returned error payload:', typed);
           throw new Error(`${getErrorMessage(errorCode)} (fn: ${typed.function_version || 'missing'})`);
         }
 
         const roomUrl = typed.room?.url;
         const roomName = typed.room?.name;
         if (!roomUrl || !roomName) {
-          console.error('[VideoCall] create-daily-room missing room fields:', typed);
           throw new Error(`Oda oluşturulamadı (eksik yanıt). (fn: ${typed.function_version || 'missing'})`);
         }
 
         assertValidDailyUrl(roomUrl);
 
-        console.log('[VideoCall] Room ready:', {
-          room_name: roomName,
-          room_url: roomUrl,
-          reused: typed.reused,
-          active_call: typed.active_call,
-          call_started_at: typed.call_started_at,
-          function_version: typed.function_version,
-        });
+        devLog('VideoCall', 'Room ready:', roomName, typed.reused ? '(reused)' : '(new)');
 
         currentRoomUrlRef.current = roomUrl;
         return typed;
@@ -1544,7 +1511,7 @@ export default function VideoCall() {
     const initializeCall = async () => {
       try {
         if (!conversationId) throw new Error('Conversation ID is required');
-        console.log('[VideoCall] Initializing call for conversation:', conversationId, 'intent:', intent);
+        devLog('VideoCall', 'Initializing call:', conversationId, intent);
 
         const initStart = performance.now();
 
@@ -1556,7 +1523,7 @@ export default function VideoCall() {
         callObjectRef.current = call;
         setCallObject(call);
         setIsLoading(false);
-        console.log('[VideoCall] CallObject created early at', Math.round(performance.now() - initStart), 'ms');
+        devLog('VideoCall', 'CallObject created at', Math.round(performance.now() - initStart), 'ms');
 
         // ══════════════════════════════════════════════════════════════════════
         // OPTIMIZATION 2: Check for roomUrl from query param (joiner shortcut)
@@ -1578,7 +1545,7 @@ export default function VideoCall() {
         ]);
 
         if (!isMounted) return;
-        console.log('[VideoCall] Parallel fetches done at', Math.round(performance.now() - initStart), 'ms');
+        devLog('VideoCall', 'Parallel fetches done');
 
         const user = authData?.data?.user ?? null;
         const roomUrl = roomData.room!.url;
@@ -1588,14 +1555,14 @@ export default function VideoCall() {
         // OPTIMIZATION 4: Start camera fire-and-forget (don't await)
         // Join doesn't require camera to be started first
         // ══════════════════════════════════════════════════════════════════════
-        requestMediaPermissions().catch(console.warn);
+        requestMediaPermissions().catch(() => {});
         call.startCamera().then(() => {
           try {
             (call as any).setLocalAudio?.(true);
-          } catch (e) {
-            console.warn('[VideoCall] setLocalAudio(true) failed:', e);
+          } catch {
+            // Ignore audio setup errors
           }
-        }).catch((e) => console.warn('[VideoCall] startCamera failed:', e));
+        }).catch(() => {});
 
         joinTimeout = window.setTimeout(() => {
           if (!isMounted) return;
@@ -1603,7 +1570,7 @@ export default function VideoCall() {
         }, JOIN_TIMEOUT_MS);
 
         call.on('joined-meeting', () => {
-          console.log('[VideoCall] Successfully joined meeting at', Math.round(performance.now() - initStart), 'ms');
+          devLog('VideoCall', 'Successfully joined meeting');
           if (joinTimeout) window.clearTimeout(joinTimeout);
         });
 
@@ -1623,16 +1590,16 @@ export default function VideoCall() {
           },
         };
 
-        console.log('[VideoCall] Attempting to join room:', roomUrl);
+        devLog('VideoCall', 'Attempting to join room');
 
         try {
           await call.join(joinOptions);
-          console.log('[VideoCall] Successfully joined room at', Math.round(performance.now() - initStart), 'ms');
+          devLog('VideoCall', 'Successfully joined room');
         } catch (e: any) {
           console.error('[VideoCall] Initial join failed:', e);
 
           if (isExpRoomError(e) || isNoRoomError(e)) {
-            console.warn('[VideoCall] Room expired/not found. Creating a fresh room...');
+            devLog('VideoCall', 'Room expired/not found. Creating a fresh room...');
 
             const prevUrl = currentRoomUrlRef.current;
             // Force create a new room (only works for start intent)
@@ -1640,11 +1607,10 @@ export default function VideoCall() {
             const freshUrl = fresh.room!.url;
 
             if (prevUrl && freshUrl === prevUrl) {
-              console.error('[VideoCall] Retry returned same room URL (unexpected).');
               throw new Error('Yeni oda oluşturulamadı. Lütfen sayfayı yenileyip tekrar deneyin.');
             }
 
-            console.log('[VideoCall] Retrying join with NEW room:', freshUrl);
+            devLog('VideoCall', 'Retrying join with NEW room');
             await call.join({ ...joinOptions, url: freshUrl });
           } else {
             throw e;
@@ -1654,13 +1620,13 @@ export default function VideoCall() {
         try {
           (call as any).setLocalAudio?.(true);
           (call as any).setLocalVideo?.(true);
-        } catch (e) {
-          console.warn('[VideoCall] Post-join setLocalAudio/Video failed:', e);
+        } catch {
+          // Ignore post-join media setup errors
         }
 
-        console.log('[VideoCall] Init complete at', Math.round(performance.now() - initStart), 'ms');
+        devLog('VideoCall', 'Init complete');
       } catch (err) {
-        console.error('Error initializing call:', err);
+        console.error('[VideoCall] Error initializing call:', err);
         if (!isMounted) return;
 
         const message = err instanceof Error ? err.message : 'Video araması başlatılamadı.';
@@ -1681,21 +1647,20 @@ export default function VideoCall() {
         // We must NOT permanently skip initialization on this mount.
         // Otherwise the page can get stuck on the parent overlay (callObject stays null)
         // if a previous init promise is still in-flight or was started by a previous mount.
-        console.log('[VideoCall] initFlow mutex hit; waiting existing init then ensuring init for this mount', { conversationId });
+        devLog('VideoCall', 'initFlow mutex hit; waiting existing init');
 
         (async () => {
           try {
             await existingInit;
-          } catch (e) {
+          } catch {
             // Ignore; we'll attempt our own init below if still mounted.
-            console.warn('[VideoCall] existing init promise rejected; will attempt fresh init', e);
           }
 
           if (!isMounted) return;
 
           // If we still don't have a call object in THIS component instance, run init now.
           if (!callObjectRef.current) {
-            console.log('[VideoCall] No callObject after waiting existing init; starting init for this mount');
+            devLog('VideoCall', 'No callObject after waiting; starting fresh init');
             const p = initializeCall().finally(() => {
               initFlowMutex.delete(conversationId);
             });
