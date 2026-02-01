@@ -16,7 +16,7 @@ export const ListingDetail = lazy(() => import('../pages/ListingDetail/index'));
 export const MyListings = lazy(() => import('../pages/teacher/MyListings'));
 export const TeacherEarnings = lazy(() => import('../pages/teacher/Earnings'));
 export const AdminDashboard = lazy(() => import('../pages/admin/Dashboard'));
-export const Approvals = lazy(() => import('../pages/admin/Approvals'));
+export const Approvals = lazy(() => import('../pages/admin/Approvals/index'));
 export const AdminEarnings = lazy(() => import('../pages/admin/Earnings'));
 export const TeachersManagement = lazy(() => import('../pages/admin/Teachers'));
 export const UsersManagement = lazy(() => import('../pages/admin/Users'));
