@@ -1,96 +1,48 @@
 
-# Admin Mobil Navbar Aktif State Sorunu - Kök Neden Analizi ve Çözüm
 
-## Kök Neden Analizi
+# Görüntülü Arama - Kamera Ayna Görüntüsü Düzeltmesi
 
-### Problem Akışı
-```text
-1. Admin giriş yapıyor → "/" ana sayfaya yönlendiriliyor
-2. activeHref hesaplanıyor:
-   - pathname = "/"
-   - Dashboard matchPrefixes = ["/admin/dashboard", "/admin/users", ...]
-   - Hiçbir prefix "/" ile eşleşmiyor
-   - getItemMatchLength tüm itemlar için 0 döndürüyor
-   - bestLen = 0 → activeHref = undefined ✓ (doğru)
-   
-3. AMA pillPosition sıfırlanmıyor!
-   - measurePill() fonksiyonu: if (!activeHref) return; → çalışmıyor
-   - pillPosition eski değerini koruyor (Dashboard pozisyonu)
-   - Pill opacity = pillPosition ? 1 : 0 → hala 1 (görünür)
-   - Sonuç: Dashboard seçiliymiş gibi görünüyor
-```
+## Mevcut Durum
 
-### Problemi Yaratan Kod (satır 169-182)
+`VideoTile.tsx` dosyasında (satır 54-66):
+
 ```typescript
-const measurePill = () => {
-  if (!activeHref || !containerRef.current) return;  // ← Sadece return ediyor
-  // ... pill pozisyonunu ölç
-  setPillPosition({ left: ..., width: ... });
-};
+<DailyVideo
+  sessionId={sessionId}
+  type="video"
+  automirror={isLocal}  // ← Yerel video için otomatik aynalama açık
+  fit="cover"
+  style={{
+    width: '100%',
+    height: '100%',
+    opacity: isVideoOff ? 0 : 1,
+    transition: 'opacity 200ms ease-in-out',
+  }}
+  muted={isLocal}
+/>
 ```
-
-**Kritik Hata:** `activeHref` undefined olduğunda `pillPosition` null yapılmıyor, sadece fonksiyondan çıkılıyor. Bu yüzden eski pozisyon korunuyor.
-
----
 
 ## Çözüm
 
-**Dosya:** `src/components/mobile/MobileBottomNav.tsx`
+`automirror` özelliğini kaldırarak veya `false` yaparak ayna görüntüsünü devre dışı bırakacağız.
 
-### Değişiklik 1: measurePill Fonksiyonunu Düzelt
+**Dosya:** `src/pages/VideoCall/components/VideoTile.tsx`
 
-`activeHref` undefined olduğunda `pillPosition`'ı null yap:
-
-```typescript
-// ÖNCE (satır 169-171)
-const measurePill = () => {
-  if (!activeHref || !containerRef.current) return;
-
-// SONRA
-const measurePill = () => {
-  // activeHref yoksa pill'i gizle
-  if (!activeHref) {
-    setPillPosition(null);
-    return;
-  }
-  if (!containerRef.current) return;
-```
-
-### Değişiklik 2: useLayoutEffect Bağımlılığı
-
-`activeHref` undefined olduğunda da effect çalışmalı ki `pillPosition` sıfırlansın:
+### Değişiklik
 
 ```typescript
-// ÖNCE (satır 188-189)
-useLayoutEffect(() => {
-  if (!activeHref) return;
+// ÖNCE
+automirror={isLocal}
 
 // SONRA
-useLayoutEffect(() => {
-  if (!activeHref) {
-    setPillPosition(null);
-    return;
-  }
+automirror={false}
 ```
 
----
+Bu değişiklik ile:
+- Yerel kullanıcı kendisini gerçek yönde görecek (ayna değil)
+- Uzak kullanıcılar da karşı tarafı doğru yönde görecek
 
-## Test Senaryoları
+## Not
 
-| Senaryo | Beklenen Sonuç |
-|---------|----------------|
-| Admin "/" ana sayfada | Hiçbir tab seçili değil, pill görünmez |
-| Admin → Dashboard tıklama | Dashboard aktif, pill görünür |
-| Dashboard → "/" geri | Pill kaybolur |
-| Sayfa yenileme "/" | Pill görünmez |
-| "/admin/users" direkt link | Dashboard aktif |
+Eğer kullanıcı tam tersini istiyorsa (aynayı açmak), o zaman `automirror={true}` yapılabilir. Ancak mevcut durumda `automirror={isLocal}` zaten yerel video için aynalama yapıyor, kullanıcı bunun kapatılmasını istiyor gibi görünüyor.
 
----
-
-## Özet
-
-Tek dosyada 2 satırlık değişiklik:
-- `measurePill()` fonksiyonuna `setPillPosition(null)` ekleme
-- `useLayoutEffect` içinde aynı mantık
-
-Bu sayede `activeHref` undefined olduğunda pill animasyonu düzgün şekilde gizlenecek.
