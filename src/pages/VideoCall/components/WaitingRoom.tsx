@@ -63,7 +63,8 @@ export function WaitingRoom({
               autoPlay
               muted
               playsInline
-              className="w-full h-full object-cover"
+              // Local preview should be mirrored (selfie-style)
+              className="w-full h-full object-cover -scale-x-100"
             />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center bg-muted">
