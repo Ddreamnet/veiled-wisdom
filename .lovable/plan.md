@@ -1,223 +1,195 @@
 
-# Görüntülü Arama Bağlantı Süresini Kısaltma Planı
+# Build Hatası Düzeltme ve Capacitor Hazırlık Planı
 
-## Mevcut Durum Analizi
+## Sorun Analizi
 
-Şu anki bağlantı süreci (8-10 saniye) aşağıdaki adımlardan oluşuyor:
+### Kök Sebep: Vite/Rollup Modül Çözümleme Davranışı
 
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    MEVCUT AKIŞ (8-10 saniye)                               │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  1. VideoCallPage mount (~50ms)                                            │
-│     └─> Daily.createCallObject()                                           │
-│                                                                             │
-│  2. PARALEL İşlemler (~2-4 sn) ─────────────────────────────────────────── │
-│     ├─> Edge Function çağrısı (create-daily-room)                          │
-│     │   ├─> JWT doğrulama                                                  │
-│     │   ├─> Supabase conversation fetch                                    │
-│     │   ├─> Active call kontrolü                                           │
-│     │   ├─> Daily API: POST /rooms (oda oluşturma)                         │
-│     │   └─> Daily API: GET /rooms/{name} (doğrulama)                       │
-│     ├─> getDisplayName()                                                   │
-│     └─> supabase.auth.getUser()                                            │
-│                                                                             │
-│  3. startCamera() (~1-2 sn)                                                │
-│     └─> getUserMedia izin isteme                                           │
-│                                                                             │
-│  4. call.join() (~4-6 sn) ─────────────────────────────────────────────────│
-│     ├─> WebRTC bağlantısı kurma                                            │
-│     ├─> ICE candidate toplama                                              │
-│     ├─> DTLS handshake                                                     │
-│     └─> Media track'lerin aktif hale gelmesi                               │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
+Hata mesajı:
+```
+No matching export in "src/components/Header.tsx" for import "getCenterNavItems"
+No matching export in "src/components/Header.tsx" for import "UserDropdownMenu"
 ```
 
-## Tespit Edilen Darboğazlar
-
-| # | Darboğaz | Süre | Açıklama |
-|---|----------|------|----------|
-| 1 | Edge Function soğuk başlatma | ~1-2 sn | Fonksiyon ilk kez çağrıldığında soğuk başlatma gecikmesi |
-| 2 | Daily API çağrıları | ~1-2 sn | Oda oluşturma + doğrulama için 2 sıralı HTTP isteği |
-| 3 | getUserMedia izni | ~0.5-1 sn | Kullanıcıdan kamera/mikrofon izni isteme (ilk kullanımda) |
-| 4 | WebRTC bağlantısı | ~3-5 sn | ICE toplama, DTLS handshake, media negotiation |
-| 5 | Sıralı işlemler | ~1-2 sn | Bazı işlemler hala sıralı çalışıyor |
-
-## Önerilen Optimizasyonlar
-
-### 1. Kamera İznini Önceden Al (Prefetch Media Permissions)
-
-**Sorun**: `startCamera()` ve `getUserMedia()` arama başladıktan sonra çağrılıyor.
-
-**Çözüm**: ChatWindow'da "Görüntülü Ara" butonuna hover/focus edildiğinde veya mesajlaşma sayfası açıldığında kamera iznini önceden iste.
-
+**Sorun:** `Header.tsx` dosyasında şu import var:
 ```typescript
-// ChatWindow.tsx - Hover'da izin prefetch
-const prefetchMediaPermissions = useCallback(async () => {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ 
-      audio: true, 
-      video: true 
-    });
-    stream.getTracks().forEach(t => t.stop());
-  } catch { }
-}, []);
-
-<Button onMouseEnter={prefetchMediaPermissions} onFocus={prefetchMediaPermissions}>
-  <Video /> Görüntülü Ara
-</Button>
+import { getCenterNavItems, UserDropdownMenu } from "@/components/header";
 ```
 
-### 2. Daily preAuth() Kullanımı
+Vite/Rollup, `@/components/header` yolunu çözümlerken **önce dosya, sonra klasör** önceliği uyguluyor:
+1. `src/components/header.tsx` → Bulunamadı
+2. `src/components/Header.tsx` → **BULUNDU** (Windows case-insensitive)
+3. `src/components/header/index.ts` → Hiç denenmedi
 
-**Sorun**: `join()` çağrısı WebRTC bağlantısını başlatmadan önce bazı ön hazırlıklar yapıyor.
+Windows'ta büyük/küçük harf duyarsız olduğu için `header` → `Header.tsx` olarak çözümleniyor ve bu dosyada `getCenterNavItems` veya `UserDropdownMenu` export'u olmadığı için hata veriyor.
 
-**Çözüm**: Daily.co'nun `preAuth()` metodunu kullanarak room URL alındıktan hemen sonra ön kimlik doğrulama yap.
+Linux/Android'de ise farklı davranış gösterebilir.
+
+## Çözüm Planı
+
+### 1. Import Yolunu Açık Hale Getir
+
+`Header.tsx` içindeki import'u klasör index'ine açıkça yönlendir:
 
 ```typescript
-// Room URL alındıktan sonra, join()'den ÖNCE
-await call.preAuth({ url: roomUrl });
-// Bu, join() süresini kısaltır
+// ÖNCEKİ (sorunlu)
+import { getCenterNavItems, UserDropdownMenu } from "@/components/header";
+
+// SONRAKI (düzeltilmiş)
+import { getCenterNavItems, UserDropdownMenu } from "@/components/header/index";
 ```
 
-### 3. Edge Function Optimizasyonu - Doğrulama Adımını Kaldır
+Bu, Vite'ın `Header.tsx` yerine `header/index.ts`'i kullanmasını garanti eder.
 
-**Sorun**: Edge function oda oluşturduktan sonra ayrı bir GET isteği ile doğruluyor (~500ms ekstra).
+### 2. Capacitor Yapılandırması
 
-**Çözüm**: Daily API'nin POST yanıtı zaten başarılı oda bilgisini içeriyor, doğrulama adımını kaldır.
+#### A) `capacitor.config.ts` Oluştur
 
 ```typescript
-// create-daily-room/index.ts - Satır 370-381 arası kaldırılabilir
-// Verify adımı sadece aktif aramalar için gerekli, yeni oda için gereksiz
+import type { CapacitorConfig } from '@capacitor/cli';
+
+const config: CapacitorConfig = {
+  appId: 'app.lovable.c391e7536d1545ab929ee1c102409f72',
+  appName: 'veiled-wisdom',
+  webDir: 'dist',
+  server: {
+    // Development için hot-reload (production'da kaldırılmalı)
+    url: 'https://c391e753-6d15-45ab-929e-e1c102409f72.lovableproject.com?forceHideBadge=true',
+    cleartext: true
+  }
+};
+
+export default config;
 ```
 
-### 4. startCamera() ile preAuth() Paralel Çalıştır
+#### B) `vite.config.ts` Güncelle
 
-**Sorun**: `startCamera()` fire-and-forget olarak çalışıyor ama `join()`'i beklemiyor.
-
-**Çözüm**: `startCamera({ url })` ve `preAuth()` paralel çalıştırılabilir:
+SPA + Capacitor uyumu için `base: './'` ekle:
 
 ```typescript
-// Room URL alındıktan sonra
-await Promise.all([
-  call.startCamera({ url: roomUrl }),
-  call.preAuth({ url: roomUrl }),
-]);
-
-// Artık join() çok daha hızlı olacak
-await call.join({ url: roomUrl, ... });
+export default defineConfig(({ mode }) => ({
+  base: './',  // Capacitor için relative path
+  // ... mevcut config
+}));
 ```
 
-### 5. Join Intent İçin Joiner Shortcut Geliştirmesi
+#### C) `package.json` Script'leri Ekle
 
-**Sorun**: Mevcut "joiner shortcut" sadece roomUrl'i geçiriyor ama edge function hala çağrılıyor (room kontrolü için).
-
-**Çözüm**: Joiner için edge function çağrısını tamamen atla, doğrudan join yap:
-
-```typescript
-// VideoCallPage.tsx
-if (roomUrlFromParam && intent === 'join') {
-  // Edge function'ı ATLAMA - doğrudan join
-  const roomUrl = roomUrlFromParam;
-  await call.preAuth({ url: roomUrl });
-  await call.join({ url: roomUrl, ... });
+```json
+{
+  "scripts": {
+    "cap:sync": "npx cap sync",
+    "cap:open:android": "npx cap open android",
+    "cap:open:ios": "npx cap open ios",
+    "cap:run:android": "npx cap run android",
+    "cap:run:ios": "npx cap run ios"
+  }
 }
 ```
 
-### 6. Edge Function Soğuk Başlatmayı Önleme (Keep-Warm)
+### 3. Router Değerlendirmesi
 
-**Sorun**: Edge function soğuk başlatma 1-2 saniye ekliyor.
+Mevcut `react-router-dom` ile `BrowserRouter` kullanılıyor. Capacitor WebView içinde:
+- **Deep link sorunu yok** çünkü SPA tek index.html üzerinden çalışır
+- **Refresh sorunu olabilir** ancak Capacitor WebView varsayılan olarak SPA-friendly çalışır
 
-**Çözüm**: Mesajlaşma sayfasında arka planda düşük maliyetli bir "ping" isteği at:
+Eğer sorun yaşanırsa `HashRouter` alternatifi düşünülebilir, ancak şimdilik gerekli değil.
 
-```typescript
-// useActiveCall hook'unda veya Messages sayfasında
-useEffect(() => {
-  // Edge function'ı ısıt (boş bir OPTIONS isteği yeterli)
-  supabase.functions.invoke('create-daily-room', {
-    method: 'OPTIONS' // CORS preflight = soğuk başlatmayı tetikler
-  }).catch(() => {});
-}, []);
-```
-
-## Uygulama Planı
-
-### Faz 1: Hızlı Kazanımlar (Tahmini: 2-3 sn kazanç)
+## Değiştirilecek Dosyalar
 
 | Dosya | Değişiklik |
 |-------|------------|
-| `ChatWindow.tsx` | Hover'da `getUserMedia` prefetch |
-| `VideoCallPage.tsx` | `preAuth()` kullanımı |
-| `VideoCallPage.tsx` | `startCamera({ url })` ile URL geçme |
-
-### Faz 2: Edge Function Optimizasyonu (Tahmini: 0.5-1 sn kazanç)
-
-| Dosya | Değişiklik |
-|-------|------------|
-| `create-daily-room/index.ts` | Yeni oda için verify adımını kaldır |
-| `VideoCallPage.tsx` | Joiner shortcut'ta edge function'ı tamamen atla |
-
-### Faz 3: Gelişmiş Optimizasyonlar (Tahmini: 0.5-1 sn kazanç)
-
-| Dosya | Değişiklik |
-|-------|------------|
-| `Messages.tsx` veya `useActiveCall.ts` | Edge function keep-warm ping |
-| `ChatWindow.tsx` | Aktif arama varsa roomUrl'i state'te tut |
-
-## Beklenen Sonuç
-
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    OPTİMİZE AKIŞ (3-5 saniye hedef)                        │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  Ön Hazırlık (Kullanıcı mesajlaşma sayfasındayken):                        │
-│  ├─> getUserMedia izni (hover'da) - ÖNBELLEĞE ALINIR                       │
-│  └─> Edge function keep-warm - SOĞUK BAŞLATMA ÖNLENİR                      │
-│                                                                             │
-│  Arama Başlatıldığında:                                                    │
-│                                                                             │
-│  1. createCallObject() + Edge Function PARALEL (~1-2 sn)                   │
-│                                                                             │
-│  2. preAuth() + startCamera() PARALEL (~0.5 sn)                            │
-│                                                                             │
-│  3. join() (~2-3 sn) - preAuth sayesinde daha hızlı                        │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+| `src/components/Header.tsx` | Import yolunu `/header/index` olarak düzelt |
+| `vite.config.ts` | `base: './'` ekle |
+| `package.json` | Capacitor script'leri ekle |
+| `capacitor.config.ts` | Yeni dosya oluştur |
 
 ## Teknik Detaylar
 
-### Değiştirilecek Dosyalar
+### Header.tsx Değişikliği (Satır 11)
 
-1. **`src/components/chat/ChatWindow.tsx`**
-   - Video butonu hover/focus event'leri
-   - Media permission prefetch
+```typescript
+// Önceki
+import { getCenterNavItems, UserDropdownMenu } from "@/components/header";
 
-2. **`src/pages/VideoCall/VideoCallPage.tsx`**
-   - `preAuth()` entegrasyonu
-   - `startCamera({ url })` güncellemesi
-   - Joiner shortcut iyileştirmesi
+// Sonraki
+import { getCenterNavItems, UserDropdownMenu } from "@/components/header/index";
+```
 
-3. **`supabase/functions/create-daily-room/index.ts`**
-   - Yeni oda için verify adımını kaldırma (opsiyonel)
+### vite.config.ts Değişikliği (Satır 7-8)
 
-4. **`src/hooks/useActiveCall.ts`** (opsiyonel)
-   - Edge function keep-warm mekanizması
+```typescript
+export default defineConfig(({ mode }) => ({
+  base: './',  // YENİ SATIR
+  server: {
+    // ...
+```
 
-### Risk Değerlendirmesi
+### package.json Scripts Ekleme
 
-| Risk | Seviye | Açıklama |
-|------|--------|----------|
-| preAuth() uyumsuzluğu | Düşük | Daily.co resmi API'si, iyi destekleniyor |
-| Prefetch yanlış pozitif | Düşük | Hover'da izin alınırsa kullanıcı kafası karışabilir |
-| Edge function değişikliği | Orta | Verify kaldırılırsa edge case'ler oluşabilir |
+```json
+"scripts": {
+  "dev": "vite",
+  "build": "vite build",
+  "build:dev": "vite build --mode development",
+  "lint": "eslint .",
+  "preview": "vite preview",
+  "cap:sync": "npx cap sync",
+  "cap:open:android": "npx cap open android",
+  "cap:open:ios": "npx cap open ios",
+  "cap:run:android": "npx cap run android",
+  "cap:run:ios": "npx cap run ios"
+}
+```
+
+### capacitor.config.ts (Yeni Dosya)
+
+```typescript
+import type { CapacitorConfig } from '@capacitor/cli';
+
+const config: CapacitorConfig = {
+  appId: 'app.lovable.c391e7536d1545ab929ee1c102409f72',
+  appName: 'veiled-wisdom',
+  webDir: 'dist',
+  server: {
+    url: 'https://c391e753-6d15-45ab-929e-e1c102409f72.lovableproject.com?forceHideBadge=true',
+    cleartext: true
+  }
+};
+
+export default config;
+```
+
+## Lokal Kurulum Adımları (Senin Yapacakların)
+
+Repo güncellemesini çektikten sonra:
+
+```bash
+# 1. Bağımlılıkları yükle
+npm install
+
+# 2. Build test et
+npm run build
+
+# 3. Capacitor CLI ve Core yükle
+npm install @capacitor/core @capacitor/cli
+
+# 4. Capacitor'ı başlat (config dosyası zaten olacak)
+npx cap init --web-dir dist
+
+# 5. Android platform ekle
+npx cap add android
+
+# 6. Sync et
+npm run cap:sync
+
+# 7. Android Studio'da aç
+npm run cap:open:android
+```
 
 ## Test Kriterleri
 
-1. Arama başlatma süresi 8-10 sn'den 4-5 sn'ye düşmeli
-2. Katılma süresi (joiner) 3 sn'nin altına inmeli
-3. Mevcut tüm fonksiyonellik korunmalı
-4. Hata durumlarında graceful fallback olmalı
+1. `npm run dev` hatasız çalışmalı
+2. `npm run build` başarılı olmalı
+3. `dist/` klasörü oluşmalı ve `index.html` içinde relative path'ler olmalı
+4. Capacitor komutları çalışmalı
