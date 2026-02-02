@@ -40,8 +40,12 @@ import {
   VideoTile, 
   WaitingRoom,
   FilteredRemoteAudio,
-  ControlButton 
+  ControlButton,
+  DraggablePiP 
 } from './components';
+
+// Hooks
+import { useIsMobile } from '@/hooks/use-mobile';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CUSTOM HOOKS
@@ -152,6 +156,7 @@ function useCallTimers(
 export function CallUI({ callObject, conversationId }: CallUIProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   
   // Module-level track state (StrictMode remount protection)
   const trackStates = getConversationTrackStates(conversationId);
@@ -516,43 +521,77 @@ export function CallUI({ callObject, conversationId }: CallUIProps) {
           </div>
         </motion.div>
 
-        {/* Video Grid - mobilde ekranın tamamını kaplar */}
-        <div className="flex-1 px-0 py-1 md:p-4 grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4 content-start md:content-center pb-[calc(68px+env(safe-area-inset-bottom,0px)+56px)] md:pb-0">
-          <AnimatePresence>
+        {/* Video Area */}
+        {isMobile ? (
+          // ═══════════════════════════════════════════════════════════════════
+          // MOBILE: PiP Layout - Remote video fullscreen, local as floating PiP
+          // ═══════════════════════════════════════════════════════════════════
+          <div className="flex-1 relative">
+            {/* Remote participant - fullscreen background */}
+            {remoteParticipants[0] && (
+              <div className="absolute inset-0">
+                <VideoTile 
+                  sessionId={remoteParticipants[0].session_id} 
+                  isLocal={false} 
+                  displayName={remoteParticipants[0].user_name || 'Katılımcı'}
+                  variant="fullscreen"
+                />
+              </div>
+            )}
+            
+            {/* Local participant - draggable PiP */}
             {localParticipant && (
-              <motion.div
-                key={(localParticipant as any).userData?.appUserId || localParticipant.session_id}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ delay: 0 }}
-                className="h-full"
-              >
+              <DraggablePiP initialCorner="bottom-right">
                 <VideoTile 
                   sessionId={localParticipant.session_id} 
                   isLocal={true} 
-                  displayName={localParticipant.user_name || 'Siz'} 
+                  displayName={localParticipant.user_name || 'Siz'}
+                  variant="pip"
                 />
-              </motion.div>
+              </DraggablePiP>
             )}
-            {remoteParticipants.map((participant, idx) => (
-              <motion.div
-                key={(participant as any).userData?.appUserId || participant.session_id}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ delay: 0.1 * (idx + 1) }}
-                className="h-full"
-              >
-                <VideoTile 
-                  sessionId={participant.session_id} 
-                  isLocal={false} 
-                  displayName={participant.user_name || 'Katılımcı'} 
-                />
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
+          </div>
+        ) : (
+          // ═══════════════════════════════════════════════════════════════════
+          // DESKTOP: Grid Layout - Side by side videos
+          // ═══════════════════════════════════════════════════════════════════
+          <div className="flex-1 p-4 grid grid-cols-2 gap-4 content-center">
+            <AnimatePresence>
+              {localParticipant && (
+                <motion.div
+                  key={(localParticipant as any).userData?.appUserId || localParticipant.session_id}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ delay: 0 }}
+                  className="h-full"
+                >
+                  <VideoTile 
+                    sessionId={localParticipant.session_id} 
+                    isLocal={true} 
+                    displayName={localParticipant.user_name || 'Siz'} 
+                  />
+                </motion.div>
+              )}
+              {remoteParticipants.map((participant, idx) => (
+                <motion.div
+                  key={(participant as any).userData?.appUserId || participant.session_id}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ delay: 0.1 * (idx + 1) }}
+                  className="h-full"
+                >
+                  <VideoTile 
+                    sessionId={participant.session_id} 
+                    isLocal={false} 
+                    displayName={participant.user_name || 'Katılımcı'} 
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
 
         {/* Audio for remote participants */}
         {remoteParticipants.map((participant) => (
