@@ -8,7 +8,7 @@ import { useScrollPosition } from "@/hooks/useScrollPosition";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabase";
-import { getCenterNavItems, UserDropdownMenu } from "@/components/header";
+import { getCenterNavItems, UserDropdownMenu } from "@/components/header/index";
 
 const HeaderComponent = () => {
   const { user, role, signOut } = useAuth();
