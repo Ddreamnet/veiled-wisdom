@@ -35,6 +35,8 @@ export interface VideoTileProps {
   sessionId: string;
   isLocal: boolean;
   displayName: string;
+  /** Render variant: default (grid), pip (floating), fullscreen (background) */
+  variant?: 'default' | 'pip' | 'fullscreen';
 }
 
 export interface FilteredRemoteAudioProps {
