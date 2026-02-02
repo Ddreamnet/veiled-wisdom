@@ -222,22 +222,35 @@ export default function VideoCallPage() {
         const roomUrl = roomData.room!.url;
         currentRoomUrlRef.current = roomUrl;
 
-        // OPTIMIZATION 4: preAuth + startCamera in PARALLEL for faster join
-        // preAuth() prepares WebRTC connection before join() is called
-        devLog('VideoCall', 'Starting preAuth + camera in parallel');
-        await Promise.all([
-          call.preAuth({ url: roomUrl }).catch((e) => {
-            console.warn('[VideoCall] preAuth failed (continuing):', e);
+        // OPTIMIZATION 4: Start camera with URL + preAuth (fire-and-forget with timeout)
+        // preAuth() prepares WebRTC connection but shouldn't block join()
+        devLog('VideoCall', 'Starting camera + preAuth');
+        
+        // preAuth with 3s timeout - don't block if it hangs
+        const preAuthPromise = Promise.race([
+          call.preAuth({ url: roomUrl }).then(() => {
+            devLog('VideoCall', 'preAuth completed');
           }),
-          call.startCamera({ url: roomUrl }).then(() => {
-            try {
-              (call as any).setLocalAudio?.(true);
-            } catch {
-              // Ignore audio setup errors
-            }
-          }).catch(() => {}),
-        ]);
-        devLog('VideoCall', 'preAuth + camera ready');
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('preAuth timeout')), 3000)
+          ),
+        ]).catch((e) => {
+          console.warn('[VideoCall] preAuth skipped:', e);
+        });
+
+        // Start camera (fire-and-forget, don't block)
+        call.startCamera({ url: roomUrl }).then(() => {
+          try {
+            (call as any).setLocalAudio?.(true);
+          } catch {
+            // Ignore audio setup errors
+          }
+          devLog('VideoCall', 'Camera started');
+        }).catch(() => {});
+
+        // Wait for preAuth (with timeout) before join
+        await preAuthPromise;
+        devLog('VideoCall', 'Ready to join');
 
         joinTimeout = window.setTimeout(() => {
           if (!isMounted) return;
