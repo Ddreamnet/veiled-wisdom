@@ -10,10 +10,8 @@ import { useNavigate } from 'react-router-dom';
 import { DailyCall, DailyParticipant, DailyEventObjectParticipant, DailyEventObjectParticipantLeft } from '@daily-co/daily-js';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Video, VideoOff, Mic, MicOff, PhoneOff, Clock } from 'lucide-react';
-import { useSetAtom } from 'jotai';
 import { useToast } from '@/hooks/use-toast';
 import { createTransitionLogger, devLog } from '@/lib/debug';
-import { isChatOpenAtom } from '@/atoms/chatAtoms';
 
 // Types
 import type { CallUIProps, NotificationItem, CallState } from './types';
@@ -160,13 +158,8 @@ export function CallUI({ callObject, conversationId }: CallUIProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const isMobile = useIsMobile();
-  const setIsChatOpen = useSetAtom(isChatOpenAtom);
   
-  // Hide mobile navbar while in video call
-  useEffect(() => {
-    setIsChatOpen(true);
-    return () => setIsChatOpen(false);
-  }, [setIsChatOpen]);
+  // NOTE: Navbar hiding is now handled in VideoCallPage to cover loading/error states
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // iOS SAFARI COMPATIBLE SCROLL LOCK
