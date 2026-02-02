@@ -5,6 +5,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { DailyCall, DailyParticipant, DailyEventObjectParticipant, DailyEventObjectParticipantLeft } from '@daily-co/daily-js';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -166,6 +167,35 @@ export function CallUI({ callObject, conversationId }: CallUIProps) {
     setIsChatOpen(true);
     return () => setIsChatOpen(false);
   }, [setIsChatOpen]);
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // iOS SAFARI COMPATIBLE SCROLL LOCK
+  // ═══════════════════════════════════════════════════════════════════════════════
+  useEffect(() => {
+    const scrollY = window.scrollY;
+    const originalStyles = {
+      bodyOverflow: document.body.style.overflow,
+      bodyPosition: document.body.style.position,
+      bodyTop: document.body.style.top,
+      bodyWidth: document.body.style.width,
+      htmlOverflow: document.documentElement.style.overflow,
+    };
+    
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
+    document.documentElement.style.overflow = 'hidden';
+    
+    return () => {
+      document.body.style.overflow = originalStyles.bodyOverflow;
+      document.body.style.position = originalStyles.bodyPosition;
+      document.body.style.top = originalStyles.bodyTop;
+      document.body.style.width = originalStyles.bodyWidth;
+      document.documentElement.style.overflow = originalStyles.htmlOverflow;
+      window.scrollTo(0, scrollY);
+    };
+  }, []);
   
   // Module-level track state (StrictMode remount protection)
   const trackStates = getConversationTrackStates(conversationId);
@@ -185,6 +215,30 @@ export function CallUI({ callObject, conversationId }: CallUIProps) {
   const [callState, setCallState] = useState<CallState>('loading');
   const [participants, setParticipants] = useState<DailyParticipant[]>([]);
   const [localParticipant, setLocalParticipant] = useState<DailyParticipant | null>(null);
+  
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // VIDEO SWAP STATE & CONTROL BAR MEASUREMENT (Mobile WhatsApp-style)
+  // ═══════════════════════════════════════════════════════════════════════════════
+  const [isVideoSwapped, setIsVideoSwapped] = useState(false);
+  const controlBarRef = useRef<HTMLDivElement>(null);
+  const [controlBarHeight, setControlBarHeight] = useState(80);
+
+  useEffect(() => {
+    if (!controlBarRef.current || !isMobile) return;
+    
+    const measureBar = () => {
+      const rect = controlBarRef.current?.getBoundingClientRect();
+      if (rect) {
+        setControlBarHeight(rect.height + 16); // +16 margin
+      }
+    };
+    
+    measureBar();
+    const ro = new ResizeObserver(measureBar);
+    ro.observe(controlBarRef.current);
+    
+    return () => ro.disconnect();
+  }, [isMobile]);
 
   // Custom hooks
   const { notifications, add: addNotification, remove: removeNotification } = useNotifications();
@@ -470,6 +524,17 @@ export function CallUI({ callObject, conversationId }: CallUIProps) {
   }, [callObject, autoNavigateOnLeaveRef]);
 
   // ═══════════════════════════════════════════════════════════════════════════════
+  // PIP CLICK HANDLER (Tap to swap videos)
+  // ═══════════════════════════════════════════════════════════════════════════════
+  const remoteParticipantsForSwap = participants.filter((p) => !p.local);
+  
+  const handlePiPClick = useCallback(() => {
+    if (remoteParticipantsForSwap.length > 0) {
+      setIsVideoSwapped(prev => !prev);
+    }
+  }, [remoteParticipantsForSwap.length]);
+
+  // ═══════════════════════════════════════════════════════════════════════════════
   // RENDER LOGIC
   // ═══════════════════════════════════════════════════════════════════════════════
   const showLoadingOverlay = callState === 'loading' || callState === 'joining';
@@ -506,55 +571,67 @@ export function CallUI({ callObject, conversationId }: CallUIProps) {
     );
   }
 
+  // Güvenli participant seçimi (swap desteği)
+  const mainParticipant = isVideoSwapped ? localParticipant : remoteParticipants[0];
+  const pipParticipant = isVideoSwapped ? remoteParticipants[0] : localParticipant;
+
   return (
     <>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="h-[100dvh] md:h-screen bg-gradient-to-br from-background via-purple-950/20 to-background flex flex-col overflow-hidden"
+        className="fixed inset-0 z-40 bg-gradient-to-br from-background via-purple-950/20 to-background flex flex-col overflow-hidden overscroll-none"
       >
-        {/* Connection status bar */}
+        {/* Connection status bar - HIDDEN on mobile for WhatsApp-style */}
         <motion.div
           initial={{ y: -50 }}
           animate={{ y: 0 }}
-          className="px-3 py-1.5 md:px-4 md:py-2 bg-green-500/10 border-b border-green-500/20 flex items-center justify-center gap-2 md:gap-3"
+          className="hidden md:flex px-4 py-2 bg-green-500/10 border-b border-green-500/20 items-center justify-center gap-3"
         >
           <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-          <span className="text-xs md:text-sm text-green-400">Görüşme aktif</span>
-          <span className="text-xs md:text-sm text-muted-foreground">
+          <span className="text-sm text-green-400">Görüşme aktif</span>
+          <span className="text-sm text-muted-foreground">
             • {(localParticipant ? 1 : 0) + remoteParticipants.length} katılımcı
           </span>
-          <div className="flex items-center gap-1 md:gap-1.5 px-2 py-0.5 rounded-full bg-background/50">
-            <Clock className="h-3 w-3 md:h-3.5 md:w-3.5 text-muted-foreground" />
-            <span className="text-xs md:text-sm font-medium">{formatTime(callDuration)}</span>
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-background/50">
+            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-sm font-medium">{formatTime(callDuration)}</span>
           </div>
         </motion.div>
 
         {/* Video Area */}
         {isMobile ? (
           // ═══════════════════════════════════════════════════════════════════
-          // MOBILE: PiP Layout - Remote video fullscreen, local as floating PiP
+          // MOBILE: WhatsApp-style PiP Layout with tap-to-swap
           // ═══════════════════════════════════════════════════════════════════
           <div className="flex-1 relative">
-            {/* Remote participant - fullscreen background */}
-            {remoteParticipants[0] && (
+            {/* Main video - fullscreen background */}
+            {mainParticipant ? (
               <div className="absolute inset-0">
                 <VideoTile 
-                  sessionId={remoteParticipants[0].session_id} 
-                  isLocal={false} 
-                  displayName={remoteParticipants[0].user_name || 'Katılımcı'}
+                  sessionId={mainParticipant.session_id} 
+                  isLocal={isVideoSwapped}
+                  displayName={mainParticipant.user_name || (isVideoSwapped ? 'Siz' : 'Katılımcı')}
                   variant="fullscreen"
                 />
               </div>
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center bg-background">
+                <span className="text-muted-foreground">Bağlantı bekleniyor...</span>
+              </div>
             )}
             
-            {/* Local participant - draggable PiP */}
-            {localParticipant && (
-              <DraggablePiP initialCorner="bottom-right">
+            {/* PiP video - draggable, tap to swap */}
+            {pipParticipant && (
+              <DraggablePiP 
+                initialCorner="bottom-right"
+                bottomOffset={controlBarHeight}
+                onClick={handlePiPClick}
+              >
                 <VideoTile 
-                  sessionId={localParticipant.session_id} 
-                  isLocal={true} 
-                  displayName={localParticipant.user_name || 'Siz'}
+                  sessionId={pipParticipant.session_id} 
+                  isLocal={!isVideoSwapped}
+                  displayName={pipParticipant.user_name || (!isVideoSwapped ? 'Siz' : 'Katılımcı')}
                   variant="pip"
                 />
               </DraggablePiP>
@@ -610,35 +687,53 @@ export function CallUI({ callObject, conversationId }: CallUIProps) {
           />
         ))}
 
-        {/* Control Bar - mobilde navbar üzerinde sticky */}
+        {/* Control Bar - WhatsApp-style transparent overlay on mobile */}
         <motion.div
+          ref={controlBarRef}
           initial={{ y: 50 }}
           animate={{ y: 0 }}
-          className="fixed bottom-[calc(68px+env(safe-area-inset-bottom,0px))] md:relative md:bottom-auto left-0 right-0 z-40 p-3 md:p-4 flex items-center justify-center gap-3 bg-background/80 backdrop-blur-xl border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.3)] md:shadow-none"
+          className={cn(
+            "z-50 flex items-center justify-center gap-4",
+            // Mobile: fixed bottom, transparent overlay
+            "fixed bottom-0 left-0 right-0 pb-[calc(env(safe-area-inset-bottom,20px)+8px)] pt-4",
+            // Desktop: relative, with background
+            "md:relative md:bottom-auto md:pb-4 md:bg-background/80 md:backdrop-blur-xl md:border-t md:border-border"
+          )}
         >
           <ControlButton 
             variant={isCameraOn ? "secondary" : "destructive"} 
             onClick={toggleCamera}
             withHoverScale
-            className="h-12 w-12 md:h-14 md:w-14"
+            className={cn(
+              "h-14 w-14",
+              isMobile && "bg-black/40 hover:bg-black/60 text-white backdrop-blur-sm border-0 shadow-lg"
+            )}
           >
-            {isCameraOn ? <Video className="h-5 w-5 md:h-6 md:w-6" /> : <VideoOff className="h-5 w-5 md:h-6 md:w-6" />}
+            {isCameraOn ? <Video className="h-6 w-6" /> : <VideoOff className="h-6 w-6" />}
           </ControlButton>
+          
           <ControlButton 
             variant={isMicOn ? "secondary" : "destructive"} 
             onClick={toggleMic}
             withHoverScale
-            className="h-12 w-12 md:h-14 md:w-14"
+            className={cn(
+              "h-14 w-14",
+              isMobile && "bg-black/40 hover:bg-black/60 text-white backdrop-blur-sm border-0 shadow-lg"
+            )}
           >
-            {isMicOn ? <Mic className="h-5 w-5 md:h-6 md:w-6" /> : <MicOff className="h-5 w-5 md:h-6 md:w-6" />}
+            {isMicOn ? <Mic className="h-6 w-6" /> : <MicOff className="h-6 w-6" />}
           </ControlButton>
+          
           <ControlButton 
             variant="destructive" 
             onClick={leaveCall} 
             withHoverScale
-            className="h-12 w-12 md:h-14 md:w-14"
+            className={cn(
+              "h-14 w-14",
+              isMobile && "shadow-lg"
+            )}
           >
-            <PhoneOff className="h-5 w-5 md:h-6 md:w-6" />
+            <PhoneOff className="h-6 w-6" />
           </ControlButton>
         </motion.div>
       </motion.div>
