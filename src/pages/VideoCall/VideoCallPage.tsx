@@ -222,15 +222,22 @@ export default function VideoCallPage() {
         const roomUrl = roomData.room!.url;
         currentRoomUrlRef.current = roomUrl;
 
-        // OPTIMIZATION 4: Start camera fire-and-forget
-        requestMediaPermissions().catch(() => {});
-        call.startCamera().then(() => {
-          try {
-            (call as any).setLocalAudio?.(true);
-          } catch {
-            // Ignore audio setup errors
-          }
-        }).catch(() => {});
+        // OPTIMIZATION 4: preAuth + startCamera in PARALLEL for faster join
+        // preAuth() prepares WebRTC connection before join() is called
+        devLog('VideoCall', 'Starting preAuth + camera in parallel');
+        await Promise.all([
+          call.preAuth({ url: roomUrl }).catch((e) => {
+            console.warn('[VideoCall] preAuth failed (continuing):', e);
+          }),
+          call.startCamera({ url: roomUrl }).then(() => {
+            try {
+              (call as any).setLocalAudio?.(true);
+            } catch {
+              // Ignore audio setup errors
+            }
+          }).catch(() => {}),
+        ]);
+        devLog('VideoCall', 'preAuth + camera ready');
 
         joinTimeout = window.setTimeout(() => {
           if (!isMounted) return;

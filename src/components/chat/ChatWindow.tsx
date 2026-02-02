@@ -1,3 +1,4 @@
+import { useCallback, useRef } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
@@ -23,6 +24,24 @@ export function ChatWindow({ conversation, onBack, onMessagesRead }: ChatWindowP
   const navigate = useNavigate();
   const { messages, loading, sending, sendMessage } = useMessages(conversation?.id || null);
   const { activeCall } = useActiveCall(conversation?.id || null);
+  
+  // OPTIMIZATION: Prefetch media permissions on hover/focus to reduce join time
+  const mediaPreloadedRef = useRef(false);
+  const prefetchMediaPermissions = useCallback(async () => {
+    if (mediaPreloadedRef.current) return;
+    mediaPreloadedRef.current = true;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: true, 
+        video: true 
+      });
+      stream.getTracks().forEach(t => t.stop());
+      console.log('[ChatWindow] Media permissions prefetched');
+    } catch (e) {
+      // Permission denied or not available - that's fine, will be handled during call
+      console.log('[ChatWindow] Media prefetch skipped:', e);
+    }
+  }, []);
 
   // Empty state - no conversation selected
   if (!conversation) {
@@ -160,6 +179,8 @@ export function ChatWindow({ conversation, onBack, onMessagesRead }: ChatWindowP
             variant="ghost"
             size="icon"
             onClick={activeCall ? handleJoinCall : handleStartCall}
+            onMouseEnter={prefetchMediaPermissions}
+            onFocus={prefetchMediaPermissions}
             className={cn(
               "rounded-full flex-shrink-0 transition-colors",
               isMobile ? "h-10 w-10" : "h-11 w-11",

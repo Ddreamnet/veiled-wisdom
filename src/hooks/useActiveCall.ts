@@ -8,6 +8,9 @@ export type ActiveCallInfo = {
   created_by: string | null;
 } | null;
 
+// OPTIMIZATION: Keep-warm flag to prevent multiple warm-up requests
+let edgeFunctionWarmedUp = false;
+
 type ConversationRow = {
   active_call_room_name: string | null;
   active_call_room_url: string | null;
@@ -75,6 +78,20 @@ export function useActiveCall(conversationId: string | null) {
     mountedRef.current = true;
     setLoading(true);
     fetchActiveCall();
+
+    // OPTIMIZATION: Warm up edge function on first conversation view
+    // This prevents cold start delay when user actually starts a call
+    if (!edgeFunctionWarmedUp && conversationId) {
+      edgeFunctionWarmedUp = true;
+      // Fire a lightweight HEAD/OPTIONS request to wake up the function
+      // We use a minimal fetch that triggers CORS preflight
+      fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-daily-room`, {
+        method: 'OPTIONS',
+      }).catch(() => {
+        // Ignore errors - this is just a warm-up ping
+      });
+      console.log('[useActiveCall] Edge function warm-up ping sent');
+    }
 
     // Subscribe to realtime updates for this conversation
     if (!conversationId) return;
