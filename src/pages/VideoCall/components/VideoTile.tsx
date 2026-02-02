@@ -34,8 +34,8 @@ const variantStyles = {
   },
   fullscreen: {
     container: 'relative bg-card overflow-hidden w-full h-full',
-    nameBadge: 'absolute bottom-4 left-4',
-    micIndicator: 'absolute top-4 right-4',
+    nameBadge: 'absolute top-4 right-4 z-10',
+    micIndicator: 'absolute top-4 left-4 z-10',
     avatar: 'h-24 w-24 md:h-32 md:w-32',
     avatarText: 'text-4xl md:text-5xl',
   },

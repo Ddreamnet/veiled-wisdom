@@ -307,13 +307,20 @@ export function DraggablePiP({
       dragConstraints={dragConstraints}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      onTap={() => {
+        // Framer Motion's onTap fires only when there's no drag
+        // This is a more reliable way to detect taps
+        onClick?.();
+      }}
       animate={controls}
       initial={false}
-      className="fixed z-50 touch-none cursor-grab active:cursor-grabbing"
+      className="fixed z-50 cursor-grab active:cursor-grabbing"
       style={{
         width: pipSize.width,
         height: pipSize.height,
         willChange: 'transform',
+        // Allow touch events for drag, but use Framer's onTap for clicks
+        touchAction: 'none',
       }}
       whileDrag={{
         scale: 1.02,
