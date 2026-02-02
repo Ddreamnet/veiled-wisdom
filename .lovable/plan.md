@@ -1,136 +1,234 @@
 
+# Video Call PiP (Picture-in-Picture) Tasarımı
 
-# Video Call Mobil UI Tasarım Güncellemesi
+## Genel Bakış
 
-## Mevcut Durum Analizi
-
-Şu anda `CallUI.tsx` dosyasında (satır 495-592):
-
-```text
-┌────────────────────────────────────────┐
-│  "Görüşme aktif" status bar (py-2)     │
-├────────────────────────────────────────┤
-│                                        │
-│                                        │
-│        Video Grid (p-4, gap-4)         │
-│      - aspect-video kart formatı       │
-│      - kartlar arası fazla boşluk      │
-│                                        │
-│                                        │
-├────────────────────────────────────────┤
-│         Control Bar (p-4)              │  ← Sayfa sonunda, sticky değil
-│   [Kamera] [Mikrofon] [Kapat]          │
-├────────────────────────────────────────┤
-│         Mobile Bottom Nav              │  ← Navbar üstte kontrol yok
-└────────────────────────────────────────┘
-```
-
-## İstekler ve Çözümler
-
-### 1. Kamera kartları arası mesafe azaltılacak
-**Mevcut:** `gap-4` (16px)
-**Yeni:** Mobilde `gap-2` (8px), desktop'ta `gap-4`
-
-### 2. Kamera pencereleri tüm alanı kaplayacak
-**Sınırlar:**
-- Üst: "Görüşme aktif" div'inin alt çizgisi
-- Alt: Navbar'ın üst çizgisi (kontrol butonları dahil)
-- Sağ/Sol: Ekrana bitişik (padding yok)
-
-**Çözüm:**
-- Mobilde video grid padding'i kaldırılacak (`p-0`)
-- `aspect-video` yerine esnek yükseklik kullanılacak
-- Grid alanı `flex-1` ile dinamik olarak hesaplanacak
-
-### 3. Kontrol butonları navbar üzerine sticky
-**Mevcut:** Control bar sayfa içinde, normal akışta
-**Yeni:** Fixed/sticky pozisyon, navbar'ın hemen üzerinde
-
-## Teknik Değişiklikler
-
-### Dosya: `src/pages/VideoCall/CallUI.tsx`
-
-#### Değişiklik 1: Video Grid Layout (satır 519-553)
-```typescript
-// ÖNCE
-<div className="flex-1 p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-
-// SONRA
-<div className="flex-1 px-0 py-1 md:p-4 grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4">
-```
-
-#### Değişiklik 2: Control Bar Sticky Pozisyon (satır 564-586)
-```typescript
-// ÖNCE
-<motion.div
-  initial={{ y: 50 }}
-  animate={{ y: 0 }}
-  className="p-4 flex items-center justify-center gap-3 bg-background/50 backdrop-blur-sm border-t border-border"
->
-
-// SONRA
-<motion.div
-  initial={{ y: 50 }}
-  animate={{ y: 0 }}
-  className="sticky bottom-[calc(68px+env(safe-area-inset-bottom,0px))] md:bottom-0 z-40 p-3 md:p-4 flex items-center justify-center gap-3 bg-background/80 backdrop-blur-xl border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.3)]"
->
-```
-- `bottom-[calc(68px+...)]`: Navbar yüksekliği (68px) + safe area
-- Mobilde navbar üzerine yapışık kalacak
-
-#### Değişiklik 3: Ana Container Scroll Ayarı
-```typescript
-// ÖNCE
-<motion.div className="h-screen bg-gradient-to-br ... flex flex-col">
-
-// SONRA
-<motion.div className="h-[100dvh] md:h-screen bg-gradient-to-br ... flex flex-col overflow-hidden">
-```
-- `100dvh`: Dinamik viewport height (mobil toolbar'ları hesaba katar)
-- `overflow-hidden`: Scroll kaymasını önler
-
-### Dosya: `src/pages/VideoCall/components/VideoTile.tsx`
-
-#### Değişiklik 4: Mobilde Aspect Ratio Esnek
-```typescript
-// ÖNCE
-<div className="relative bg-card rounded-xl overflow-hidden aspect-video border ...">
-
-// SONRA
-<div className="relative bg-card rounded-lg md:rounded-xl overflow-hidden aspect-[4/3] md:aspect-video border ...">
-```
-- Mobilde `aspect-[4/3]` daha kompakt görünüm sağlar
-- `rounded-lg` mobilde daha ince köşeler
-
-#### Değişiklik 5: Video Grid İçin h-full
-VideoTile'ın parent'ından yükseklik almasını sağlamak için motion.div wrapper'ına `h-full` eklenecek.
-
-## Sonuç Görünümü
+Mobilde video görüşme UI'ını tam bir PiP deneyimine dönüştüreceğiz:
+- Karşı tarafın videosu tam ekran arka plan olarak görünecek
+- Kendi kameranız küçük, sürüklenebilir bir pencerede (PiP) sağ altta duracak
+- PiP penceresi 4 köşeye mıknatıs gibi yapışacak
 
 ```text
 ┌────────────────────────────────────────┐
-│  "Görüşme aktif" status bar            │  ← Üst sınır
+│  "Görüşme aktif" status bar            │
 ├────────────────────────────────────────┤
-│ ┌────────────────────────────────────┐ │
-│ │                                    │ │
-│ │        Yerel Video (Siz)           │ │  ← Tam genişlik
-│ │                                    │ │
-│ └────────────────────────────────────┘ │
-│ ┌────────────────────────────────────┐ │  ← gap-2 (8px)
-│ │                                    │ │
-│ │       Uzak Video (Katılımcı)       │ │
-│ │                                    │ │
-│ └────────────────────────────────────┘ │
+│                                        │
+│                                        │
+│      KARŞI TARAFIN VİDEOSU             │
+│        (TAM EKRAN / BACKGROUND)        │
+│                                        │
+│                                        │
+│                            ┌─────────┐ │
+│                            │  SİZ    │ │  ← PiP (sürüklenebilir)
+│                            │ (local) │ │
+│                            └─────────┘ │
 ├────────────────────────────────────────┤
-│   [📹] [🎤] [📞]  Control Bar          │  ← Sticky, navbar üstünde
+│   [📹] [🎤] [📞]  Control Bar          │
 ├────────────────────────────────────────┤
-│         Mobile Bottom Nav              │  ← Alt sınır
+│         Mobile Bottom Nav              │
 └────────────────────────────────────────┘
 ```
 
-## Ek İyileştirmeler
+## Teknik Detaylar
 
-1. **Control butonları mobilde biraz küçültülecek**: `h-12 w-12` vs `h-14 w-14`
-2. **Status bar mobilde daha kompakt**: `py-1.5` vs `py-2`
-3. **Blur efekti artırılacak**: `backdrop-blur-xl` ile daha şık görünüm
+### 1. Yeni Bileşen: DraggablePiP
 
+**Dosya:** `src/pages/VideoCall/components/DraggablePiP.tsx`
+
+Özellikler:
+- Pointer Events API ile touch ve mouse desteği
+- 4 köşeye snap animasyonu (Framer Motion)
+- Safe area desteği (iPhone notch/home bar)
+- Responsive boyutlandırma (mobil: %28 genişlik, desktop: 200px)
+- 16:9 aspect ratio koruması
+- Yasak bölgeler: status bar ve control bar ile çakışmama
+
+```typescript
+// Snap köşeleri hesaplama
+type Corner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+
+// Padding değerleri (safe area + UI elemanları)
+const SAFE_PADDING = {
+  top: 60,    // Status bar yüksekliği
+  bottom: 140, // Control bar + navbar
+  left: 16,
+  right: 16
+};
+```
+
+### 2. CallUI.tsx Güncellemesi
+
+**Mobil Layout Değişikliği:**
+
+```typescript
+// ÖNCE: Grid layout (2 eşit video)
+<div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+  {localParticipant && <VideoTile ... />}
+  {remoteParticipants.map(...)}
+</div>
+
+// SONRA: Mobilde PiP layout
+{isMobile ? (
+  <>
+    {/* Uzak video tam ekran */}
+    <div className="absolute inset-0">
+      {remoteParticipants[0] && <VideoTile ... className="w-full h-full" />}
+    </div>
+    
+    {/* Yerel video PiP */}
+    {localParticipant && (
+      <DraggablePiP>
+        <VideoTile ... variant="pip" />
+      </DraggablePiP>
+    )}
+  </>
+) : (
+  // Desktop: Mevcut grid layout
+)}
+```
+
+### 3. Snap Algoritması
+
+```typescript
+function getNearestCorner(x: number, y: number, bounds: Bounds): Corner {
+  const corners = {
+    'top-left': { x: bounds.left, y: bounds.top },
+    'top-right': { x: bounds.right, y: bounds.top },
+    'bottom-left': { x: bounds.left, y: bounds.bottom },
+    'bottom-right': { x: bounds.right, y: bounds.bottom }
+  };
+  
+  let nearest: Corner = 'bottom-right';
+  let minDistance = Infinity;
+  
+  for (const [corner, pos] of Object.entries(corners)) {
+    const distance = Math.hypot(x - pos.x, y - pos.y);
+    if (distance < minDistance) {
+      minDistance = distance;
+      nearest = corner as Corner;
+    }
+  }
+  
+  return nearest;
+}
+```
+
+### 4. Drag Davranışı
+
+- `onPointerDown`: Sürükleme başlat, başlangıç pozisyonunu kaydet
+- `onPointerMove`: `transform: translate3d(x, y, 0)` ile pozisyon güncelle
+- `onPointerUp`: En yakın köşeyi hesapla, animasyonlu snap
+
+```typescript
+const handlePointerUp = () => {
+  const nearest = getNearestCorner(currentX, currentY, bounds);
+  setSnapCorner(nearest); // Framer Motion animasyonu tetikler
+};
+```
+
+### 5. Animasyon Konfigürasyonu
+
+```typescript
+// Snap animasyonu - yumuşak spring efekti
+const springConfig = {
+  type: "spring",
+  stiffness: 400,
+  damping: 30,
+  mass: 1
+};
+
+// Köşe pozisyonları
+const cornerPositions = {
+  'top-left': { x: PADDING, y: topBound },
+  'top-right': { x: containerWidth - pipWidth - PADDING, y: topBound },
+  'bottom-left': { x: PADDING, y: bottomBound },
+  'bottom-right': { x: containerWidth - pipWidth - PADDING, y: bottomBound }
+};
+```
+
+### 6. PiP Boyutlandırma
+
+```typescript
+// Responsive boyut hesaplama
+const getPiPSize = (containerWidth: number, isMobile: boolean) => {
+  if (isMobile) {
+    const width = Math.round(containerWidth * 0.28); // %28 genişlik
+    const height = Math.round(width * 9 / 16);       // 16:9 oran
+    return { width, height };
+  }
+  return { width: 200, height: 112 }; // Desktop: sabit 200x112
+};
+```
+
+### 7. Yasak Bölgeler
+
+PiP penceresinin çakışmaması gereken alanlar:
+- Üst: Status bar (yaklaşık 44px)
+- Alt: Control bar (56px) + Navbar (68px) + safe area
+- Kenarlar: 16px minimum padding
+
+```typescript
+const calculateBounds = () => ({
+  top: statusBarHeight + 8,
+  bottom: containerHeight - controlBarHeight - navbarHeight - safeAreaBottom - pipHeight - 8,
+  left: 16,
+  right: containerWidth - pipWidth - 16
+});
+```
+
+### 8. State Yönetimi
+
+```typescript
+// PiP pozisyon state'i
+const [snapCorner, setSnapCorner] = useState<Corner>('bottom-right');
+
+// Resize/rotation durumunda yeniden hesaplama
+useEffect(() => {
+  const handleResize = () => {
+    // Mevcut köşeyi koru, yeni pozisyonu hesapla
+    setPosition(getCornerPosition(snapCorner, newBounds));
+  };
+  window.addEventListener('resize', handleResize);
+  return () => window.removeEventListener('resize', handleResize);
+}, [snapCorner]);
+```
+
+### 9. VideoTile Güncellenmesi
+
+PiP varyantı için minimal stil:
+
+```typescript
+// types.ts'e eklenecek
+export interface VideoTileProps {
+  sessionId: string;
+  isLocal: boolean;
+  displayName: string;
+  variant?: 'default' | 'pip' | 'fullscreen';
+}
+```
+
+```typescript
+// VideoTile.tsx - PiP varyantı
+const variantStyles = {
+  default: 'aspect-[4/3] md:aspect-video rounded-lg md:rounded-xl',
+  pip: 'w-full h-full rounded-xl shadow-2xl border-2 border-white/20',
+  fullscreen: 'w-full h-full rounded-none'
+};
+```
+
+## Dosya Değişiklikleri
+
+| Dosya | İşlem |
+|-------|-------|
+| `src/pages/VideoCall/components/DraggablePiP.tsx` | Yeni oluştur |
+| `src/pages/VideoCall/components/index.ts` | Export ekle |
+| `src/pages/VideoCall/types.ts` | PiP tipleri ekle |
+| `src/pages/VideoCall/CallUI.tsx` | Mobil PiP layout |
+| `src/pages/VideoCall/components/VideoTile.tsx` | Variant prop |
+
+## Ek Özellikler
+
+1. **Double-tap to swap**: PiP'e çift tıklayınca ana video ile yer değiştirme (gelecek için)
+2. **Snap threshold**: 50px yaklaştığında köşeye çekme hissi
+3. **Visual feedback**: Sürükleme sırasında hafif gölge artışı
+4. **Performance**: `will-change: transform` ve GPU hızlandırması
