@@ -26,6 +26,43 @@ const MobileHeaderComponent = ({ title, showBackButton, className }: MobileHeade
   const location = useLocation();
   const navigate = useNavigate();
 
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate("/");
+    }
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // VIDEO CALL PAGE: Şeffaf arka plan, sadece geri butonu
+  // ═══════════════════════════════════════════════════════════════════════════════
+  const isVideoCallPage = location.pathname.startsWith('/call/');
+  
+  if (isVideoCallPage) {
+    return (
+      <header 
+        className="fixed top-0 left-0 z-50 md:hidden"
+        style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+      >
+        <div className="p-4">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={handleBack}
+            className="h-10 w-10 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-sm border-0 shadow-lg"
+          >
+            <ArrowLeft className="h-5 w-5 text-white" />
+          </Button>
+        </div>
+      </header>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // NORMAL PAGES: Standart header
+  // ═══════════════════════════════════════════════════════════════════════════════
+  
   // Determine if current page is a root tab
   const isRootTab = ROOT_TAB_PATHS.some(path => {
     if (path === "/") return location.pathname === "/";
@@ -57,15 +94,6 @@ const MobileHeaderComponent = ({ title, showBackButton, className }: MobileHeade
 
   const displayTitle = title ?? getDefaultTitle();
 
-  const handleBack = () => {
-    // Check if there's browser history to go back
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      // Fallback to home
-      navigate("/");
-    }
-  };
 
   return (
     <header 
