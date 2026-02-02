@@ -27,8 +27,8 @@ const variantStyles = {
   },
   pip: {
     container: 'relative bg-card overflow-hidden w-full h-full',
-    nameBadge: 'absolute top-1 right-1',
-    micIndicator: 'absolute bottom-1 left-1',
+    nameBadge: 'absolute top-1 right-1 z-10',
+    micIndicator: 'absolute bottom-1 left-1 z-10',
     avatar: 'h-10 w-10',
     avatarText: 'text-lg',
   },
