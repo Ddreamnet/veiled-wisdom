@@ -10,10 +10,12 @@ import { DailyProvider } from '@daily-co/daily-react';
 import Daily, { DailyCall } from '@daily-co/daily-js';
 import { motion } from 'framer-motion';
 import { Phone, PhoneOff } from 'lucide-react';
+import { useSetAtom } from 'jotai';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { devLog } from '@/lib/debug';
+import { isChatOpenAtom } from '@/atoms/chatAtoms';
 
 // Types
 import type { CallIntent, CreateDailyRoomResponse } from './types';
@@ -51,6 +53,7 @@ export default function VideoCallPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const setIsChatOpen = useSetAtom(isChatOpenAtom);
 
   const intent: CallIntent = searchParams.get('intent') === 'join' ? 'join' : 'start';
 
@@ -60,6 +63,14 @@ export default function VideoCallPage() {
 
   const callObjectRef = useRef<DailyCall | null>(null);
   const currentRoomUrlRef = useRef<string | null>(null);
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // HIDE MOBILE NAVBAR FOR ENTIRE VIDEO CALL PAGE (including loading/error states)
+  // ═══════════════════════════════════════════════════════════════════════════════
+  useEffect(() => {
+    setIsChatOpen(true);
+    return () => setIsChatOpen(false);
+  }, [setIsChatOpen]);
 
   useEffect(() => {
     if (!conversationId) {
@@ -342,7 +353,7 @@ export default function VideoCallPage() {
 
   if (error) {
     return (
-      <div className="h-screen bg-gradient-to-br from-background via-purple-950/20 to-background flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-40 bg-gradient-to-br from-background via-purple-950/20 to-background flex items-center justify-center p-4 overflow-hidden">
         <motion.div 
           initial={{ opacity: 0, y: 20 }} 
           animate={{ opacity: 1, y: 0 }} 
@@ -364,7 +375,7 @@ export default function VideoCallPage() {
 
   if (!callObject) {
     return (
-      <div className="h-screen bg-gradient-to-br from-background via-purple-950/20 to-background flex items-center justify-center">
+      <div className="fixed inset-0 z-40 bg-gradient-to-br from-background via-purple-950/20 to-background flex items-center justify-center overflow-hidden">
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }} 
           animate={{ opacity: 1, scale: 1 }} 
