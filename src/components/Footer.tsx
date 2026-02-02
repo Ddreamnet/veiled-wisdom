@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import logo from "@/assets/logo.webp";
 import { Facebook, Twitter, Instagram } from "lucide-react";
 const FooterComponent = () => {
-  return <footer className="relative w-full border-t border-silver/10 bg-card/50 backdrop-blur-sm mt-auto overflow-hidden">
+  return <footer className="relative z-20 w-full border-t border-silver/10 bg-card/50 backdrop-blur-sm mt-auto overflow-hidden">
       {/* Gradient Overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-primary/10 pointer-events-none" />
 
@@ -31,7 +31,7 @@ const FooterComponent = () => {
         </svg>
       </div>
 
-      <div className="relative w-full py-8">
+      <div className="relative z-10 w-full py-8">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-8 md:gap-4 mb-8">
             <div className="flex items-center justify-center">
@@ -173,7 +173,7 @@ const FooterComponent = () => {
         </div>
       </div>
 
-      <div className="relative w-full">
+      <div className="relative z-10 w-full">
         <div className="container mx-auto px-4 border-t border-silver/10 py-4">
           <p className="text-xs text-silver-muted/80 text-center">
             © {new Date().getFullYear()} Leyl. Tüm hakları saklıdır.
