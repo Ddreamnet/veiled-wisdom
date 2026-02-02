@@ -1,235 +1,106 @@
 
-# Video Call Sayfasında MobileHeader Şeffaf Yapma
+# Video Call Name Badge ve Footer Z-index Düzeltmeleri
 
-## Sorunun Kaynağı
+## Sorun 1: PiP Kamera Penceresinde "Siz" Etiketi Konumu
 
-`App.tsx` satır 112-115'te MobileHeader tüm sayfalarda gösteriliyor:
+### Mevcut Durum
+`VideoTile.tsx` dosyasında PiP variant için `nameBadge` pozisyonu değiştirilmiş görünüyor:
 ```typescript
-<Routes>
-  <Route path="/messages" element={null} />
-  <Route path="*" element={<MobileHeader />} />
-</Routes>
+pip: {
+  nameBadge: 'absolute top-1 right-1',  // Sağ üst
+  micIndicator: 'absolute bottom-1 left-1', // Sol alt
+}
 ```
 
-Bu, `/call/*` sayfalarında da MobileHeader'ın görünmesine neden oluyor. MobileHeader'ın mevcut stili:
-- `backdrop-blur-xl bg-background/95` - opak arka plan
-- `border-b border-silver/10` - alt kenarlık
+### Çözüm
+Değişiklik kodda mevcut, ancak yansımıyorsa bunun nedeni:
+1. Build cache sorunu olabilir - sayfayı hard refresh (Ctrl+Shift+R) yaparak kontrol edilmeli
+2. Eğer sorun devam ederse, pozisyonlamayı daha spesifik hale getirmek gerekebilir
 
-## Çözüm Stratejisi
-
-Video call sayfasında sadece geri butonunun görünmesi, arka planın tamamen şeffaf olması için:
-
-### Seçenek 1: MobileHeader'a Şeffaf Mod Ekle (Önerilen)
-
-`MobileHeader.tsx`'e video call route'u için özel stil ekle:
-
+Eğer hard refresh sonrası sorun devam ederse, daha güçlü pozisyonlama:
 ```typescript
-const MobileHeaderComponent = ({ title, showBackButton, className }: MobileHeaderProps) => {
-  const location = useLocation();
-  
-  // Video call sayfası kontrolü
-  const isVideoCallPage = location.pathname.startsWith('/call/');
-  
-  // Video call sayfasında: sadece geri butonu, şeffaf arka plan
-  if (isVideoCallPage) {
-    return (
-      <header 
-        className="fixed top-0 left-0 z-50 md:hidden"
-        style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
-      >
-        <div className="p-4">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={handleBack}
-            className="h-10 w-10 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-sm"
-          >
-            <ArrowLeft className="h-5 w-5 text-white" />
-          </Button>
-        </div>
-      </header>
-    );
-  }
-  
-  // Normal header (mevcut kod)
-  return (
-    <header className={cn(
-      "sticky top-0 z-50 w-full md:hidden",
-      "backdrop-blur-xl bg-background/95 border-b border-silver/10",
-      ...
-    )}>
-      ...
-    </header>
-  );
-};
+pip: {
+  container: 'relative bg-card overflow-hidden w-full h-full',
+  nameBadge: 'absolute top-1 right-1 z-10',  // z-10 eklendi
+  micIndicator: 'absolute bottom-1 left-1 z-10',
+  avatar: 'h-10 w-10',
+  avatarText: 'text-lg',
+},
 ```
-
-### Seçenek 2: App.tsx'te Video Call İçin Header Gizle
-
-```typescript
-<Routes>
-  <Route path="/messages" element={null} />
-  <Route path="/call/*" element={null} />  // Video call'da header yok
-  <Route path="*" element={<MobileHeader />} />
-</Routes>
-```
-
-Sonra CallUI'da kendi geri butonunu ekle.
 
 ---
 
-## Önerilen Çözüm: Seçenek 1
+## Sorun 2: Desktop Footer Görüntülerin Arkasında
 
-MobileHeader'ı değiştirmek daha temiz çünkü:
-- Tek bir yerde değişiklik
-- Geri butonu mantığı zaten MobileHeader'da mevcut
-- Video call sayfasına özel şeffaf stil
+### Sorunun Kaynağı
+Footer bileşeni `relative` kullanıyor ancak z-index değeri yok. Ana sayfadaki içerik bölümlerinde `relative z-10` kullanıldığından, bu içerikler footer'ın üzerinde görünüyor.
+
+### Etkilenen Kodlar
+
+**Footer.tsx (Satır 6)**:
+```typescript
+<footer className="relative w-full border-t border-silver/10 bg-card/50 backdrop-blur-sm mt-auto overflow-hidden">
+```
+- z-index yok, varsayılan olarak `z-auto` (0)
+
+**Index.tsx (Satır 134)**:
+```typescript
+<div className="container relative z-10" style={{...}}>
+```
+- Hero section `z-10` kullanıyor ve footer'ın üzerinde kalıyor
+
+### Çözüm
+Footer'a z-index ekleyerek diğer içeriklerden üstte kalmasını sağlamak:
+
+```typescript
+// Footer.tsx - Satır 6
+<footer className="relative z-20 w-full border-t border-silver/10 bg-card/50 backdrop-blur-sm mt-auto overflow-hidden">
+```
+
+Ayrıca iç container'ların da relative z değerlerini düzeltmek:
+
+```typescript
+// Satır 34 - İç content wrapper
+<div className="relative z-10 w-full py-8">
+
+// Satır 176 - Alt copyright bölümü  
+<div className="relative z-10 w-full">
+```
+
+---
 
 ## Teknik Değişiklikler
 
-### Dosya: `src/components/mobile/MobileHeader.tsx`
+### Dosya 1: `src/pages/VideoCall/components/VideoTile.tsx`
 
-```typescript
-import { memo } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import logo from "@/assets/logo.webp";
-import { cn } from "@/lib/utils";
+PiP variant stillerine z-index ekle:
 
-interface MobileHeaderProps {
-  title?: string;
-  showBackButton?: boolean;
-  className?: string;
-}
+| Önceki | Sonraki |
+|--------|---------|
+| `nameBadge: 'absolute top-1 right-1'` | `nameBadge: 'absolute top-1 right-1 z-10'` |
+| `micIndicator: 'absolute bottom-1 left-1'` | `micIndicator: 'absolute bottom-1 left-1 z-10'` |
 
-const ROOT_TAB_PATHS = [
-  "/",
-  "/explore",
-  "/messages",
-  "/appointments",
-  "/profile",
-  "/admin/dashboard",
-  "/admin/earnings",
-];
+### Dosya 2: `src/components/Footer.tsx`
 
-const MobileHeaderComponent = ({ title, showBackButton, className }: MobileHeaderProps) => {
-  const location = useLocation();
-  const navigate = useNavigate();
+Footer'a z-20 ve iç elementlere z-10 ekle:
 
-  const handleBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      navigate("/");
-    }
-  };
+| Satır | Önceki | Sonraki |
+|-------|--------|---------|
+| 6 | `relative w-full ...` | `relative z-20 w-full ...` |
+| 34 | `relative w-full py-8` | `relative z-10 w-full py-8` |
+| 176 | `relative w-full` | `relative z-10 w-full` |
 
-  // ═══════════════════════════════════════════════════════════════════════════════
-  // VIDEO CALL PAGE: Şeffaf arka plan, sadece geri butonu
-  // ═══════════════════════════════════════════════════════════════════════════════
-  const isVideoCallPage = location.pathname.startsWith('/call/');
-  
-  if (isVideoCallPage) {
-    return (
-      <header 
-        className="fixed top-0 left-0 z-50 md:hidden"
-        style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
-      >
-        <div className="p-4">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={handleBack}
-            className="h-10 w-10 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-sm border-0 shadow-lg"
-          >
-            <ArrowLeft className="h-5 w-5 text-white" />
-          </Button>
-        </div>
-      </header>
-    );
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════════
-  // NORMAL PAGES: Standart header
-  // ═══════════════════════════════════════════════════════════════════════════════
-  const isRootTab = ROOT_TAB_PATHS.some(path => {
-    if (path === "/") return location.pathname === "/";
-    return location.pathname === path;
-  });
-
-  const shouldShowBack = showBackButton ?? !isRootTab;
-
-  const getDefaultTitle = (): string | undefined => {
-    const path = location.pathname;
-    if (isRootTab) return undefined;
-    if (path.startsWith("/experts")) return "Uzman Profili";
-    if (path.startsWith("/listing/")) return "İlan Detayı";
-    if (path.startsWith("/category/")) return "Kategori";
-    if (path.startsWith("/subcategory/")) return "Alt Kategori";
-    if (path.startsWith("/settings")) return "Ayarlar";
-    if (path.startsWith("/teacher/my-listings")) return "İlanlarım";
-    if (path.startsWith("/teacher/earnings")) return "Gelirlerim";
-    if (path.startsWith("/auth")) return "Giriş";
-    return undefined;
-  };
-
-  const displayTitle = title ?? getDefaultTitle();
-
-  return (
-    <header 
-      className={cn(
-        "sticky top-0 z-50 w-full md:hidden",
-        "backdrop-blur-xl bg-background/95 border-b border-silver/10",
-        "h-14",
-        className
-      )}
-      style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
-    >
-      <div className="flex items-center justify-between h-full px-4">
-        <div className="flex items-center gap-3 min-w-[80px]">
-          {shouldShowBack ? (
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={handleBack}
-              className="h-10 w-10 rounded-full hover:bg-secondary/50"
-            >
-              <ArrowLeft className="h-5 w-5 text-foreground" />
-            </Button>
-          ) : (
-            <Link to="/" className="flex items-center gap-2 group">
-              <img src={logo} alt="Leyl" className="h-8 w-8 transition-transform duration-200 group-hover:scale-105" />
-              <span className="font-serif font-bold text-lg text-gradient-silver uppercase">LEYL</span>
-            </Link>
-          )}
-        </div>
-
-        {displayTitle && (
-          <h1 className="absolute left-1/2 -translate-x-1/2 text-sm font-medium text-foreground truncate max-w-[50%]">
-            {displayTitle}
-          </h1>
-        )}
-
-        <div className="min-w-[80px]" />
-      </div>
-    </header>
-  );
-};
-
-export const MobileHeader = memo(MobileHeaderComponent);
-```
-
-## Sonuç
-
-| Durum | Görünüm |
-|-------|---------|
-| Video Call Sayfası | Sadece şeffaf geri butonu (sol üst, bg-black/40) |
-| Normal Sayfalar | Standart header (backdrop-blur, border) |
+---
 
 ## Test Kriterleri
 
-1. Video call sayfasına git → Sadece şeffaf geri butonu görünmeli
-2. Geri butonuna tıkla → Önceki sayfaya dön
-3. Diğer sayfalarda → Normal header görünmeli
-4. Header arka planı video üzerinde şeffaf olmalı
+1. **PiP Name Badge**:
+   - Video call sayfasına git
+   - PiP penceresinde "Siz" etiketi sağ üstte görünmeli
+   - Mikrofon kapalı ikonu sol altta görünmeli
+
+2. **Desktop Footer**:
+   - Ana sayfaya git
+   - Sayfayı en alta scroll et
+   - Footer tüm içeriklerin üzerinde, düzgün görünmeli
+   - Wave animasyonu ve gradient overlay'ler doğru çalışmalı
