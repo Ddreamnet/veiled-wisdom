@@ -1,234 +1,379 @@
 
-# Video Call PiP (Picture-in-Picture) Tasarımı
 
-## Genel Bakış
+# WhatsApp Tarzı Video Call UI - Uygulama Planı
 
-Mobilde video görüşme UI'ını tam bir PiP deneyimine dönüştüreceğiz:
-- Karşı tarafın videosu tam ekran arka plan olarak görünecek
-- Kendi kameranız küçük, sürüklenebilir bir pencerede (PiP) sağ altta duracak
-- PiP penceresi 4 köşeye mıknatıs gibi yapışacak
+## Onaylanan Düzeltmeler (3 Kritik Nokta)
 
-```text
-┌────────────────────────────────────────┐
-│  "Görüşme aktif" status bar            │
-├────────────────────────────────────────┤
-│                                        │
-│                                        │
-│      KARŞI TARAFIN VİDEOSU             │
-│        (TAM EKRAN / BACKGROUND)        │
-│                                        │
-│                                        │
-│                            ┌─────────┐ │
-│                            │  SİZ    │ │  ← PiP (sürüklenebilir)
-│                            │ (local) │ │
-│                            └─────────┘ │
-├────────────────────────────────────────┤
-│   [📹] [🎤] [📞]  Control Bar          │
-├────────────────────────────────────────┤
-│         Mobile Bottom Nav              │
-└────────────────────────────────────────┘
+### 1. touch-none Düzeltmesi
+- **Değişiklik:** `touch-none` sadece DraggablePiP component'ında kalacak
+- **CallUI wrapper'da:** `overflow-hidden overscroll-none` kullanılacak, `touch-none` YOK
+
+### 2. handlePiPClick Dependency Düzeltmesi
+```typescript
+const handlePiPClick = useCallback(() => {
+  if (remoteParticipants.length > 0) {
+    setIsVideoSwapped(prev => !prev);
+  }
+}, [remoteParticipants.length]); // Doğru dependency
 ```
 
-## Teknik Detaylar
-
-### 1. Yeni Bileşen: DraggablePiP
-
-**Dosya:** `src/pages/VideoCall/components/DraggablePiP.tsx`
-
-Özellikler:
-- Pointer Events API ile touch ve mouse desteği
-- 4 köşeye snap animasyonu (Framer Motion)
-- Safe area desteği (iPhone notch/home bar)
-- Responsive boyutlandırma (mobil: %28 genişlik, desktop: 200px)
-- 16:9 aspect ratio koruması
-- Yasak bölgeler: status bar ve control bar ile çakışmama
-
+### 3. PiP Bounds Clamping
 ```typescript
-// Snap köşeleri hesaplama
-type Corner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+function calculateBounds(
+  containerWidth: number,
+  containerHeight: number,
+  pipSize: Size,
+  bottomOffset: number
+): Bounds {
+  const rawBottom = containerHeight - bottomOffset - pipSize.height;
+  const rawRight = containerWidth - SAFE_PADDING.right - pipSize.width;
+  
+  return {
+    top: SAFE_PADDING.top,
+    // Negatif değer olmayacak şekilde clamp
+    bottom: Math.max(SAFE_PADDING.top + 10, rawBottom),
+    left: SAFE_PADDING.left,
+    right: Math.max(SAFE_PADDING.left + 10, rawRight),
+  };
+}
+```
 
-// Padding değerleri (safe area + UI elemanları)
+---
+
+## Dosya 1: `src/pages/VideoCall/components/DraggablePiP.tsx`
+
+### Değişiklikler:
+
+1. **Props güncelleme** (satır 16-22):
+```typescript
+interface DraggablePiPProps {
+  children: ReactNode;
+  initialCorner?: Corner;
+  onCornerChange?: (corner: Corner) => void;
+  onClick?: () => void;           // YENİ
+  bottomOffset?: number;          // YENİ
+}
+```
+
+2. **SAFE_PADDING güncelleme** (satır 41-46):
+```typescript
 const SAFE_PADDING = {
-  top: 60,    // Status bar yüksekliği
-  bottom: 140, // Control bar + navbar
-  left: 16,
-  right: 16
+  top: 16,    // Status bar kaldırıldı mobilde
+  left: 12,
+  right: 12,
+};
+const DEFAULT_BOTTOM_OFFSET = 100;
+```
+
+3. **DRAG_THRESHOLD ekleme** (satır ~68):
+```typescript
+const DRAG_THRESHOLD = 8; // pixels - altında tap, üstünde drag
+```
+
+4. **calculateBounds fonksiyonu clamping ile güncelleme** (satır 87-98):
+```typescript
+function calculateBounds(
+  containerWidth: number,
+  containerHeight: number,
+  pipSize: Size,
+  bottomOffset: number
+): Bounds {
+  const rawBottom = containerHeight - bottomOffset - pipSize.height;
+  const rawRight = containerWidth - SAFE_PADDING.right - pipSize.width;
+  
+  return {
+    top: SAFE_PADDING.top,
+    bottom: Math.max(SAFE_PADDING.top + 10, rawBottom),
+    left: SAFE_PADDING.left,
+    right: Math.max(SAFE_PADDING.left + 10, rawRight),
+  };
+}
+```
+
+5. **Component props güncelleme** (satır 145-149):
+```typescript
+export function DraggablePiP({
+  children,
+  initialCorner = 'bottom-right',
+  onCornerChange,
+  onClick,
+  bottomOffset = DEFAULT_BOTTOM_OFFSET,
+}: DraggablePiPProps) {
+```
+
+6. **dragStartPos ref ekleme** (satır ~157):
+```typescript
+const dragStartPos = useRef<{ x: number; y: number } | null>(null);
+```
+
+7. **useEffect dependency'sine bottomOffset ekleme** (satır 186-197):
+```typescript
+useEffect(() => {
+  // ...
+}, [currentCorner, containerSize, pipSize, controls, bottomOffset]); // bottomOffset eklendi
+```
+
+8. **handleDragStart güncelleme** (satır 203-212):
+```typescript
+const handleDragStart = useCallback((event: MouseEvent | TouchEvent | PointerEvent) => {
+  setIsDragging(true);
+  
+  if ('touches' in event && event.touches.length > 0) {
+    dragStartPos.current = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+  } else if ('clientX' in event) {
+    dragStartPos.current = { x: event.clientX, y: event.clientY };
+  }
+}, []);
+```
+
+9. **handleDragEnd tap vs drag ayrımı** (satır 207-234):
+```typescript
+const handleDragEnd = useCallback(
+  (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    setIsDragging(false);
+    
+    const totalMovement = Math.hypot(info.offset.x, info.offset.y);
+    
+    // Tap olarak kabul et
+    if (totalMovement < DRAG_THRESHOLD) {
+      onClick?.();
+      const bounds = calculateBounds(containerSize.width, containerSize.height, pipSize, bottomOffset);
+      const position = getCornerPosition(currentCorner, bounds);
+      controls.start({ x: position.x, y: position.y, transition: SPRING_CONFIG });
+      return;
+    }
+    
+    // Drag - snap to corner
+    const bounds = calculateBounds(containerSize.width, containerSize.height, pipSize, bottomOffset);
+    const currentX = info.point.x - pipSize.width / 2;
+    const currentY = info.point.y - pipSize.height / 2;
+    const nearest = getNearestCorner(currentX, currentY, bounds);
+    const targetPosition = getCornerPosition(nearest, bounds);
+    
+    controls.start({ x: targetPosition.x, y: targetPosition.y, transition: SPRING_CONFIG });
+    
+    if (nearest !== currentCorner) {
+      setCurrentCorner(nearest);
+      onCornerChange?.(nearest);
+    }
+  },
+  [containerSize, pipSize, controls, currentCorner, onCornerChange, onClick, bottomOffset]
+);
+```
+
+10. **dragConstraints clamping ile** (satır 241-246):
+```typescript
+const bounds = calculateBounds(containerSize.width, containerSize.height, pipSize, bottomOffset);
+
+const dragConstraints = {
+  top: bounds.top,
+  bottom: bounds.bottom,
+  left: bounds.left,
+  right: bounds.right,
 };
 ```
 
-### 2. CallUI.tsx Güncellemesi
+---
 
-**Mobil Layout Değişikliği:**
+## Dosya 2: `src/pages/VideoCall/CallUI.tsx`
 
+### Değişiklikler:
+
+1. **iOS Safari scroll lock useEffect** (satır ~170 civarı ekle):
 ```typescript
-// ÖNCE: Grid layout (2 eşit video)
-<div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-  {localParticipant && <VideoTile ... />}
-  {remoteParticipants.map(...)}
-</div>
+// iOS Safari compatible scroll lock
+useEffect(() => {
+  const scrollY = window.scrollY;
+  const originalStyles = {
+    bodyOverflow: document.body.style.overflow,
+    bodyPosition: document.body.style.position,
+    bodyTop: document.body.style.top,
+    bodyWidth: document.body.style.width,
+    htmlOverflow: document.documentElement.style.overflow,
+  };
+  
+  document.body.style.overflow = 'hidden';
+  document.body.style.position = 'fixed';
+  document.body.style.top = `-${scrollY}px`;
+  document.body.style.width = '100%';
+  document.documentElement.style.overflow = 'hidden';
+  
+  return () => {
+    document.body.style.overflow = originalStyles.bodyOverflow;
+    document.body.style.position = originalStyles.bodyPosition;
+    document.body.style.top = originalStyles.bodyTop;
+    document.body.style.width = originalStyles.bodyWidth;
+    document.documentElement.style.overflow = originalStyles.htmlOverflow;
+    window.scrollTo(0, scrollY);
+  };
+}, []);
+```
 
-// SONRA: Mobilde PiP layout
+2. **Video swap state ve control bar ölçümü** (satır ~188 civarı ekle):
+```typescript
+// Video swap state for PiP tap-to-swap
+const [isVideoSwapped, setIsVideoSwapped] = useState(false);
+
+// Control bar height measurement for dynamic PiP bounds
+const controlBarRef = useRef<HTMLDivElement>(null);
+const [controlBarHeight, setControlBarHeight] = useState(80);
+
+useEffect(() => {
+  if (!controlBarRef.current || !isMobile) return;
+  
+  const measureBar = () => {
+    const rect = controlBarRef.current?.getBoundingClientRect();
+    if (rect) {
+      setControlBarHeight(rect.height + 16);
+    }
+  };
+  
+  measureBar();
+  const ro = new ResizeObserver(measureBar);
+  ro.observe(controlBarRef.current);
+  
+  return () => ro.disconnect();
+}, [isMobile]);
+
+// PiP click handler - DOĞRU DEPENDENCY
+const handlePiPClick = useCallback(() => {
+  if (remoteParticipants.length > 0) {
+    setIsVideoSwapped(prev => !prev);
+  }
+}, [remoteParticipants.length]); // Düzeltilmiş dependency
+```
+
+3. **remoteParticipants hesaplama** (render içinde, satır ~500 civarı):
+```typescript
+const remoteParticipants = participants.filter(p => !p.local);
+
+// Güvenli participant seçimi (swap desteği)
+const mainParticipant = isVideoSwapped ? localParticipant : remoteParticipants[0];
+const pipParticipant = isVideoSwapped ? remoteParticipants[0] : localParticipant;
+```
+
+4. **Ana container - touch-none YOK** (satır 511-514):
+```typescript
+<motion.div
+  initial={{ opacity: 0 }}
+  animate={{ opacity: 1 }}
+  className="fixed inset-0 z-40 bg-gradient-to-br from-background via-purple-950/20 to-background flex flex-col overflow-hidden overscroll-none"
+>
+  {/* touch-none YOK - sadece DraggablePiP'te var */}
+```
+
+5. **Status bar mobilde gizleme** (satır 517-531):
+```typescript
+<motion.div
+  initial={{ y: -50 }}
+  animate={{ y: 0 }}
+  className="hidden md:flex px-4 py-2 bg-green-500/10 border-b border-green-500/20 items-center justify-center gap-3"
+>
+```
+
+6. **Mobil PiP layout** (satır 534-562):
+```typescript
 {isMobile ? (
-  <>
-    {/* Uzak video tam ekran */}
-    <div className="absolute inset-0">
-      {remoteParticipants[0] && <VideoTile ... className="w-full h-full" />}
-    </div>
+  <div className="flex-1 relative">
+    {/* Main video - fullscreen background */}
+    {mainParticipant ? (
+      <div className="absolute inset-0">
+        <VideoTile 
+          sessionId={mainParticipant.session_id} 
+          isLocal={isVideoSwapped}
+          displayName={mainParticipant.user_name || (isVideoSwapped ? 'Siz' : 'Katılımcı')}
+          variant="fullscreen"
+        />
+      </div>
+    ) : (
+      <div className="absolute inset-0 flex items-center justify-center bg-background">
+        <span className="text-muted-foreground">Bağlantı bekleniyor...</span>
+      </div>
+    )}
     
-    {/* Yerel video PiP */}
-    {localParticipant && (
-      <DraggablePiP>
-        <VideoTile ... variant="pip" />
+    {/* PiP video */}
+    {pipParticipant && (
+      <DraggablePiP 
+        initialCorner="bottom-right"
+        bottomOffset={controlBarHeight}
+        onClick={handlePiPClick}
+      >
+        <VideoTile 
+          sessionId={pipParticipant.session_id} 
+          isLocal={!isVideoSwapped}
+          displayName={pipParticipant.user_name || (!isVideoSwapped ? 'Siz' : 'Katılımcı')}
+          variant="pip"
+        />
       </DraggablePiP>
     )}
-  </>
+  </div>
 ) : (
-  // Desktop: Mevcut grid layout
+  // Desktop grid layout
 )}
 ```
 
-### 3. Snap Algoritması
-
+7. **Control bar şeffaf overlay** (satır 614-643):
 ```typescript
-function getNearestCorner(x: number, y: number, bounds: Bounds): Corner {
-  const corners = {
-    'top-left': { x: bounds.left, y: bounds.top },
-    'top-right': { x: bounds.right, y: bounds.top },
-    'bottom-left': { x: bounds.left, y: bounds.bottom },
-    'bottom-right': { x: bounds.right, y: bounds.bottom }
-  };
+<motion.div
+  ref={controlBarRef}
+  initial={{ y: 50 }}
+  animate={{ y: 0 }}
+  className={cn(
+    "z-50 flex items-center justify-center gap-4",
+    "fixed bottom-0 left-0 right-0 pb-[calc(env(safe-area-inset-bottom,20px)+8px)] pt-4",
+    "md:relative md:bottom-auto md:pb-4 md:bg-background/80 md:backdrop-blur-xl md:border-t md:border-border"
+  )}
+>
+  <ControlButton 
+    variant={isMobile ? "ghost" : (isCameraOn ? "secondary" : "destructive")} 
+    onClick={toggleCamera}
+    withHoverScale
+    className={cn(
+      "h-14 w-14",
+      isMobile && "bg-black/40 hover:bg-black/60 text-white backdrop-blur-sm border-0 shadow-lg"
+    )}
+  >
+    {isCameraOn ? <Video className="h-6 w-6" /> : <VideoOff className="h-6 w-6" />}
+  </ControlButton>
   
-  let nearest: Corner = 'bottom-right';
-  let minDistance = Infinity;
-  
-  for (const [corner, pos] of Object.entries(corners)) {
-    const distance = Math.hypot(x - pos.x, y - pos.y);
-    if (distance < minDistance) {
-      minDistance = distance;
-      nearest = corner as Corner;
-    }
-  }
-  
-  return nearest;
-}
+  {/* Mic ve End Call butonları benzer şekilde */}
+</motion.div>
 ```
 
-### 4. Drag Davranışı
+---
 
-- `onPointerDown`: Sürükleme başlat, başlangıç pozisyonunu kaydet
-- `onPointerMove`: `transform: translate3d(x, y, 0)` ile pozisyon güncelle
-- `onPointerUp`: En yakın köşeyi hesapla, animasyonlu snap
+## Dosya 3: `src/pages/VideoCall/components/VideoTile.tsx`
 
+### Değişiklikler:
+
+1. **Fullscreen variant için object-fit: cover garantisi** (DailyVideo style):
 ```typescript
-const handlePointerUp = () => {
-  const nearest = getNearestCorner(currentX, currentY, bounds);
-  setSnapCorner(nearest); // Framer Motion animasyonu tetikler
-};
+<DailyVideo
+  sessionId={sessionId}
+  type="video"
+  fit="cover"
+  style={{
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover', // Garantiye al
+    transform: isLocal ? 'scaleX(-1)' : 'none', // Mirror for self-view
+  }}
+/>
 ```
 
-### 5. Animasyon Konfigürasyonu
+---
 
-```typescript
-// Snap animasyonu - yumuşak spring efekti
-const springConfig = {
-  type: "spring",
-  stiffness: 400,
-  damping: 30,
-  mass: 1
-};
+## Test Kriterleri
 
-// Köşe pozisyonları
-const cornerPositions = {
-  'top-left': { x: PADDING, y: topBound },
-  'top-right': { x: containerWidth - pipWidth - PADDING, y: topBound },
-  'bottom-left': { x: PADDING, y: bottomBound },
-  'bottom-right': { x: containerWidth - pipWidth - PADDING, y: bottomBound }
-};
-```
+| Test | Beklenen Sonuç |
+|------|----------------|
+| CallUI açıldığında navbar | Görünmemeli |
+| CallUI'dan çıkıldığında navbar | Geri gelmeli |
+| Mobilde CallUI scroll | Scroll olmamalı (iOS Safari dahil) |
+| Remote participant yokken | Crash olmamalı, placeholder görünmeli |
+| PiP'e tap | Video swap olmalı |
+| PiP'i sürükle | Swap olmamalı, köşeye snap |
+| PiP kontrol barını kapatıyor mu | Hayır, dinamik sınırlar |
+| Bounds negatif olabilir mi | Hayır, clamp edilmiş |
+| touch-none CallUI wrapper'da | YOK, sadece PiP'te |
 
-### 6. PiP Boyutlandırma
-
-```typescript
-// Responsive boyut hesaplama
-const getPiPSize = (containerWidth: number, isMobile: boolean) => {
-  if (isMobile) {
-    const width = Math.round(containerWidth * 0.28); // %28 genişlik
-    const height = Math.round(width * 9 / 16);       // 16:9 oran
-    return { width, height };
-  }
-  return { width: 200, height: 112 }; // Desktop: sabit 200x112
-};
-```
-
-### 7. Yasak Bölgeler
-
-PiP penceresinin çakışmaması gereken alanlar:
-- Üst: Status bar (yaklaşık 44px)
-- Alt: Control bar (56px) + Navbar (68px) + safe area
-- Kenarlar: 16px minimum padding
-
-```typescript
-const calculateBounds = () => ({
-  top: statusBarHeight + 8,
-  bottom: containerHeight - controlBarHeight - navbarHeight - safeAreaBottom - pipHeight - 8,
-  left: 16,
-  right: containerWidth - pipWidth - 16
-});
-```
-
-### 8. State Yönetimi
-
-```typescript
-// PiP pozisyon state'i
-const [snapCorner, setSnapCorner] = useState<Corner>('bottom-right');
-
-// Resize/rotation durumunda yeniden hesaplama
-useEffect(() => {
-  const handleResize = () => {
-    // Mevcut köşeyi koru, yeni pozisyonu hesapla
-    setPosition(getCornerPosition(snapCorner, newBounds));
-  };
-  window.addEventListener('resize', handleResize);
-  return () => window.removeEventListener('resize', handleResize);
-}, [snapCorner]);
-```
-
-### 9. VideoTile Güncellenmesi
-
-PiP varyantı için minimal stil:
-
-```typescript
-// types.ts'e eklenecek
-export interface VideoTileProps {
-  sessionId: string;
-  isLocal: boolean;
-  displayName: string;
-  variant?: 'default' | 'pip' | 'fullscreen';
-}
-```
-
-```typescript
-// VideoTile.tsx - PiP varyantı
-const variantStyles = {
-  default: 'aspect-[4/3] md:aspect-video rounded-lg md:rounded-xl',
-  pip: 'w-full h-full rounded-xl shadow-2xl border-2 border-white/20',
-  fullscreen: 'w-full h-full rounded-none'
-};
-```
-
-## Dosya Değişiklikleri
-
-| Dosya | İşlem |
-|-------|-------|
-| `src/pages/VideoCall/components/DraggablePiP.tsx` | Yeni oluştur |
-| `src/pages/VideoCall/components/index.ts` | Export ekle |
-| `src/pages/VideoCall/types.ts` | PiP tipleri ekle |
-| `src/pages/VideoCall/CallUI.tsx` | Mobil PiP layout |
-| `src/pages/VideoCall/components/VideoTile.tsx` | Variant prop |
-
-## Ek Özellikler
-
-1. **Double-tap to swap**: PiP'e çift tıklayınca ana video ile yer değiştirme (gelecek için)
-2. **Snap threshold**: 50px yaklaştığında köşeye çekme hissi
-3. **Visual feedback**: Sürükleme sırasında hafif gölge artışı
-4. **Performance**: `will-change: transform` ve GPU hızlandırması
