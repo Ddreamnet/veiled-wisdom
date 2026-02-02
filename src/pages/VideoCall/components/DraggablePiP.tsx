@@ -2,6 +2,7 @@
 // DRAGGABLE PIP COMPONENT
 // Floating picture-in-picture container with drag and snap-to-corner behavior
 // Supports touch (mobile) and mouse (desktop) interactions
+// Tap to trigger onClick, drag to snap to corners
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { useState, useRef, useCallback, useEffect, type ReactNode } from 'react';
@@ -19,6 +20,10 @@ interface DraggablePiPProps {
   initialCorner?: Corner;
   /** Callback when corner changes */
   onCornerChange?: (corner: Corner) => void;
+  /** Callback when PiP is tapped (not dragged) */
+  onClick?: () => void;
+  /** Bottom offset for bounds calculation (control bar height) */
+  bottomOffset?: number;
 }
 
 interface Bounds {
@@ -37,13 +42,18 @@ interface Size {
 // CONSTANTS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// Safe area paddings (UI elements + device safe areas)
+// Safe area paddings (status bar removed on mobile for WhatsApp-style)
 const SAFE_PADDING = {
-  top: 56,     // Status bar height (~44px) + margin
-  bottom: 140, // Control bar (56px) + navbar (68px) + safe area + margin
+  top: 16,    // Minimal top padding
   left: 12,
   right: 12,
 };
+
+// Default bottom offset (control bar height fallback)
+const DEFAULT_BOTTOM_OFFSET = 100;
+
+// Drag threshold - movements below this are considered taps
+const DRAG_THRESHOLD = 8; // pixels
 
 // PiP size configuration
 const PIP_SIZE = {
@@ -82,18 +92,24 @@ function getPiPSize(containerWidth: number, isMobile: boolean): Size {
 }
 
 /**
- * Calculate safe bounds for PiP positioning
+ * Calculate safe bounds for PiP positioning with clamping
+ * Ensures bounds are never negative
  */
 function calculateBounds(
   containerWidth: number,
   containerHeight: number,
-  pipSize: Size
+  pipSize: Size,
+  bottomOffset: number
 ): Bounds {
+  const rawBottom = containerHeight - bottomOffset - pipSize.height;
+  const rawRight = containerWidth - SAFE_PADDING.right - pipSize.width;
+  
   return {
     top: SAFE_PADDING.top,
-    bottom: containerHeight - SAFE_PADDING.bottom - pipSize.height,
+    // Clamp to ensure non-negative values
+    bottom: Math.max(SAFE_PADDING.top + 10, rawBottom),
     left: SAFE_PADDING.left,
-    right: containerWidth - SAFE_PADDING.right - pipSize.width,
+    right: Math.max(SAFE_PADDING.left + 10, rawRight),
   };
 }
 
@@ -146,6 +162,8 @@ export function DraggablePiP({
   children,
   initialCorner = 'bottom-right',
   onCornerChange,
+  onClick,
+  bottomOffset = DEFAULT_BOTTOM_OFFSET,
 }: DraggablePiPProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const controls = useAnimation();
@@ -155,6 +173,9 @@ export function DraggablePiP({
   const [pipSize, setPipSize] = useState<Size>({ width: 120, height: 68 });
   const [isDragging, setIsDragging] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  
+  // Track drag start position for tap vs drag detection
+  const dragStartPos = useRef<{ x: number; y: number } | null>(null);
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // RESIZE OBSERVER
@@ -182,11 +203,11 @@ export function DraggablePiP({
   // POSITION UPDATES
   // ═══════════════════════════════════════════════════════════════════════════════
   
-  // Update position when corner or dimensions change
+  // Update position when corner, dimensions, or bottomOffset change
   useEffect(() => {
     if (containerSize.width === 0 || containerSize.height === 0) return;
     
-    const bounds = calculateBounds(containerSize.width, containerSize.height, pipSize);
+    const bounds = calculateBounds(containerSize.width, containerSize.height, pipSize, bottomOffset);
     const position = getCornerPosition(currentCorner, bounds);
     
     controls.start({
@@ -194,21 +215,42 @@ export function DraggablePiP({
       y: position.y,
       transition: SPRING_CONFIG,
     });
-  }, [currentCorner, containerSize, pipSize, controls]);
+  }, [currentCorner, containerSize, pipSize, controls, bottomOffset]);
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // DRAG HANDLERS
   // ═══════════════════════════════════════════════════════════════════════════════
   
-  const handleDragStart = useCallback(() => {
+  const handleDragStart = useCallback((event: MouseEvent | TouchEvent | PointerEvent) => {
     setIsDragging(true);
+    
+    // Record start position for tap detection
+    if ('touches' in event && event.touches.length > 0) {
+      dragStartPos.current = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+    } else if ('clientX' in event) {
+      dragStartPos.current = { x: (event as MouseEvent).clientX, y: (event as MouseEvent).clientY };
+    }
   }, []);
 
   const handleDragEnd = useCallback(
     (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
       setIsDragging(false);
       
-      const bounds = calculateBounds(containerSize.width, containerSize.height, pipSize);
+      // Calculate total movement distance
+      const totalMovement = Math.hypot(info.offset.x, info.offset.y);
+      
+      // If movement is below threshold, treat as a tap
+      if (totalMovement < DRAG_THRESHOLD) {
+        onClick?.();
+        // Stay at current corner position
+        const bounds = calculateBounds(containerSize.width, containerSize.height, pipSize, bottomOffset);
+        const position = getCornerPosition(currentCorner, bounds);
+        controls.start({ x: position.x, y: position.y, transition: SPRING_CONFIG });
+        return;
+      }
+      
+      // Drag detected - snap to nearest corner
+      const bounds = calculateBounds(containerSize.width, containerSize.height, pipSize, bottomOffset);
       
       // Calculate current center position
       const currentX = info.point.x - pipSize.width / 2;
@@ -231,18 +273,20 @@ export function DraggablePiP({
         onCornerChange?.(nearest);
       }
     },
-    [containerSize, pipSize, controls, currentCorner, onCornerChange]
+    [containerSize, pipSize, controls, currentCorner, onCornerChange, onClick, bottomOffset]
   );
 
   // ═══════════════════════════════════════════════════════════════════════════════
-  // DRAG CONSTRAINTS
+  // DRAG CONSTRAINTS (with clamping)
   // ═══════════════════════════════════════════════════════════════════════════════
   
+  const bounds = calculateBounds(containerSize.width, containerSize.height, pipSize, bottomOffset);
+  
   const dragConstraints = {
-    top: SAFE_PADDING.top,
-    bottom: containerSize.height - SAFE_PADDING.bottom - pipSize.height,
-    left: SAFE_PADDING.left,
-    right: containerSize.width - SAFE_PADDING.right - pipSize.width,
+    top: bounds.top,
+    bottom: bounds.bottom,
+    left: bounds.left,
+    right: bounds.right,
   };
 
   // ═══════════════════════════════════════════════════════════════════════════════
