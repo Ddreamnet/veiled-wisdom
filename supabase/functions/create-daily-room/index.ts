@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.80.0";
 
 // Bump this when changing logic so the frontend can detect outdated deployments.
-const FUNCTION_VERSION = "create-daily-room@2026-01-29-REV4-ACTIVE-CALL";
+const FUNCTION_VERSION = "create-daily-room@2026-02-02-REV5-FAST-INIT";
 
 type CallIntent = "start" | "join";
 
@@ -364,23 +364,10 @@ serve(async (req) => {
       }, 502);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // 9. VERIFY ROOM EXISTS
-    // ═══════════════════════════════════════════════════════════════════════
-    const verify = await dailyRequest(DAILY_API_KEY, "GET", `/rooms/${encodeURIComponent(createdRoomName)}`);
-    if (!verify.res.ok) {
-      return errorResponse({
-        code: "DAILY_VERIFY_FAILED",
-        message: `Daily room verify failed (${verify.res.status})`,
-        details: {
-          request_id,
-          room_name: createdRoomName,
-          verify_status: verify.res.status,
-        },
-      }, 502);
-    }
-
-    console.log("[create-daily-room] === ROOM CREATED + VERIFIED ===");
+    // OPTIMIZATION: Skip verify step for newly created rooms
+    // Daily POST response already confirms the room exists
+    // Verify step only needed for checking existing/active rooms
+    console.log("[create-daily-room] === ROOM CREATED (skipping verify for new rooms) ===");
 
     // ═══════════════════════════════════════════════════════════════════════
     // 10. SAVE AS ACTIVE CALL IN DATABASE
