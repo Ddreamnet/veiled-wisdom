@@ -172,7 +172,7 @@ serve(async (req) => {
     // ═══════════════════════════════════════════════════════════════════════
     // 3. PARSE REQUEST BODY
     // ═══════════════════════════════════════════════════════════════════════
-    let body: { conversation_id?: string; intent?: CallIntent; force_new?: boolean } = {};
+    let body: { conversation_id?: string; intent?: CallIntent; force_new?: boolean; warmup?: boolean } = {};
     try {
       body = await req.json();
     } catch (e) {
@@ -181,6 +181,16 @@ serve(async (req) => {
         { code: 'INVALID_BODY', message: 'Invalid request body', details: { request_id } },
         400,
       );
+    }
+
+    // OPTIMIZATION: Early return for warm-up requests (keep function hot)
+    if (body?.warmup === true) {
+      console.log('[create-daily-room] Warm-up request received - early return');
+      return jsonResponse({ 
+        success: true, 
+        warmed: true, 
+        function_version: FUNCTION_VERSION 
+      });
     }
 
     const { conversation_id, force_new } = body;
