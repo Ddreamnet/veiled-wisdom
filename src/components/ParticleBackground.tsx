@@ -116,7 +116,13 @@ export const ParticleBackground = () => {
     <canvas
       ref={canvasRef}
       className="absolute inset-0 pointer-events-none"
-      style={{ width: '100%', height: '100%' }}
+      style={{ 
+        width: '100%', 
+        height: '100%',
+        // Particle'lar %75'ten sonra fade olmaya başlar, %100'de tamamen kaybolur
+        WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 75%, rgba(0,0,0,0) 100%)',
+        maskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 75%, rgba(0,0,0,0) 100%)',
+      }}
     />
   );
 };

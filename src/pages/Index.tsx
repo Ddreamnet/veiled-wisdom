@@ -167,50 +167,63 @@ export default function Index() {
           willChange: "transform"
         }} />
         </div>
+
+        {/* Seamless Transition Overlay - Particle'ların üstüne, Hero'nun altında */}
+        <div
+          className="pointer-events-none absolute left-0 right-0 bottom-0 z-20 h-48 md:h-56"
+          style={{
+            background: 'linear-gradient(to bottom, rgba(19, 2, 30, 0) 0%, rgba(19, 2, 30, 1) 100%)',
+          }}
+          aria-hidden="true"
+        />
       </section>
 
-      {/* Gradient Transition */}
-      <div className="h-48 bg-gradient-to-b from-purple-950/40 via-purple-950/20 to-background" />
-
       {/* Curiosities Section */}
-      <section className="container py-12 md:py-16 lg:py-24 px-4 -mt-32">
-        <div className="text-center mb-8 md:mb-12">
-          <h2 className="text-3xl md:text-4xl font-serif font-bold text-gradient-silver mb-2 uppercase">MERAK KONULARI</h2>
-          <p className="text-sm md:text-base text-silver-muted">Gizemli Konuları Keşfedin! 🌼🤍🌕</p>
-        </div>
+      {/* Curiosities Section - Merak Konuları */}
+      <section 
+        id="merak-konulari" 
+        className="relative py-12 md:py-16 lg:py-24 -mt-[1px]"
+        style={{ backgroundColor: '#13021E' }}
+      >
+        <div className="container px-4">
+          <div className="text-center mb-8 md:mb-12">
+            <h2 className="text-3xl md:text-4xl font-serif font-bold text-gradient-silver mb-2 uppercase">MERAK KONULARI</h2>
+            <p className="text-sm md:text-base text-silver-muted">Gizemli Konuları Keşfedin! 🌼🤍🌕</p>
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-          {isLoading ? [1, 2, 3].map(i => <Card key={i} className="overflow-hidden">
-                  <Skeleton className="h-48 sm:h-52 md:h-56 w-full" />
-                  <CardHeader className="p-4 sm:p-5 md:p-6">
-                    <Skeleton className="h-6 w-3/4" />
-                  </CardHeader>
-                  <CardContent className="p-4 sm:p-5 md:p-6 pt-0">
-                    <Skeleton className="h-4 w-full mb-2" />
-                    <Skeleton className="h-4 w-2/3" />
-                  </CardContent>
-                </Card>) : curiosities.map(curiosity => <Card key={curiosity.id} className="group overflow-hidden card-hover">
-                  {curiosity.cover_url && <div className="relative h-48 sm:h-52 md:h-56 overflow-hidden">
-                      <img src={getOptimizedCoverUrl(curiosity.cover_url)} alt={curiosity.title} loading="lazy" decoding="async" className="w-full h-full object-cover card-image" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
-                    </div>}
-                  <CardHeader className="p-4 sm:p-5 md:p-6">
-                    <CardTitle className="text-lg sm:text-xl text-silver group-hover:text-gradient-purple transition-all font-serif">
-                      {curiosity.title.toLocaleUpperCase('tr-TR')}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4 sm:p-5 md:p-6 pt-0">
-                    <p className="text-sm sm:text-base text-silver-muted mb-4 sm:mb-6 line-clamp-3">
-                      {curiosity.content.substring(0, 120)}...
-                    </p>
-                    <Link to={`/curiosities/${curiosity.slug}`}>
-                      <Button variant="ghost" size="sm" className="w-full group/btn text-sm">
-                        Yazıyı İnceleyin
-                        <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
-                      </Button>
-                    </Link>
-                  </CardContent>
-                </Card>)}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+            {isLoading ? [1, 2, 3].map(i => <Card key={i} className="overflow-hidden">
+                    <Skeleton className="h-48 sm:h-52 md:h-56 w-full" />
+                    <CardHeader className="p-4 sm:p-5 md:p-6">
+                      <Skeleton className="h-6 w-3/4" />
+                    </CardHeader>
+                    <CardContent className="p-4 sm:p-5 md:p-6 pt-0">
+                      <Skeleton className="h-4 w-full mb-2" />
+                      <Skeleton className="h-4 w-2/3" />
+                    </CardContent>
+                  </Card>) : curiosities.map(curiosity => <Card key={curiosity.id} className="group overflow-hidden card-hover">
+                    {curiosity.cover_url && <div className="relative h-48 sm:h-52 md:h-56 overflow-hidden">
+                        <img src={getOptimizedCoverUrl(curiosity.cover_url)} alt={curiosity.title} loading="lazy" decoding="async" className="w-full h-full object-cover card-image" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
+                      </div>}
+                    <CardHeader className="p-4 sm:p-5 md:p-6">
+                      <CardTitle className="text-lg sm:text-xl text-silver group-hover:text-gradient-purple transition-all font-serif">
+                        {curiosity.title.toLocaleUpperCase('tr-TR')}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 sm:p-5 md:p-6 pt-0">
+                      <p className="text-sm sm:text-base text-silver-muted mb-4 sm:mb-6 line-clamp-3">
+                        {curiosity.content.substring(0, 120)}...
+                      </p>
+                      <Link to={`/curiosities/${curiosity.slug}`}>
+                        <Button variant="ghost" size="sm" className="w-full group/btn text-sm">
+                          Yazıyı İnceleyin
+                          <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
+                        </Button>
+                      </Link>
+                    </CardContent>
+                  </Card>)}
+          </div>
         </div>
       </section>
 
