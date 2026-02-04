@@ -330,19 +330,6 @@ const MobileBottomNavComponent = () => {
                     )}
                   </AnimatePresence>
                 </div>
-                  {/* Subtle glow behind active icon */}
-                  <AnimatePresence>
-                    {active && (
-                      <motion.div
-                        key="glow"
-                        className="absolute inset-0 blur-lg bg-primary/50 -z-10"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                      />
-                    )}
-                  </AnimatePresence>
                 {/* Label - position changes based on active state */}
                 <span
                   className={cn(
