@@ -5,6 +5,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { useEffect, useState, useRef } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { DailyProvider } from '@daily-co/daily-react';
 import Daily, { DailyCall } from '@daily-co/daily-js';
@@ -54,6 +55,9 @@ export default function VideoCallPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const setIsChatOpen = useSetAtom(isChatOpenAtom);
+  
+  // OPTIMIZATION: Use cached auth from context instead of network calls
+  const { user: authUser } = useAuth();
 
   const intent: CallIntent = searchParams.get('intent') === 'join' ? 'join' : 'start';
 
@@ -96,19 +100,7 @@ export default function VideoCallPage() {
       }
     };
 
-    const requestMediaPermissions = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-        stream.getTracks().forEach((t) => t.stop());
-      } catch (e) {
-        console.warn('[VideoCall] getUserMedia permission check failed:', e);
-        toast({
-          title: 'Mikrofon izni gerekli',
-          description: 'Görüşmede ses iletimi için mikrofon izni vermelisiniz.',
-          variant: 'destructive',
-        });
-      }
-    };
+    // REMOVED: requestMediaPermissions - unused function
 
     const createRoom = async (opts?: { forceNew?: boolean; callIntent?: CallIntent }): Promise<CreateDailyRoomResponse> => {
       if (!conversationId) throw new Error('Conversation ID is required');
@@ -176,16 +168,7 @@ export default function VideoCallPage() {
       return await p;
     };
 
-    const getDisplayName = async (): Promise<string> => {
-      const { data: authData } = await supabase.auth.getUser();
-      const user = authData?.user ?? null;
-      return (
-        (user?.user_metadata as any)?.username ||
-        (user?.user_metadata as any)?.full_name ||
-        user?.email?.split('@')[0] ||
-        'Kullanıcı'
-      );
-    };
+    // REMOVED: getDisplayName - now uses AuthContext directly
 
     const initializeCall = async () => {
       try {
@@ -204,37 +187,26 @@ export default function VideoCallPage() {
         // OPTIMIZATION 2: Check for roomUrl from query param (joiner shortcut)
         const roomUrlFromParam = searchParams.get('roomUrl');
         
-        // OPTIMIZATION 3: Run room fetch, displayName, auth in PARALLEL
-        const roomPromise = roomUrlFromParam && intent === 'join'
-          ? Promise.resolve({ room: { url: roomUrlFromParam, name: 'cached' } } as CreateDailyRoomResponse)
-          : createRoom({ forceNew: false, callIntent: intent });
+        // OPTIMIZATION: Use cached auth from context (no network call)
+        const displayName = 
+          (authUser?.user_metadata as any)?.username ||
+          (authUser?.user_metadata as any)?.full_name ||
+          authUser?.email?.split('@')[0] ||
+          'Kullanıcı';
 
-        const [roomData, displayName, authData] = await Promise.all([
-          roomPromise,
-          getDisplayName(),
-          supabase.auth.getUser(),
-        ]);
+        // OPTIMIZATION: Only fetch room data (auth already in context)
+        const roomData = await (roomUrlFromParam && intent === 'join'
+          ? Promise.resolve({ room: { url: roomUrlFromParam, name: 'cached' } } as CreateDailyRoomResponse)
+          : createRoom({ forceNew: false, callIntent: intent }));
 
         if (!isMounted) return;
-        devLog('VideoCall', 'Parallel fetches done');
+        devLog('VideoCall', 'Room fetch done');
 
-        const user = authData?.data?.user ?? null;
         const roomUrl = roomData.room!.url;
         currentRoomUrlRef.current = roomUrl;
 
-        // OPTIMIZATION 4: Fire-and-forget preAuth - DO NOT BLOCK JOIN
-        // preAuth ve startCamera join'i bekletmemeli, join() zaten bunları içeriyor
-        devLog('VideoCall', 'Starting non-blocking preparation');
-        
-        // Fire-and-forget - join'i bloklama
-        call.preAuth({ url: roomUrl }).then(() => {
-          devLog('VideoCall', 'preAuth completed (non-blocking)');
-        }).catch(() => {
-          // preAuth hatası join'i etkilemez
-        });
-
-        // join() zaten camera'yı başlatıyor, ayrıca çağırmaya gerek yok
-        devLog('VideoCall', 'Ready to join (skipping blocking preAuth)');
+        // REMOVED: preAuth call - join() already handles this internally
+        devLog('VideoCall', 'Ready to join');
 
         joinTimeout = window.setTimeout(() => {
           if (!isMounted) return;
@@ -256,7 +228,7 @@ export default function VideoCallPage() {
         const joinOptions: any = {
           url: roomUrl,
           userName: displayName,
-          userData: user?.id ? { appUserId: user.id } : undefined,
+          userData: authUser?.id ? { appUserId: authUser.id } : undefined,
           sendSettings: {
             video: { maxQuality: 'high' as const },
           },
@@ -349,7 +321,7 @@ export default function VideoCallPage() {
       }
       cleanup();
     };
-  }, [conversationId, intent, navigate, toast, searchParams]);
+  }, [conversationId, intent, navigate, toast, searchParams, authUser]);
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // RENDER
