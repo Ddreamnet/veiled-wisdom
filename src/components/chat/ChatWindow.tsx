@@ -12,6 +12,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { formatPresenceStatus } from '@/hooks/usePresence';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ParticleBackground } from '@/components/ParticleBackground';
 
 type ChatWindowProps = {
   conversation: ConversationWithParticipant | null;
@@ -46,15 +47,39 @@ export function ChatWindow({ conversation, onBack, onMessagesRead }: ChatWindowP
   // Empty state - no conversation selected
   if (!conversation) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-background to-muted/20">
-        <div className="text-center p-8 max-w-md">
-          <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
-            <MessageCircle className="w-10 h-10 text-primary" />
-          </div>
-          <h3 className="text-xl font-semibold mb-2">Bir konuşma seçin</h3>
-          <p className="text-sm text-muted-foreground">
+      <div className="flex-1 flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-background via-primary/5 to-secondary/10">
+        {/* Animated Particle Background */}
+        <ParticleBackground />
+        
+        {/* Decorative gradient orbs */}
+        <div className="absolute top-1/4 -left-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-1/4 -right-20 w-72 h-72 bg-secondary/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+        
+        <div className="text-center p-8 max-w-md relative z-10">
+          <motion.div 
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="w-24 h-24 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mx-auto mb-6 shadow-lg backdrop-blur-sm border border-primary/10"
+          >
+            <MessageCircle className="w-12 h-12 text-primary" />
+          </motion.div>
+          <motion.h3 
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="text-xl font-semibold mb-2"
+          >
+            Bir konuşma seçin
+          </motion.h3>
+          <motion.p 
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="text-sm text-muted-foreground"
+          >
             Sol taraftaki listeden bir konuşma seçerek mesajlaşmaya başlayın
-          </p>
+          </motion.p>
         </div>
       </div>
     );
