@@ -1,243 +1,214 @@
 
-# Görüntülü Arama Bağlantı Süresini Kısaltma Planı
+# Video Call Baslangic Suresi Optimizasyonu (9sn -> 4-5sn)
 
 ## Tespit Edilen Sorunlar
 
-### 1. Edge Function Güncellenmemiş (Ana Sorun)
-Network response'da görülen `function_version: "create-daily-room@2026-01-29-REV3"` kod tabanındaki `REV5-FAST-INIT` ile uyuşmuyor. Yeni optimize edilmiş Edge Function **deploy edilmemiş**.
+### 1. Cift getUser Cagrisi (KRITIK - ~400-1000ms kayip)
+`initializeCall` icerisinde iki ayri `supabase.auth.getUser()` cagrisi yapiliyor:
+- `getDisplayName()` fonksiyonu icinde (satir 180)
+- `Promise.all` blogunda ayrica (satir 215)
 
-- Eski fonksiyon hala "verify" adımını çalıştırıyor (`verified: true` görülüyor)
-- Edge Function tek başına ~6 saniye sürüyor
+Her ikisi de ayni kullaniciyi aliyor ve gereksiz network yuku olusturuyor.
 
-### 2. preAuth 3 Saniye Kaybettiriyor
-Log: `[VideoCall] preAuth skipped: preAuth timeout`
+### 2. AuthContext Kullanilmiyor
+`AuthContext` zaten kullanici bilgisini tutuyor (`user` objesi). VideoCallPage bu context'i kullanabilir ve network cagrisi yerine bellekten okuyabilir.
 
-`preAuth` her zaman timeout oluyor ve kod şu anda timeout'u **bekliyor**:
+### 3. Kullanilmayan Kod
+`requestMediaPermissions` fonksiyonu tanimli ama hic cagrilmiyor (satir 99-111). Temizlenmeli.
+
+### 4. preAuth Gereksiz
+`call.preAuth()` (satir 230-234) fire-and-forget olarak calisiyor ama `call.join()` zaten preAuth'u dahili olarak yapiyor. Bu cift islem gereksiz.
+
+### 5. Edge Function Optimizasyon Potansiyeli
+`create-daily-room` fonksiyonunda:
+- Conversation fetch + Participant check (sirasel)
+- Daily API request
+- DB update (sirasel)
+
+Bunlarin bir kismi paralellestirilemiyor cunku bagimlilik var, ancak DB update fire-and-forget yapilabilir.
+
+## Onerilen Degisiklikler
+
+### Degisiklik 1: AuthContext Kullanimi (En Yuksek Etki)
+`VideoCallPage.tsx` icerisinde `useAuth()` hook'u kullanarak user bilgisini al, `getUser()` cagrilarini kaldir.
+
+**Onceki:**
 ```typescript
-await preAuthPromise;  // 3 saniye kaybediliyor!
+const getDisplayName = async (): Promise<string> => {
+  const { data: authData } = await supabase.auth.getUser();
+  const user = authData?.user ?? null;
+  return (user?.user_metadata as any)?.username || ...
+};
+
+const [roomData, displayName, authData] = await Promise.all([
+  roomPromise,
+  getDisplayName(),
+  supabase.auth.getUser(),  // GEREKSIZ
+]);
 ```
 
-### 3. Çift Edge Function Çağrısı
-Aynı saniye içinde iki `create-daily-room` POST isteği görülüyor. Muhtemelen React StrictMode double-mount veya mutex mantık hatası.
-
-### 4. WebRTC Bağlantı Süresi
-`join()` çağrısı kendi başına 4-6 saniye sürebiliyor (ICE toplama, DTLS handshake).
-
-## Mevcut Zamanlama Analizi (13 saniye)
-
-```text
-┌──────────────────────────────────────────────────────────────────────────┐
-│                     MEVCUT AKIŞ (13 saniye)                              │
-├──────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│  1. Edge Function (YAYINLANMAMIŞ ESKİ VERSİYON)     ~6 saniye           │
-│     ├─> JWT doğrulama                                                    │
-│     ├─> Supabase conversation fetch                                      │
-│     ├─> Daily API: POST /rooms                                           │
-│     ├─> Daily API: GET /rooms (VERIFY - ESKİ)      +500ms ekstra        │
-│     └─> DB update                                                        │
-│                                                                          │
-│  2. preAuth timeout bekleme                         +3 saniye            │
-│     └─> Her zaman timeout oluyor ama bekleniyor                         │
-│                                                                          │
-│  3. join() WebRTC bağlantısı                        ~4 saniye            │
-│     ├─> ICE candidate toplama                                            │
-│     ├─> DTLS handshake                                                   │
-│     └─> Media negotiation                                                │
-│                                                                          │
-│  TOPLAM                                             ~13 saniye           │
-└──────────────────────────────────────────────────────────────────────────┘
-```
-
-## Çözüm Planı
-
-### Faz 1: preAuth Bekleme Mantığını Düzelt (Anında 3 sn kazanç)
-
-**Sorun**: `await preAuthPromise` satırı, timeout olsa bile 3 saniye bekliyor.
-
-**Çözüm**: preAuth'u tamamen fire-and-forget yap, join() işlemini bloklamamalı.
-
+**Sonraki:**
 ```typescript
-// ÖNCEKİ (sorunlu)
-await preAuthPromise;  // 3 saniye bekliyor
-await call.join(...);
+// Component basinda
+const { user: authUser } = useAuth();
 
-// SONRAKİ (optimize)
-// preAuth fire-and-forget olarak devam etsin, join'i beklemesin
-call.preAuth({ url: roomUrl }).catch(() => {});
-call.startCamera({ url: roomUrl }).catch(() => {});
-await call.join(...);  // Direkt join
+// initializeCall icinde
+const displayName = 
+  (authUser?.user_metadata as any)?.username ||
+  (authUser?.user_metadata as any)?.full_name ||
+  authUser?.email?.split('@')[0] ||
+  'Kullanici';
+
+const roomData = await (roomUrlFromParam && intent === 'join'
+  ? Promise.resolve({ room: { url: roomUrlFromParam, name: 'cached' } })
+  : createRoom({ forceNew: false, callIntent: intent }));
 ```
 
-### Faz 2: Edge Function'ı Publish Et (2-3 sn kazanç)
+Kazanc: ~400-1000ms (2 network cagrisi yerine 0)
 
-**Sorun**: Yeni Edge Function kodu canlıda değil.
+### Degisiklik 2: preAuth Kaldirilmasi
+`call.preAuth()` cagrisini tamamen kaldir. Daily.co SDK'si `join()` icerisinde bu islemi zaten yapiyor.
 
-**Çözüm**: Edge Function'ın yeniden deploy edilmesi gerekiyor. Ama Lovable bunu otomatik yapmalıydı. Fonksiyonu hafifçe güncelleyerek yeniden deploy tetikleyebiliriz.
-
-### Faz 3: Edge Function Warm-Up Ping'ini Düzelt
-
-**Sorun**: Mevcut OPTIONS ping'i Edge Function'ı gerçekten ısıtmıyor olabilir (CORS preflight Deno'da function kodunu çalıştırmayabilir).
-
-**Çözüm**: Gerçek bir POST isteği at (minimal body ile).
-
+**Onceki:**
 ```typescript
-// OPTIONS yerine gerçek bir warm-up POST
-fetch(`${supabaseUrl}/functions/v1/create-daily-room`, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'apikey': supabaseAnonKey,
-  },
-  body: JSON.stringify({ warmup: true }),
-}).catch(() => {});
-```
-
-Edge Function'da warmup isteğini erken kesebiliriz:
-```typescript
-// create-daily-room/index.ts başında
-if (body?.warmup === true) {
-  return jsonResponse({ warmed: true, function_version: FUNCTION_VERSION });
-}
-```
-
-### Faz 4: Paralel İşlemleri Gerçekten Paralel Yap
-
-**Mevcut Durum**: `createRoom`, `getDisplayName`, `getUser` paralel çalışıyor ✓
-
-**Eksik**: `startCamera` ve `join` sıralı çalışıyor.
-
-**Çözüm**: Daily.co'ya göre, `join()` zaten `startCamera()`'yı içeriyor. Ayrıca çağırmaya gerek yok:
-
-```typescript
-// startCamera'yı kaldır, join yeterli
-await call.join({
-  url: roomUrl,
-  userName: displayName,
-  startVideoOff: false,
-  startAudioOff: false,
-});
-```
-
-## Hedef Zamanlama (4-6 saniye)
-
-```text
-┌──────────────────────────────────────────────────────────────────────────┐
-│                    OPTİMİZE AKIŞ (4-6 saniye)                            │
-├──────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│  ÖN HAZIRLIK (Mesajlaşma sayfasında):                                   │
-│  ├─> Edge Function warm-up (gerçek POST)                                │
-│  └─> getUserMedia izni (hover'da)                                       │
-│                                                                          │
-│  ARAMA BAŞLATILDIĞINDA:                                                 │
-│                                                                          │
-│  1. Edge Function (YENİ VERSİYON, verify yok)      ~2-3 saniye          │
-│                                                                          │
-│  2. join() (preAuth beklemeden)                     ~2-3 saniye          │
-│     └─> startCamera + WebRTC bağlantısı dahil                           │
-│                                                                          │
-│  TOPLAM                                             ~4-6 saniye          │
-└──────────────────────────────────────────────────────────────────────────┘
-```
-
-## Yapılacak Değişiklikler
-
-| Dosya | Değişiklik | Beklenen Kazanç |
-|-------|------------|-----------------|
-| `VideoCallPage.tsx` | preAuth await'ini kaldır, fire-and-forget yap | 3 saniye |
-| `VideoCallPage.tsx` | startCamera'yı kaldır (join içinde var) | 0.5 saniye |
-| `useActiveCall.ts` | OPTIONS yerine POST warm-up | 1-2 saniye |
-| `create-daily-room/index.ts` | warmup early-return ekle | Deploy tetikleme |
-
-## Teknik Detaylar
-
-### VideoCallPage.tsx Değişiklikleri
-
-Satır 225-253 arası tamamen yeniden yazılacak:
-
-```typescript
-// OPTIMIZATION: preAuth ve startCamera fire-and-forget
-// join() zaten bunları içeriyor, ayrıca beklemeye gerek yok
-devLog('VideoCall', 'Starting parallel preparation (non-blocking)');
-
 // Fire-and-forget - join'i bloklama
 call.preAuth({ url: roomUrl }).then(() => {
   devLog('VideoCall', 'preAuth completed (non-blocking)');
 }).catch(() => {});
+```
 
-// Join timeout'u ayarla
-joinTimeout = window.setTimeout(() => {
-  if (!isMounted) return;
-  setError('Bağlantı zaman aşımına uğradı. Lütfen tekrar deneyin.');
-}, JOIN_TIMEOUT_MS);
+**Sonraki:**
+```typescript
+// preAuth kaldirildi - join() zaten bunu iceride yapiyor
+devLog('VideoCall', 'Ready to join');
+```
 
-// Event listeners
-call.on('joined-meeting', () => {
-  devLog('VideoCall', 'Successfully joined meeting');
-  if (joinTimeout) window.clearTimeout(joinTimeout);
-});
+Kazanc: CPU/memory tasarrufu + potansiyel race condition onleme
 
-call.on('error', (e) => {
-  console.error('[VideoCall] Daily call error:', e);
-  if (joinTimeout) window.clearTimeout(joinTimeout);
-  if (!isMounted) return;
-  setError('Bağlantı hatası oluştu');
-});
+### Degisiklik 3: Kullanilmayan Kod Temizligi
+`requestMediaPermissions` fonksiyonunu kaldir (satir 99-111).
 
-// Direkt join - preAuth'u bekleme
-devLog('VideoCall', 'Attempting to join room (without waiting preAuth)');
-await call.join({
+### Degisiklik 4: Edge Function DB Update Fire-and-Forget
+`create-daily-room/index.ts` icerisinde conversation update islemini await etmeden yap.
+
+**Onceki:**
+```typescript
+const { error: updateError } = await supabase
+  .from('conversations')
+  .update({ ... })
+  .eq('id', conversation_id);
+```
+
+**Sonraki:**
+```typescript
+// Fire-and-forget - response'u bekletme
+supabase
+  .from('conversations')
+  .update({ ... })
+  .eq('id', conversation_id)
+  .then(({ error }) => {
+    if (error) console.error('[create-daily-room] DB update failed:', error);
+  });
+```
+
+Kazanc: ~100-300ms (DB write bekleme suresi)
+
+## Dosya Degisiklikleri
+
+| Dosya | Degisiklik |
+|-------|------------|
+| `src/pages/VideoCall/VideoCallPage.tsx` | useAuth ekle, getDisplayName kaldir, Promise.all basitlestir, preAuth kaldir, requestMediaPermissions kaldir |
+| `supabase/functions/create-daily-room/index.ts` | DB update fire-and-forget yap |
+
+## Beklenen Sonuc
+
+| Metrik | Onceki | Sonraki |
+|--------|--------|---------|
+| getUser cagrisi | 2x paralel | 0 (context'ten) |
+| preAuth | 1x fire-and-forget | 0 (kaldirildi) |
+| Edge Function DB wait | ~100-300ms | 0 (fire-and-forget) |
+| **Toplam Kazanc** | - | **~600-1500ms** |
+| **Tahmini Sure** | ~9 saniye | **~6-7 saniye** |
+
+## Teknik Detaylar
+
+### VideoCallPage.tsx Degisiklikleri
+
+**Import ekle (satir 7):**
+```typescript
+import { useAuth } from '@/contexts/AuthContext';
+```
+
+**Hook ekle (component icinde, satir ~57):**
+```typescript
+const { user: authUser } = useAuth();
+```
+
+**getDisplayName fonksiyonunu kaldir (satir 179-188)**
+
+**requestMediaPermissions fonksiyonunu kaldir (satir 99-111)**
+
+**initializeCall icinde basitlestir (satir 207-220):**
+```typescript
+// OPTIMIZATION: Use cached auth from context (no network call)
+const displayName = 
+  (authUser?.user_metadata as any)?.username ||
+  (authUser?.user_metadata as any)?.full_name ||
+  authUser?.email?.split('@')[0] ||
+  'Kullanici';
+
+// OPTIMIZATION: Only fetch room data (auth already in context)
+const roomData = await (roomUrlFromParam && intent === 'join'
+  ? Promise.resolve({ room: { url: roomUrlFromParam, name: 'cached' } } as CreateDailyRoomResponse)
+  : createRoom({ forceNew: false, callIntent: intent }));
+
+const roomUrl = roomData.room!.url;
+currentRoomUrlRef.current = roomUrl;
+
+// preAuth KALDIRILDI - join() zaten bunu iceride yapiyor
+devLog('VideoCall', 'Ready to join');
+```
+
+**joinOptions guncelle:**
+```typescript
+const joinOptions: any = {
   url: roomUrl,
   userName: displayName,
-  userData: user?.id ? { appUserId: user.id } : undefined,
-  startVideoOff: false,
-  startAudioOff: false,
-  sendSettings: {
-    video: { maxQuality: 'high' as const },
-  },
+  userData: authUser?.id ? { appUserId: authUser.id } : undefined,
+  ...
+};
+```
+
+### create-daily-room/index.ts Degisiklikleri
+
+**Satir 405-424 degistir:**
+```typescript
+// Fire-and-forget DB update - don't block response
+supabase
+  .from('conversations')
+  .update({
+    active_call_room_name: createdRoomName,
+    active_call_room_url: createdRoomUrl,
+    active_call_started_at: startedAt,
+    active_call_ended_at: null,
+    active_call_created_by: authedUserId,
+    video_room_name: createdRoomName,
+    video_room_url: createdRoomUrl,
+    video_room_created_at: startedAt,
+  })
+  .eq('id', conversation_id)
+  .then(({ error }) => {
+    if (error) console.error('[create-daily-room] Failed to save room info:', error);
+  });
+
+// Return immediately after Daily room creation
+return successResponse({
+  success: true,
+  room: { name: createdRoomName, url: createdRoomUrl },
+  createdAt: startedAt,
+  reused: false,
+  active_call: true,
+  call_started_at: startedAt,
+  call_created_by: authedUserId,
 });
 ```
-
-### useActiveCall.ts Değişiklikleri
-
-Satır 82-94 arası:
-
-```typescript
-// OPTIMIZATION: Warm up edge function with a real POST request
-// OPTIONS may not trigger actual function execution in Deno
-if (!edgeFunctionWarmedUp && conversationId) {
-  edgeFunctionWarmedUp = true;
-  
-  supabase.functions.invoke('create-daily-room', {
-    body: { warmup: true },
-  }).catch(() => {
-    // Ignore errors - this is just a warm-up ping
-  });
-  
-  console.log('[useActiveCall] Edge function warm-up POST sent');
-}
-```
-
-### create-daily-room/index.ts Değişiklikleri
-
-Satır 177 civarına (body parse'dan sonra):
-
-```typescript
-// OPTIMIZATION: Early return for warm-up requests
-if (body?.warmup === true) {
-  console.log('[create-daily-room] Warm-up request received');
-  return jsonResponse({ 
-    success: true, 
-    warmed: true, 
-    function_version: FUNCTION_VERSION 
-  });
-}
-```
-
-## Test Kriterleri
-
-1. preAuth timeout logları görülmemeli (fire-and-forget olduğu için)
-2. Edge Function response'da `REV5-FAST-INIT` veya daha yeni versiyon görülmeli
-3. Toplam bağlantı süresi 4-6 saniyeye düşmeli
-4. Arama başlatma ve katılma fonksiyonları sorunsuz çalışmalı
