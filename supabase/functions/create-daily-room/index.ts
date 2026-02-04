@@ -112,6 +112,28 @@ serve(async (req) => {
     const request_id = crypto.randomUUID();
 
     // ═══════════════════════════════════════════════════════════════════════
+    // 0. WARM-UP CHECK - BEFORE AUTH (no JWT needed for keep-alive ping)
+    // ═══════════════════════════════════════════════════════════════════════
+    // Parse body early to check for warmup flag
+    let body: { conversation_id?: string; intent?: CallIntent; force_new?: boolean; warmup?: boolean } = {};
+    try {
+      body = await req.json();
+    } catch {
+      // Will be handled later if not a warmup request
+      body = {};
+    }
+
+    if (body?.warmup === true) {
+      console.log('[create-daily-room] Warm-up ping received - early return (no auth)');
+      return jsonResponse({ 
+        success: true, 
+        warmed: true, 
+        function_version: FUNCTION_VERSION,
+        timestamp: Date.now(),
+      });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
     // 1. VALIDATE DAILY_API_KEY
     // ═══════════════════════════════════════════════════════════════════════
     const DAILY_API_KEY = Deno.env.get("DAILY_API_KEY");
@@ -170,27 +192,23 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 3. PARSE REQUEST BODY
+    // 3. VALIDATE REQUEST BODY (already parsed above)
     // ═══════════════════════════════════════════════════════════════════════
-    let body: { conversation_id?: string; intent?: CallIntent; force_new?: boolean; warmup?: boolean } = {};
-    try {
-      body = await req.json();
-    } catch (e) {
-      console.error('[create-daily-room] Failed to parse request body:', e);
-      return errorResponse(
-        { code: 'INVALID_BODY', message: 'Invalid request body', details: { request_id } },
-        400,
-      );
-    }
-
-    // OPTIMIZATION: Early return for warm-up requests (keep function hot)
-    if (body?.warmup === true) {
-      console.log('[create-daily-room] Warm-up request received - early return');
-      return jsonResponse({ 
-        success: true, 
-        warmed: true, 
-        function_version: FUNCTION_VERSION 
-      });
+    // Body was parsed in step 0, re-check if it's empty (parse failed earlier)
+    if (Object.keys(body).length === 0) {
+      // Try parsing again for non-warmup requests that may have failed silently
+      try {
+        // Request body already consumed, this will fail - but we handle it
+        return errorResponse(
+          { code: 'INVALID_BODY', message: 'Invalid or missing request body', details: { request_id } },
+          400,
+        );
+      } catch {
+        return errorResponse(
+          { code: 'INVALID_BODY', message: 'Invalid request body', details: { request_id } },
+          400,
+        );
+      }
     }
 
     const { conversation_id, force_new } = body;
