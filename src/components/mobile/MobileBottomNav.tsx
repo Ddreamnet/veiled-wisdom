@@ -266,7 +266,6 @@ const MobileBottomNavComponent = () => {
         >
           {/* Sliding pill background (keep mounted to avoid jump/flicker) */}
           <motion.div
-            layoutId="nav-pill"
             className="absolute bg-primary/20 border border-primary/30 rounded-full top-1/2"
             initial={false}
             animate={{
@@ -277,9 +276,9 @@ const MobileBottomNavComponent = () => {
             }}
             transition={{
               type: "spring",
-              stiffness: 500,
-              damping: 42,
-              mass: 0.6,
+              stiffness: 400,
+              damping: 35,
+              mass: 0.8,
             }}
             style={{ marginTop: -22, pointerEvents: "none" }}
           />
@@ -322,27 +321,29 @@ const MobileBottomNavComponent = () => {
                     )}
                   />
                   {/* Subtle glow behind active icon */}
-                  {active && (
-                    <motion.div
-                      className="absolute inset-0 blur-lg bg-primary/50 -z-10"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                    />
-                  )}
+                  <AnimatePresence>
+                    {active && (
+                      <motion.div
+                        key="glow"
+                        className="absolute inset-0 blur-lg bg-primary/50 -z-10"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                      />
+                    )}
+                  </AnimatePresence>
                 </motion.div>
 
                 {/* Label - position changes based on active state */}
-                <motion.span
+                <span
                   className={cn(
-                    "font-medium whitespace-nowrap",
+                    "font-medium whitespace-nowrap transition-all duration-200",
                     active ? "text-sm text-primary" : "text-[10px] text-silver-muted mt-1",
                   )}
-                  layout
-                  transition={{ duration: 0.2 }}
                 >
                   {item.label}
-                </motion.span>
+                </span>
 
                 {/* Badge for unread messages */}
                 {typeof item.badge === "number" && item.badge > 0 && (
