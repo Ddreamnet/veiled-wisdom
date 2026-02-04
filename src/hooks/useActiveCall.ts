@@ -80,12 +80,13 @@ export function useActiveCall(conversationId: string | null) {
     fetchActiveCall();
 
     // OPTIMIZATION: Warm up edge function with a REAL POST request
-    // OPTIONS may not trigger actual function execution in Deno
+    // NOTE: Include conversation_id for backward compatibility with older deployed versions
+    // that require conversation_id even for warmup pings.
     if (!edgeFunctionWarmedUp && conversationId) {
       edgeFunctionWarmedUp = true;
       // Real POST request with warmup flag for actual function execution
       supabase.functions.invoke('create-daily-room', {
-        body: { warmup: true },
+        body: { warmup: true, conversation_id: conversationId },
       }).catch(() => {
         // Ignore errors - this is just a warm-up ping
       });
