@@ -79,18 +79,17 @@ export function useActiveCall(conversationId: string | null) {
     setLoading(true);
     fetchActiveCall();
 
-    // OPTIMIZATION: Warm up edge function on first conversation view
-    // This prevents cold start delay when user actually starts a call
+    // OPTIMIZATION: Warm up edge function with a REAL POST request
+    // OPTIONS may not trigger actual function execution in Deno
     if (!edgeFunctionWarmedUp && conversationId) {
       edgeFunctionWarmedUp = true;
-      // Fire a lightweight HEAD/OPTIONS request to wake up the function
-      // We use a minimal fetch that triggers CORS preflight
-      fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-daily-room`, {
-        method: 'OPTIONS',
+      // Real POST request with warmup flag for actual function execution
+      supabase.functions.invoke('create-daily-room', {
+        body: { warmup: true },
       }).catch(() => {
         // Ignore errors - this is just a warm-up ping
       });
-      console.log('[useActiveCall] Edge function warm-up ping sent');
+      console.log('[useActiveCall] Edge function warm-up POST sent');
     }
 
     // Subscribe to realtime updates for this conversation

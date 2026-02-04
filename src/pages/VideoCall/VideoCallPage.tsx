@@ -222,35 +222,19 @@ export default function VideoCallPage() {
         const roomUrl = roomData.room!.url;
         currentRoomUrlRef.current = roomUrl;
 
-        // OPTIMIZATION 4: Start camera with URL + preAuth (fire-and-forget with timeout)
-        // preAuth() prepares WebRTC connection but shouldn't block join()
-        devLog('VideoCall', 'Starting camera + preAuth');
+        // OPTIMIZATION 4: Fire-and-forget preAuth - DO NOT BLOCK JOIN
+        // preAuth ve startCamera join'i bekletmemeli, join() zaten bunları içeriyor
+        devLog('VideoCall', 'Starting non-blocking preparation');
         
-        // preAuth with 3s timeout - don't block if it hangs
-        const preAuthPromise = Promise.race([
-          call.preAuth({ url: roomUrl }).then(() => {
-            devLog('VideoCall', 'preAuth completed');
-          }),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('preAuth timeout')), 3000)
-          ),
-        ]).catch((e) => {
-          console.warn('[VideoCall] preAuth skipped:', e);
+        // Fire-and-forget - join'i bloklama
+        call.preAuth({ url: roomUrl }).then(() => {
+          devLog('VideoCall', 'preAuth completed (non-blocking)');
+        }).catch(() => {
+          // preAuth hatası join'i etkilemez
         });
 
-        // Start camera (fire-and-forget, don't block)
-        call.startCamera({ url: roomUrl }).then(() => {
-          try {
-            (call as any).setLocalAudio?.(true);
-          } catch {
-            // Ignore audio setup errors
-          }
-          devLog('VideoCall', 'Camera started');
-        }).catch(() => {});
-
-        // Wait for preAuth (with timeout) before join
-        await preAuthPromise;
-        devLog('VideoCall', 'Ready to join');
+        // join() zaten camera'yı başlatıyor, ayrıca çağırmaya gerek yok
+        devLog('VideoCall', 'Ready to join (skipping blocking preAuth)');
 
         joinTimeout = window.setTimeout(() => {
           if (!isMounted) return;
