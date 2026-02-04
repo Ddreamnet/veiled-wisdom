@@ -402,7 +402,9 @@ serve(async (req) => {
     // ═══════════════════════════════════════════════════════════════════════
     const startedAt = new Date().toISOString();
 
-    const { error: updateError } = await supabase
+    // OPTIMIZATION: Fire-and-forget DB update - don't block response
+    // Room is already created in Daily, DB update can happen async
+    supabase
       .from('conversations')
       .update({
         // New active call fields
@@ -416,12 +418,10 @@ serve(async (req) => {
         video_room_url: createdRoomUrl,
         video_room_created_at: startedAt,
       })
-      .eq('id', conversation_id);
-
-    if (updateError) {
-      console.error('[create-daily-room] Failed to save room info to DB:', updateError);
-      // Continue - room was created and can be used
-    }
+      .eq('id', conversation_id)
+      .then(({ error }) => {
+        if (error) console.error('[create-daily-room] Failed to save room info to DB:', error);
+      });
 
     return successResponse({
       success: true,
