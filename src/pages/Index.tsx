@@ -115,8 +115,8 @@ export default function Index() {
   const decorativeParallax2 = useMemo(() => parallaxY * 0.5, [parallaxY]);
   return <div className="min-h-screen">
       {/* Hero Section with Liquid Gradient */}
-      <section className="relative liquid-gradient py-16 md:py-24 lg:py-32 pb-48 md:pb-56 overflow-hidden">
-        {/* Particle Background - Lazy loaded (z-0) */}
+      <section className="relative liquid-gradient py-16 md:py-24 lg:py-32 overflow-hidden">
+        {/* Particle Background - Lazy loaded */}
         <Suspense fallback={null}>
           <ParticleBackground />
         </Suspense>
@@ -131,8 +131,7 @@ export default function Index() {
         willChange: "transform"
       }} />
 
-        {/* Hero Content (z-20 - above overlay) */}
-        <div className="container relative z-20" style={{
+        <div className="container relative z-10" style={{
         transform: `translate3d(0, -${parallaxY}px, 0) scale(${parallaxScale})`,
         willChange: "transform"
       }}>
@@ -168,24 +167,13 @@ export default function Index() {
           willChange: "transform"
         }} />
         </div>
-
-        {/* Seamless Transition Overlay (z-10 - above particles, below content) */}
-        <div
-          className="pointer-events-none absolute left-0 right-0 bottom-0 z-10 h-48 md:h-56"
-          style={{
-            background: 'linear-gradient(to bottom, rgba(19, 2, 30, 0) 0%, rgba(19, 2, 30, 1) 100%)',
-          }}
-          aria-hidden="true"
-        />
       </section>
 
-      {/* Curiosities Section - Merak Konuları */}
-      <section 
-        id="merak-konulari" 
-        className="relative py-12 md:py-16 lg:py-24 -mt-1"
-        style={{ backgroundColor: '#13021E' }}
-      >
-        <div className="container px-4 -mt-32">
+      {/* Gradient Transition */}
+      <div className="h-48 bg-gradient-to-b from-purple-950/40 via-purple-950/20 to-background" />
+
+      {/* Curiosities Section */}
+      <section className="container py-12 md:py-16 lg:py-24 px-4 -mt-32">
         <div className="text-center mb-8 md:mb-12">
           <h2 className="text-3xl md:text-4xl font-serif font-bold text-gradient-silver mb-2 uppercase">MERAK KONULARI</h2>
           <p className="text-sm md:text-base text-silver-muted">Gizemli Konuları Keşfedin! 🌼🤍🌕</p>
@@ -223,7 +211,6 @@ export default function Index() {
                     </Link>
                   </CardContent>
                 </Card>)}
-          </div>
         </div>
       </section>
 

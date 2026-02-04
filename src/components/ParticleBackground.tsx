@@ -115,13 +115,8 @@ export const ParticleBackground = () => {
   return (
     <canvas
       ref={canvasRef}
-      className="absolute inset-0 pointer-events-none z-0"
-      style={{ 
-        width: '100%', 
-        height: '100%',
-        WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 75%, rgba(0,0,0,0) 100%)',
-        maskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 75%, rgba(0,0,0,0) 100%)',
-      }}
+      className="absolute inset-0 pointer-events-none"
+      style={{ width: '100%', height: '100%' }}
     />
   );
 };
