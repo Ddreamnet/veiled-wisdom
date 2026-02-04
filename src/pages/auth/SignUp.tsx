@@ -123,8 +123,8 @@ export default function SignUp() {
     }
   };
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 py-12 liquid-gradient">
-      <Card className="w-full max-w-md glass-effect border-silver/20">
+    <div className="fixed inset-0 flex items-center justify-center p-4 liquid-gradient overflow-y-auto">
+      <Card className="w-full max-w-md glass-effect border-silver/20 my-auto">
         <CardHeader className="space-y-4">
           <div className="flex justify-center">
             <div className="relative">

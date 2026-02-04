@@ -28,7 +28,7 @@ export default function SignIn() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 liquid-gradient">
+    <div className="fixed inset-0 flex items-center justify-center p-4 liquid-gradient overflow-hidden">
       <Card className="w-full max-w-md glass-effect border-silver/20">
         <CardHeader className="space-y-4">
           <div className="flex justify-center">
