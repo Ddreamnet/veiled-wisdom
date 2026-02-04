@@ -250,7 +250,7 @@ serve(async (req) => {
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 5. CHECK FOR ACTIVE CALL
+    // 5. CHECK FOR ACTIVE CALL + SELF-HEAL STALE SESSIONS
     // ═══════════════════════════════════════════════════════════════════════
     const activeCallRoomName = conversation.active_call_room_name as string | null;
     const activeCallRoomUrl = conversation.active_call_room_url as string | null;
@@ -258,11 +258,35 @@ serve(async (req) => {
     const activeCallEndedAt = conversation.active_call_ended_at as string | null;
     const activeCallCreatedBy = conversation.active_call_created_by as string | null;
 
-    const hasActiveCall = 
+    let hasActiveCall = 
       isNonEmptyString(activeCallRoomName) && 
       isNonEmptyString(activeCallRoomUrl) &&
       activeCallStartedAt !== null &&
       activeCallEndedAt === null;
+
+    // SELF-HEAL: If session is older than 2 hours, consider it stale
+    const MAX_SESSION_AGE_MS = 2 * 60 * 60 * 1000; // 2 hours
+    if (hasActiveCall && activeCallStartedAt) {
+      const sessionAge = Date.now() - new Date(activeCallStartedAt).getTime();
+      if (sessionAge > MAX_SESSION_AGE_MS) {
+        console.warn('[create-daily-room] Stale session detected (>2h), auto-closing:', {
+          room: activeCallRoomName,
+          started: activeCallStartedAt,
+          age_hours: (sessionAge / (60 * 60 * 1000)).toFixed(2),
+        });
+        
+        // Mark as ended
+        await supabase
+          .from('conversations')
+          .update({
+            active_call_ended_at: new Date().toISOString(),
+          })
+          .eq('id', conversation_id);
+        
+        // Clear the flag so we create a new room
+        hasActiveCall = false;
+      }
+    }
 
     console.log('[create-daily-room] Active call check:', { 
       hasActiveCall, 

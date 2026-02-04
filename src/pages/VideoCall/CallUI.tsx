@@ -47,6 +47,7 @@ import {
 
 // Hooks
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useCallTermination } from '@/hooks/video-call/useCallTermination';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CUSTOM HOOKS
@@ -82,7 +83,9 @@ function useCallTimers(
   callState: CallState,
   participants: DailyParticipant[],
   callObject: DailyCall,
-  toast: ReturnType<typeof useToast>['toast']
+  toast: ReturnType<typeof useToast>['toast'],
+  onSoloTimeout: () => void,
+  onMaxDuration: () => void
 ) {
   const [waitingTime, setWaitingTime] = useState(0);
   const [callDuration, setCallDuration] = useState(0);
@@ -122,10 +125,12 @@ function useCallTimers(
         description: "30 dakika boyunca yalnız kaldığınız için görüşme sonlandırıldı.",
         variant: "destructive",
       });
+      // Call server-side termination BEFORE leaving
+      onSoloTimeout();
       autoNavigateOnLeaveRef.current = true;
       callObject.leave();
     }
-  }, [waitingTime, callState, callObject, toast]);
+  }, [waitingTime, callState, callObject, toast, onSoloTimeout]);
 
   useEffect(() => {
     if (!roomJoinTime || callState !== 'joined') return;
@@ -138,6 +143,8 @@ function useCallTimers(
           description: "Görüşme 2 saatlik maksimum süreye ulaştığı için sonlandırıldı.",
           variant: "destructive",
         });
+        // Call server-side termination BEFORE leaving
+        onMaxDuration();
         autoNavigateOnLeaveRef.current = true;
         callObject.leave();
       }
@@ -145,7 +152,7 @@ function useCallTimers(
 
     const interval = setInterval(checkMaxDuration, MAX_DURATION_CHECK_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [roomJoinTime, callState, callObject, toast]);
+  }, [roomJoinTime, callState, callObject, toast, onMaxDuration]);
 
   return { waitingTime, callDuration, autoNavigateOnLeaveRef };
 }
@@ -233,13 +240,32 @@ export function CallUI({ callObject, conversationId }: CallUIProps) {
     return () => ro.disconnect();
   }, [isMobile]);
 
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // CALL TERMINATION HOOK - Server-side call end + page close detection
+  // ═══════════════════════════════════════════════════════════════════════════════
+  const { terminateCall } = useCallTermination({
+    conversationId,
+    enabled: callState === 'joined',
+  });
+
+  // Termination callbacks for timers
+  const handleSoloTimeout = useCallback(() => {
+    terminateCall('solo_timeout');
+  }, [terminateCall]);
+
+  const handleMaxDuration = useCallback(() => {
+    terminateCall('max_duration');
+  }, [terminateCall]);
+
   // Custom hooks
   const { notifications, add: addNotification, remove: removeNotification } = useNotifications();
   const { waitingTime, callDuration, autoNavigateOnLeaveRef } = useCallTimers(
     callState,
     participants,
     callObject,
-    toast
+    toast,
+    handleSoloTimeout,
+    handleMaxDuration
   );
 
   // Debounce ref for participant updates
@@ -512,9 +538,11 @@ export function CallUI({ callObject, conversationId }: CallUIProps) {
   }, [callObject, isMicOn, toast, updateParticipants]);
 
   const leaveCall = useCallback(() => {
+    // Server-side termination (fire-and-forget)
+    terminateCall('manual');
     autoNavigateOnLeaveRef.current = true;
     callObject.leave();
-  }, [callObject, autoNavigateOnLeaveRef]);
+  }, [callObject, autoNavigateOnLeaveRef, terminateCall]);
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // PIP CLICK HANDLER (Tap to swap videos)

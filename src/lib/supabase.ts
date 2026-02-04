@@ -1,9 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://egjuybvfhxazpvbeaupy.supabase.co';
+export const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://egjuybvfhxazpvbeaupy.supabase.co';
 const supabaseAnonKey =
   import.meta.env.VITE_SUPABASE_ANON_KEY ||
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnanV5YnZmaHhhenB2YmVhdXB5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI3MDYzMTksImV4cCI6MjA3ODI4MjMxOX0.PFlgJ72CUI8Y4LQl_NPW6TwztcDc0eIFflTfar_Q18c';
+export const supabaseAnonKeyPublic = supabaseAnonKey;
 
 // Note: The anon key is public by design. Service role key must NEVER be used in the browser.
 
