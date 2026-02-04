@@ -301,19 +301,15 @@ const MobileBottomNavComponent = () => {
                 onMouseUp={() => setPressedItem(null)}
                 onMouseLeave={() => setPressedItem(null)}
                 className={cn(
-                  "relative z-10 flex items-center justify-center transition-all duration-300 ease-out",
+                  "relative z-10 flex items-center justify-center transition-all duration-300 ease-out overflow-hidden",
                   "min-h-[48px] rounded-full",
                   // Active state: horizontal pill with icon + label side by side
-                  active ? "px-4 py-2 gap-2" : "flex-col px-3 py-2 min-w-[52px]",
+                  active ? "flex-row px-4 py-2 gap-2" : "flex-col px-3 py-2 min-w-[52px]",
                   isPressed && "scale-95 opacity-80",
                 )}
               >
                 {/* Icon */}
-                <motion.div
-                  className="relative"
-                  animate={{ scale: active ? 1.05 : 1 }}
-                  transition={{ duration: 0.2 }}
-                >
+                <div className="relative flex-shrink-0">
                   <Icon
                     className={cn(
                       "h-5 w-5 transition-colors duration-300",
@@ -333,8 +329,20 @@ const MobileBottomNavComponent = () => {
                       />
                     )}
                   </AnimatePresence>
-                </motion.div>
-
+                </div>
+                  {/* Subtle glow behind active icon */}
+                  <AnimatePresence>
+                    {active && (
+                      <motion.div
+                        key="glow"
+                        className="absolute inset-0 blur-lg bg-primary/50 -z-10"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                      />
+                    )}
+                  </AnimatePresence>
                 {/* Label - position changes based on active state */}
                 <span
                   className={cn(
