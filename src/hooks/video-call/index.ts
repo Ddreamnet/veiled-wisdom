@@ -7,3 +7,4 @@ export { useCallNotifications, type NotificationItem } from './useCallNotificati
 export { useMediaControls, type MediaControlsResult } from './useMediaControls';
 export { useCallTimers, type CallTimersResult } from './useCallTimers';
 export { useParticipants, sanitizeParticipants, type ParticipantsResult } from './useParticipants';
+export { useCallTermination } from './useCallTermination';
