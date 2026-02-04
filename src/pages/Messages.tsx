@@ -104,11 +104,8 @@ export default function Messages() {
     <>
       {/* Desktop Layout */}
       <div className="hidden md:block h-[calc(100vh-4rem)]">
-        <div className="container h-full py-4 md:py-6 px-2 sm:px-4">
-          <div className="mb-4">
-            <PageBreadcrumb />
-          </div>
-          <div className="h-[calc(100%-3rem)] bg-card rounded-xl border border-border overflow-hidden shadow-elegant">
+        <div className="container h-full py-2 px-3 lg:px-4">
+          <div className="h-full bg-card rounded-xl border border-border overflow-hidden shadow-elegant">
             <div className="flex h-full">
               {/* Sol Panel - Konuşma Listesi */}
               <div className="w-80 lg:w-96 border-r border-border flex flex-col bg-background/50">
