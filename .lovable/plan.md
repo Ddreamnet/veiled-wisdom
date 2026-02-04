@@ -1,195 +1,243 @@
 
-# Build Hatası Düzeltme ve Capacitor Hazırlık Planı
+# Görüntülü Arama Bağlantı Süresini Kısaltma Planı
 
-## Sorun Analizi
+## Tespit Edilen Sorunlar
 
-### Kök Sebep: Vite/Rollup Modül Çözümleme Davranışı
+### 1. Edge Function Güncellenmemiş (Ana Sorun)
+Network response'da görülen `function_version: "create-daily-room@2026-01-29-REV3"` kod tabanındaki `REV5-FAST-INIT` ile uyuşmuyor. Yeni optimize edilmiş Edge Function **deploy edilmemiş**.
 
-Hata mesajı:
-```
-No matching export in "src/components/Header.tsx" for import "getCenterNavItems"
-No matching export in "src/components/Header.tsx" for import "UserDropdownMenu"
-```
+- Eski fonksiyon hala "verify" adımını çalıştırıyor (`verified: true` görülüyor)
+- Edge Function tek başına ~6 saniye sürüyor
 
-**Sorun:** `Header.tsx` dosyasında şu import var:
+### 2. preAuth 3 Saniye Kaybettiriyor
+Log: `[VideoCall] preAuth skipped: preAuth timeout`
+
+`preAuth` her zaman timeout oluyor ve kod şu anda timeout'u **bekliyor**:
 ```typescript
-import { getCenterNavItems, UserDropdownMenu } from "@/components/header";
+await preAuthPromise;  // 3 saniye kaybediliyor!
 ```
 
-Vite/Rollup, `@/components/header` yolunu çözümlerken **önce dosya, sonra klasör** önceliği uyguluyor:
-1. `src/components/header.tsx` → Bulunamadı
-2. `src/components/Header.tsx` → **BULUNDU** (Windows case-insensitive)
-3. `src/components/header/index.ts` → Hiç denenmedi
+### 3. Çift Edge Function Çağrısı
+Aynı saniye içinde iki `create-daily-room` POST isteği görülüyor. Muhtemelen React StrictMode double-mount veya mutex mantık hatası.
 
-Windows'ta büyük/küçük harf duyarsız olduğu için `header` → `Header.tsx` olarak çözümleniyor ve bu dosyada `getCenterNavItems` veya `UserDropdownMenu` export'u olmadığı için hata veriyor.
+### 4. WebRTC Bağlantı Süresi
+`join()` çağrısı kendi başına 4-6 saniye sürebiliyor (ICE toplama, DTLS handshake).
 
-Linux/Android'de ise farklı davranış gösterebilir.
+## Mevcut Zamanlama Analizi (13 saniye)
+
+```text
+┌──────────────────────────────────────────────────────────────────────────┐
+│                     MEVCUT AKIŞ (13 saniye)                              │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  1. Edge Function (YAYINLANMAMIŞ ESKİ VERSİYON)     ~6 saniye           │
+│     ├─> JWT doğrulama                                                    │
+│     ├─> Supabase conversation fetch                                      │
+│     ├─> Daily API: POST /rooms                                           │
+│     ├─> Daily API: GET /rooms (VERIFY - ESKİ)      +500ms ekstra        │
+│     └─> DB update                                                        │
+│                                                                          │
+│  2. preAuth timeout bekleme                         +3 saniye            │
+│     └─> Her zaman timeout oluyor ama bekleniyor                         │
+│                                                                          │
+│  3. join() WebRTC bağlantısı                        ~4 saniye            │
+│     ├─> ICE candidate toplama                                            │
+│     ├─> DTLS handshake                                                   │
+│     └─> Media negotiation                                                │
+│                                                                          │
+│  TOPLAM                                             ~13 saniye           │
+└──────────────────────────────────────────────────────────────────────────┘
+```
 
 ## Çözüm Planı
 
-### 1. Import Yolunu Açık Hale Getir
+### Faz 1: preAuth Bekleme Mantığını Düzelt (Anında 3 sn kazanç)
 
-`Header.tsx` içindeki import'u klasör index'ine açıkça yönlendir:
+**Sorun**: `await preAuthPromise` satırı, timeout olsa bile 3 saniye bekliyor.
+
+**Çözüm**: preAuth'u tamamen fire-and-forget yap, join() işlemini bloklamamalı.
 
 ```typescript
 // ÖNCEKİ (sorunlu)
-import { getCenterNavItems, UserDropdownMenu } from "@/components/header";
+await preAuthPromise;  // 3 saniye bekliyor
+await call.join(...);
 
-// SONRAKI (düzeltilmiş)
-import { getCenterNavItems, UserDropdownMenu } from "@/components/header/index";
+// SONRAKİ (optimize)
+// preAuth fire-and-forget olarak devam etsin, join'i beklemesin
+call.preAuth({ url: roomUrl }).catch(() => {});
+call.startCamera({ url: roomUrl }).catch(() => {});
+await call.join(...);  // Direkt join
 ```
 
-Bu, Vite'ın `Header.tsx` yerine `header/index.ts`'i kullanmasını garanti eder.
+### Faz 2: Edge Function'ı Publish Et (2-3 sn kazanç)
 
-### 2. Capacitor Yapılandırması
+**Sorun**: Yeni Edge Function kodu canlıda değil.
 
-#### A) `capacitor.config.ts` Oluştur
+**Çözüm**: Edge Function'ın yeniden deploy edilmesi gerekiyor. Ama Lovable bunu otomatik yapmalıydı. Fonksiyonu hafifçe güncelleyerek yeniden deploy tetikleyebiliriz.
+
+### Faz 3: Edge Function Warm-Up Ping'ini Düzelt
+
+**Sorun**: Mevcut OPTIONS ping'i Edge Function'ı gerçekten ısıtmıyor olabilir (CORS preflight Deno'da function kodunu çalıştırmayabilir).
+
+**Çözüm**: Gerçek bir POST isteği at (minimal body ile).
 
 ```typescript
-import type { CapacitorConfig } from '@capacitor/cli';
-
-const config: CapacitorConfig = {
-  appId: 'app.lovable.c391e7536d1545ab929ee1c102409f72',
-  appName: 'veiled-wisdom',
-  webDir: 'dist',
-  server: {
-    // Development için hot-reload (production'da kaldırılmalı)
-    url: 'https://c391e753-6d15-45ab-929e-e1c102409f72.lovableproject.com?forceHideBadge=true',
-    cleartext: true
-  }
-};
-
-export default config;
+// OPTIONS yerine gerçek bir warm-up POST
+fetch(`${supabaseUrl}/functions/v1/create-daily-room`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'apikey': supabaseAnonKey,
+  },
+  body: JSON.stringify({ warmup: true }),
+}).catch(() => {});
 ```
 
-#### B) `vite.config.ts` Güncelle
-
-SPA + Capacitor uyumu için `base: './'` ekle:
-
+Edge Function'da warmup isteğini erken kesebiliriz:
 ```typescript
-export default defineConfig(({ mode }) => ({
-  base: './',  // Capacitor için relative path
-  // ... mevcut config
-}));
-```
-
-#### C) `package.json` Script'leri Ekle
-
-```json
-{
-  "scripts": {
-    "cap:sync": "npx cap sync",
-    "cap:open:android": "npx cap open android",
-    "cap:open:ios": "npx cap open ios",
-    "cap:run:android": "npx cap run android",
-    "cap:run:ios": "npx cap run ios"
-  }
+// create-daily-room/index.ts başında
+if (body?.warmup === true) {
+  return jsonResponse({ warmed: true, function_version: FUNCTION_VERSION });
 }
 ```
 
-### 3. Router Değerlendirmesi
+### Faz 4: Paralel İşlemleri Gerçekten Paralel Yap
 
-Mevcut `react-router-dom` ile `BrowserRouter` kullanılıyor. Capacitor WebView içinde:
-- **Deep link sorunu yok** çünkü SPA tek index.html üzerinden çalışır
-- **Refresh sorunu olabilir** ancak Capacitor WebView varsayılan olarak SPA-friendly çalışır
+**Mevcut Durum**: `createRoom`, `getDisplayName`, `getUser` paralel çalışıyor ✓
 
-Eğer sorun yaşanırsa `HashRouter` alternatifi düşünülebilir, ancak şimdilik gerekli değil.
+**Eksik**: `startCamera` ve `join` sıralı çalışıyor.
 
-## Değiştirilecek Dosyalar
+**Çözüm**: Daily.co'ya göre, `join()` zaten `startCamera()`'yı içeriyor. Ayrıca çağırmaya gerek yok:
 
-| Dosya | Değişiklik |
-|-------|------------|
-| `src/components/Header.tsx` | Import yolunu `/header/index` olarak düzelt |
-| `vite.config.ts` | `base: './'` ekle |
-| `package.json` | Capacitor script'leri ekle |
-| `capacitor.config.ts` | Yeni dosya oluştur |
+```typescript
+// startCamera'yı kaldır, join yeterli
+await call.join({
+  url: roomUrl,
+  userName: displayName,
+  startVideoOff: false,
+  startAudioOff: false,
+});
+```
+
+## Hedef Zamanlama (4-6 saniye)
+
+```text
+┌──────────────────────────────────────────────────────────────────────────┐
+│                    OPTİMİZE AKIŞ (4-6 saniye)                            │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ÖN HAZIRLIK (Mesajlaşma sayfasında):                                   │
+│  ├─> Edge Function warm-up (gerçek POST)                                │
+│  └─> getUserMedia izni (hover'da)                                       │
+│                                                                          │
+│  ARAMA BAŞLATILDIĞINDA:                                                 │
+│                                                                          │
+│  1. Edge Function (YENİ VERSİYON, verify yok)      ~2-3 saniye          │
+│                                                                          │
+│  2. join() (preAuth beklemeden)                     ~2-3 saniye          │
+│     └─> startCamera + WebRTC bağlantısı dahil                           │
+│                                                                          │
+│  TOPLAM                                             ~4-6 saniye          │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+## Yapılacak Değişiklikler
+
+| Dosya | Değişiklik | Beklenen Kazanç |
+|-------|------------|-----------------|
+| `VideoCallPage.tsx` | preAuth await'ini kaldır, fire-and-forget yap | 3 saniye |
+| `VideoCallPage.tsx` | startCamera'yı kaldır (join içinde var) | 0.5 saniye |
+| `useActiveCall.ts` | OPTIONS yerine POST warm-up | 1-2 saniye |
+| `create-daily-room/index.ts` | warmup early-return ekle | Deploy tetikleme |
 
 ## Teknik Detaylar
 
-### Header.tsx Değişikliği (Satır 11)
+### VideoCallPage.tsx Değişiklikleri
+
+Satır 225-253 arası tamamen yeniden yazılacak:
 
 ```typescript
-// Önceki
-import { getCenterNavItems, UserDropdownMenu } from "@/components/header";
+// OPTIMIZATION: preAuth ve startCamera fire-and-forget
+// join() zaten bunları içeriyor, ayrıca beklemeye gerek yok
+devLog('VideoCall', 'Starting parallel preparation (non-blocking)');
 
-// Sonraki
-import { getCenterNavItems, UserDropdownMenu } from "@/components/header/index";
+// Fire-and-forget - join'i bloklama
+call.preAuth({ url: roomUrl }).then(() => {
+  devLog('VideoCall', 'preAuth completed (non-blocking)');
+}).catch(() => {});
+
+// Join timeout'u ayarla
+joinTimeout = window.setTimeout(() => {
+  if (!isMounted) return;
+  setError('Bağlantı zaman aşımına uğradı. Lütfen tekrar deneyin.');
+}, JOIN_TIMEOUT_MS);
+
+// Event listeners
+call.on('joined-meeting', () => {
+  devLog('VideoCall', 'Successfully joined meeting');
+  if (joinTimeout) window.clearTimeout(joinTimeout);
+});
+
+call.on('error', (e) => {
+  console.error('[VideoCall] Daily call error:', e);
+  if (joinTimeout) window.clearTimeout(joinTimeout);
+  if (!isMounted) return;
+  setError('Bağlantı hatası oluştu');
+});
+
+// Direkt join - preAuth'u bekleme
+devLog('VideoCall', 'Attempting to join room (without waiting preAuth)');
+await call.join({
+  url: roomUrl,
+  userName: displayName,
+  userData: user?.id ? { appUserId: user.id } : undefined,
+  startVideoOff: false,
+  startAudioOff: false,
+  sendSettings: {
+    video: { maxQuality: 'high' as const },
+  },
+});
 ```
 
-### vite.config.ts Değişikliği (Satır 7-8)
+### useActiveCall.ts Değişiklikleri
+
+Satır 82-94 arası:
 
 ```typescript
-export default defineConfig(({ mode }) => ({
-  base: './',  // YENİ SATIR
-  server: {
-    // ...
-```
-
-### package.json Scripts Ekleme
-
-```json
-"scripts": {
-  "dev": "vite",
-  "build": "vite build",
-  "build:dev": "vite build --mode development",
-  "lint": "eslint .",
-  "preview": "vite preview",
-  "cap:sync": "npx cap sync",
-  "cap:open:android": "npx cap open android",
-  "cap:open:ios": "npx cap open ios",
-  "cap:run:android": "npx cap run android",
-  "cap:run:ios": "npx cap run ios"
+// OPTIMIZATION: Warm up edge function with a real POST request
+// OPTIONS may not trigger actual function execution in Deno
+if (!edgeFunctionWarmedUp && conversationId) {
+  edgeFunctionWarmedUp = true;
+  
+  supabase.functions.invoke('create-daily-room', {
+    body: { warmup: true },
+  }).catch(() => {
+    // Ignore errors - this is just a warm-up ping
+  });
+  
+  console.log('[useActiveCall] Edge function warm-up POST sent');
 }
 ```
 
-### capacitor.config.ts (Yeni Dosya)
+### create-daily-room/index.ts Değişiklikleri
+
+Satır 177 civarına (body parse'dan sonra):
 
 ```typescript
-import type { CapacitorConfig } from '@capacitor/cli';
-
-const config: CapacitorConfig = {
-  appId: 'app.lovable.c391e7536d1545ab929ee1c102409f72',
-  appName: 'veiled-wisdom',
-  webDir: 'dist',
-  server: {
-    url: 'https://c391e753-6d15-45ab-929e-e1c102409f72.lovableproject.com?forceHideBadge=true',
-    cleartext: true
-  }
-};
-
-export default config;
-```
-
-## Lokal Kurulum Adımları (Senin Yapacakların)
-
-Repo güncellemesini çektikten sonra:
-
-```bash
-# 1. Bağımlılıkları yükle
-npm install
-
-# 2. Build test et
-npm run build
-
-# 3. Capacitor CLI ve Core yükle
-npm install @capacitor/core @capacitor/cli
-
-# 4. Capacitor'ı başlat (config dosyası zaten olacak)
-npx cap init --web-dir dist
-
-# 5. Android platform ekle
-npx cap add android
-
-# 6. Sync et
-npm run cap:sync
-
-# 7. Android Studio'da aç
-npm run cap:open:android
+// OPTIMIZATION: Early return for warm-up requests
+if (body?.warmup === true) {
+  console.log('[create-daily-room] Warm-up request received');
+  return jsonResponse({ 
+    success: true, 
+    warmed: true, 
+    function_version: FUNCTION_VERSION 
+  });
+}
 ```
 
 ## Test Kriterleri
 
-1. `npm run dev` hatasız çalışmalı
-2. `npm run build` başarılı olmalı
-3. `dist/` klasörü oluşmalı ve `index.html` içinde relative path'ler olmalı
-4. Capacitor komutları çalışmalı
+1. preAuth timeout logları görülmemeli (fire-and-forget olduğu için)
+2. Edge Function response'da `REV5-FAST-INIT` veya daha yeni versiyon görülmeli
+3. Toplam bağlantı süresi 4-6 saniyeye düşmeli
+4. Arama başlatma ve katılma fonksiyonları sorunsuz çalışmalı
