@@ -166,8 +166,10 @@ const MobileBottomNavComponent = () => {
 
   const isActive = (href: string) => activeHref === href;
 
+  // Sabit pill genişliği - buton genişliğine güvenmiyoruz
+  const ACTIVE_PILL_WIDTH = 110;
+
   const measurePill = () => {
-    // activeHref yoksa pill'i gizle
     if (!activeHref) {
       setPillPosition(null);
       return;
@@ -180,33 +182,26 @@ const MobileBottomNavComponent = () => {
     const containerRect = containerRef.current.getBoundingClientRect();
     const activeRect = activeElement.getBoundingClientRect();
 
+    // Sabit genişlik kullan ve ortalamak için offset hesapla
+    const centerOffset = (activeRect.width - ACTIVE_PILL_WIDTH) / 2;
+
     setPillPosition({
-      left: activeRect.left - containerRect.left,
-      width: activeRect.width,
+      left: activeRect.left - containerRect.left + centerOffset,
+      width: ACTIVE_PILL_WIDTH,
     });
   };
 
-  // Calculate pill position based on active item.
-  // We measure on the next frames so that:
-  // - the active tab's layout (icon+label vs icon-only) has settled
-  // - route changes that also change header/content height don't cause a "jump from top"
+  // Pill pozisyonunu anında hesapla - sabit genişlik kullandığımız için RAF gecikmesi gerekmiyor
   useLayoutEffect(() => {
-    // activeHref yoksa pill'i gizle ve effect'ten çık
     if (!activeHref) {
       setPillPosition(null);
       return;
     }
 
-    let raf1 = 0;
-    let raf2 = 0;
+    // Anında ölç
+    measurePill();
 
-    raf1 = window.requestAnimationFrame(() => {
-      raf2 = window.requestAnimationFrame(() => {
-        measurePill();
-      });
-    });
-
-    // Also re-measure when fonts finish loading (can affect widths on first open)
+    // Font yüklenmesi tamamlandığında tekrar ölç
     const fontsReady = (document as any).fonts?.ready as Promise<void> | undefined;
     let cancelled = false;
     fontsReady?.then(() => {
@@ -215,8 +210,6 @@ const MobileBottomNavComponent = () => {
 
     return () => {
       cancelled = true;
-      window.cancelAnimationFrame(raf1);
-      window.cancelAnimationFrame(raf2);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeHref, navItems.length]);
@@ -301,15 +294,16 @@ const MobileBottomNavComponent = () => {
                 onMouseUp={() => setPressedItem(null)}
                 onMouseLeave={() => setPressedItem(null)}
                 className={cn(
-                  "relative z-10 flex items-center justify-center transition-all duration-300 ease-out overflow-hidden",
-                  "min-h-[48px] rounded-full",
-                  // Active state: horizontal pill with icon + label side by side
-                  active ? "flex-row px-4 py-2 gap-2" : "flex-col px-3 py-2 min-w-[52px]",
+                  "relative z-10 flex items-center justify-center transition-all duration-200 ease-out overflow-hidden",
+                  "min-h-[44px] rounded-full",
+                  active 
+                    ? "flex-row px-3 py-2 gap-1.5 min-w-[100px] max-w-[120px]" 
+                    : "flex-col px-2 py-2 w-[52px]",
                   isPressed && "scale-95 opacity-80",
                 )}
               >
-                {/* Icon */}
-                <div className="relative flex-shrink-0">
+                {/* Icon - sabit boyut */}
+                <div className="relative flex-shrink-0 flex items-center justify-center w-5 h-5">
                   <Icon
                     className={cn(
                       "h-5 w-5 transition-colors duration-300",
@@ -330,11 +324,13 @@ const MobileBottomNavComponent = () => {
                     )}
                   </AnimatePresence>
                 </div>
-                {/* Label - position changes based on active state */}
+                {/* Label - overflow korumalı */}
                 <span
                   className={cn(
-                    "font-medium whitespace-nowrap transition-all duration-200",
-                    active ? "text-sm text-primary" : "text-[10px] text-silver-muted mt-1",
+                    "font-medium whitespace-nowrap overflow-hidden text-ellipsis transition-all duration-200",
+                    active 
+                      ? "text-xs text-primary max-w-[60px]" 
+                      : "text-[10px] text-silver-muted mt-1",
                   )}
                 >
                   {item.label}
