@@ -28,8 +28,10 @@ export default function SignIn() {
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center p-4 liquid-gradient overflow-hidden">
-      <Card className="w-full max-w-md glass-effect border-silver/20 max-h-[90dvh] overflow-y-auto">
+    <>
+      <div className="fixed inset-0 liquid-gradient -z-10" />
+      <div className="flex items-center justify-center p-4 min-h-full">
+      <Card className="w-full max-w-md glass-effect border-silver/20">
         <CardHeader className="space-y-2 md:space-y-4">
           <div className="flex justify-center">
             <div className="relative">
@@ -78,6 +80,7 @@ export default function SignIn() {
           </div>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </>
   );
 }
