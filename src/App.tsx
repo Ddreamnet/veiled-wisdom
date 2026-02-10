@@ -111,6 +111,7 @@ function AppRoutes() {
         {/* Hide MobileHeader on Messages page - it has its own header */}
         <Routes>
           <Route path="/messages" element={null} />
+          <Route path="/auth/*" element={null} />
           <Route path="*" element={<MobileHeader />} />
         </Routes>
         <main 
@@ -124,7 +125,10 @@ function AppRoutes() {
             </Routes>
           </Suspense>
         </main>
-        <MobileBottomNav />
+        <Routes>
+          <Route path="/auth/*" element={null} />
+          <Route path="*" element={<MobileBottomNav />} />
+        </Routes>
       </div>
     </>
   );
