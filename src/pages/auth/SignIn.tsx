@@ -28,22 +28,22 @@ export default function SignIn() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 liquid-gradient">
-      <Card className="w-full max-w-md glass-effect border-silver/20">
-        <CardHeader className="space-y-4">
+    <div className="fixed inset-0 flex items-center justify-center p-4 liquid-gradient overflow-hidden">
+      <Card className="w-full max-w-md glass-effect border-silver/20 max-h-[90dvh] overflow-y-auto">
+        <CardHeader className="space-y-2 md:space-y-4">
           <div className="flex justify-center">
             <div className="relative">
-              <img src={logo} alt="Leyl" className="h-16 w-16" />
+              <img src={logo} alt="Leyl" className="h-12 w-12 md:h-16 md:w-16" />
               <div className="absolute inset-0 bg-primary/30 blur-xl" />
             </div>
           </div>
-          <CardTitle className="text-3xl font-serif text-center text-gradient-silver uppercase">GİRİŞ YAP</CardTitle>
+          <CardTitle className="text-2xl md:text-3xl font-serif text-center text-gradient-silver uppercase">GİRİŞ YAP</CardTitle>
           <CardDescription className="text-center text-silver-muted">
             Hesabınıza giriş yapın
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3 md:space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email" className="text-silver-muted">E-posta</Label>
               <Input
