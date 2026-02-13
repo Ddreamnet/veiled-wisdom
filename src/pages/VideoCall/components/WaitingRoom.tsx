@@ -3,12 +3,12 @@
 // Displays self-preview while waiting for other participants to join
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import { useRef, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Users, Video, VideoOff, Mic, MicOff, PhoneOff, Clock } from 'lucide-react';
-import { formatTime } from '../utils/helpers';
-import { AnimatedBackground, MediaStatusBadge, WaitingIndicator, ControlButton } from './UIElements';
-import type { WaitingRoomProps } from '../types';
+import { useRef, useEffect } from "react";
+import { motion } from "framer-motion";
+import { Users, Video, VideoOff, Mic, MicOff, PhoneOff, Clock } from "lucide-react";
+import { formatTime } from "../utils/helpers";
+import { AnimatedBackground, MediaStatusBadge, WaitingIndicator, ControlButton } from "./UIElements";
+import type { WaitingRoomProps } from "../types";
 
 export function WaitingRoom({
   localParticipant,
@@ -17,7 +17,7 @@ export function WaitingRoom({
   onToggleCamera,
   onToggleMic,
   onLeave,
-  waitingTime
+  waitingTime,
 }: WaitingRoomProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -47,7 +47,6 @@ export function WaitingRoom({
             <Users className="h-8 w-8 text-primary" />
           </motion.div>
           <h1 className="text-2xl font-bold">Katılımcı Bekleniyor</h1>
-          <p className="text-muted-foreground">Diğer katılımcı henüz görüşmeye katılmadı</p>
         </div>
 
         {/* Self video preview */}
