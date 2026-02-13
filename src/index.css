@@ -73,27 +73,39 @@
 @layer base {
   * {
     @apply border-border;
-    scrollbar-width: thin;
-    scrollbar-color: hsl(var(--scrollbar-thumb)) hsl(var(--scrollbar-track));
   }
-  
-  *::-webkit-scrollbar {
-    width: var(--scrollbar-size);
-    height: var(--scrollbar-size);
+
+  /* Mobil ve tablet: scrollbar gizle, kaydırma devam eder */
+  @media (max-width: 767px) {
+    * {
+      scrollbar-width: none;
+    }
+    *::-webkit-scrollbar {
+      display: none;
+    }
   }
-  
-  *::-webkit-scrollbar-track {
-    background: hsl(var(--scrollbar-track));
-    border-radius: 50px;
-  }
-  
-  *::-webkit-scrollbar-thumb {
-    background: hsl(var(--scrollbar-thumb));
-    border-radius: 50px;
-  }
-  
-  *::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--scrollbar-thumb-hover));
+
+  /* Masaüstü: mevcut scrollbar tasarımı */
+  @media (min-width: 768px) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: hsl(var(--scrollbar-thumb)) hsl(var(--scrollbar-track));
+    }
+    *::-webkit-scrollbar {
+      width: var(--scrollbar-size);
+      height: var(--scrollbar-size);
+    }
+    *::-webkit-scrollbar-track {
+      background: hsl(var(--scrollbar-track));
+      border-radius: 50px;
+    }
+    *::-webkit-scrollbar-thumb {
+      background: hsl(var(--scrollbar-thumb));
+      border-radius: 50px;
+    }
+    *::-webkit-scrollbar-thumb:hover {
+      background: hsl(var(--scrollbar-thumb-hover));
+    }
   }
   
   body {
