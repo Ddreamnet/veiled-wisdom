@@ -216,6 +216,16 @@ export default function VideoCallPage() {
         call.on('joined-meeting', () => {
           devLog('VideoCall', 'Successfully joined meeting');
           if (joinTimeout) window.clearTimeout(joinTimeout);
+          
+          // OPTIMIZATION: Upgrade to high quality after connection stabilizes
+          setTimeout(() => {
+            try {
+              call.updateSendSettings({ video: { maxQuality: 'high' } });
+              devLog('VideoCall', 'Upgraded video quality to high');
+            } catch (e) {
+              // Ignore - call may have ended
+            }
+          }, 3000);
         });
 
         call.on('error', (e) => {
@@ -225,12 +235,13 @@ export default function VideoCallPage() {
           setError('Bağlantı hatası oluştu');
         });
 
+        // OPTIMIZATION: Start with low quality for faster WebRTC negotiation
         const joinOptions: any = {
           url: roomUrl,
           userName: displayName,
           userData: authUser?.id ? { appUserId: authUser.id } : undefined,
           sendSettings: {
-            video: { maxQuality: 'high' as const },
+            video: { maxQuality: 'low' as const },
           },
         };
 

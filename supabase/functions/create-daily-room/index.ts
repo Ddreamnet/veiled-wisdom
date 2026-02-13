@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.80.0";
 
 // Bump this when changing logic so the frontend can detect outdated deployments.
-const FUNCTION_VERSION = "create-daily-room@2026-02-04-REV6-WARMUP-FIX";
+const FUNCTION_VERSION = "create-daily-room@2026-02-13-REV7-PARALLEL-AUTH";
 
 type CallIntent = "start" | "join";
 
@@ -160,7 +160,7 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 2. AUTH - Validate JWT
+    // 2. AUTH + BODY VALIDATION
     // ═══════════════════════════════════════════════════════════════════════
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
@@ -177,7 +177,32 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Validate body fields before parallel fetch
+    const { conversation_id, force_new } = body;
+    const intent: CallIntent = body.intent === "join" ? "join" : "start";
+
+    if (!conversation_id) {
+      return errorResponse(
+        { code: 'MISSING_CONVERSATION_ID', message: 'conversation_id is required', details: { request_id } },
+        400,
+      );
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 3. PARALLEL: Auth validation + Conversation fetch (OPTIMIZATION)
+    // ═══════════════════════════════════════════════════════════════════════
+    const [claimsResult, convResult] = await Promise.all([
+      supabaseAuth.auth.getClaims(token),
+      supabase
+        .from('conversations')
+        .select('*')
+        .eq('id', conversation_id)
+        .maybeSingle(),
+    ]);
+
+    const { data: claimsData, error: claimsError } = claimsResult;
     if (claimsError || !claimsData?.claims?.sub) {
       console.error('[create-daily-room] JWT validation failed:', claimsError);
       return errorResponse(
@@ -188,50 +213,12 @@ serve(async (req) => {
 
     const authedUserId = claimsData.claims.sub as string;
     console.log('[create-daily-room] Authenticated user:', authedUserId);
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // 3. VALIDATE REQUEST BODY (already parsed above)
-    // ═══════════════════════════════════════════════════════════════════════
-    // Body was parsed in step 0, re-check if it's empty (parse failed earlier)
-    if (Object.keys(body).length === 0) {
-      // Try parsing again for non-warmup requests that may have failed silently
-      try {
-        // Request body already consumed, this will fail - but we handle it
-        return errorResponse(
-          { code: 'INVALID_BODY', message: 'Invalid or missing request body', details: { request_id } },
-          400,
-        );
-      } catch {
-        return errorResponse(
-          { code: 'INVALID_BODY', message: 'Invalid request body', details: { request_id } },
-          400,
-        );
-      }
-    }
-
-    const { conversation_id, force_new } = body;
-    // Default intent to "start" for backward compatibility
-    const intent: CallIntent = body.intent === "join" ? "join" : "start";
-
-    if (!conversation_id) {
-      return errorResponse(
-        { code: 'MISSING_CONVERSATION_ID', message: 'conversation_id is required', details: { request_id } },
-        400,
-      );
-    }
-
     console.log('[create-daily-room] Request:', { conversation_id, intent, force_new, user: authedUserId });
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 4. GET CONVERSATION & VALIDATE PARTICIPANT
+    // 4. VALIDATE CONVERSATION & PARTICIPANT
     // ═══════════════════════════════════════════════════════════════════════
-    const { data: conversation, error: convError } = await supabase
-      .from('conversations')
-      .select('*')
-      .eq('id', conversation_id)
-      .maybeSingle();
+    const { data: conversation, error: convError } = convResult;
 
     if (convError || !conversation) {
       console.error('[create-daily-room] Conversation fetch error:', convError);

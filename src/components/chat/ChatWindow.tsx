@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
@@ -42,6 +42,15 @@ export function ChatWindow({ conversation, onBack, onMessagesRead }: ChatWindowP
       console.log('[ChatWindow] Media prefetch skipped:', e);
     }
   }, []);
+
+  // OPTIMIZATION: Preload VideoCall chunk so it's cached when user clicks "Call"
+  useEffect(() => {
+    if (!conversation) return;
+    const timer = setTimeout(() => {
+      import('@/pages/VideoCall/VideoCallPage');
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [conversation?.id]);
 
   // Empty state - no conversation selected
   if (!conversation) {
