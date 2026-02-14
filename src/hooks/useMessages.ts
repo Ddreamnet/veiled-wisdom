@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { RealtimeChannel } from '@supabase/supabase-js';
@@ -20,6 +20,68 @@ export function useMessages(conversationId: string | null) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isActiveRef = useRef(true);
+  const pollIntervalRef = useRef(2000);
+  const isRealtimeConnectedRef = useRef(false);
+
+  const stopPolling = useCallback(() => {
+    if (pollTimerRef.current) {
+      clearTimeout(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+  }, []);
+
+  const startPolling = useCallback((convId: string) => {
+    if (!isActiveRef.current) return;
+    stopPolling();
+
+    const poll = async () => {
+      if (!isActiveRef.current) return;
+
+      // Realtime bağlıysa polling'i durdur
+      if (isRealtimeConnectedRef.current) {
+        pollIntervalRef.current = 2000;
+        return;
+      }
+
+      try {
+        // Son mesajın timestamp'ini al
+        const lastTimestamp = messages.length > 0
+          ? messages[messages.length - 1].created_at
+          : '1970-01-01T00:00:00Z';
+
+        const { data } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('conversation_id', convId)
+          .gt('created_at', lastTimestamp)
+          .order('created_at', { ascending: true });
+
+        if (data && data.length > 0) {
+          setMessages((prev) => {
+            const existingIds = new Set(prev.map((m) => m.id));
+            const newMsgs = data.filter((m: Message) => !existingIds.has(m.id));
+            if (newMsgs.length === 0) return prev;
+            return [...prev, ...newMsgs];
+          });
+          pollIntervalRef.current = 2000; // Yeni mesaj geldi, interval'i sıfırla
+        } else {
+          // Değişiklik yok, backoff uygula
+          pollIntervalRef.current = Math.min(pollIntervalRef.current * 1.5, 30000);
+        }
+      } catch (err) {
+        console.error('Polling failed:', err);
+        pollIntervalRef.current = Math.min(pollIntervalRef.current * 1.5, 30000);
+      }
+
+      if (isActiveRef.current && !isRealtimeConnectedRef.current) {
+        pollTimerRef.current = setTimeout(poll, pollIntervalRef.current);
+      }
+    };
+
+    pollTimerRef.current = setTimeout(poll, pollIntervalRef.current);
+  }, [messages, stopPolling]);
 
   useEffect(() => {
     if (!conversationId || !user) {
@@ -28,58 +90,43 @@ export function useMessages(conversationId: string | null) {
       return;
     }
 
-    fetchMessages();
-    setupRealtimeSubscription();
+    isActiveRef.current = true;
+    isRealtimeConnectedRef.current = false;
+    pollIntervalRef.current = 2000;
 
-    return () => {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
+    // Mesajları çek
+    const doFetch = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const { data, error: fetchError } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('conversation_id', conversationId)
+          .order('created_at', { ascending: true });
+
+        if (fetchError) throw fetchError;
+        setMessages(data || []);
+      } catch (err: any) {
+        console.error('Error fetching messages:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
       }
     };
-  }, [conversationId, user]);
 
-  const fetchMessages = async () => {
-    if (!conversationId) return;
+    doFetch();
 
-    try {
-      setLoading(true);
-      setError(null);
-
-      console.log('Fetching messages for conversation:', conversationId);
-
-      const { data, error: fetchError } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true });
-
-      console.log('Messages fetched:', data?.length || 0, 'Error:', fetchError);
-
-      if (fetchError) throw fetchError;
-
-      setMessages(data || []);
-    } catch (err: any) {
-      console.error('Error fetching messages:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const setupRealtimeSubscription = () => {
-    if (!conversationId) return;
-
-    // Önceki channel'ı temizle
+    // Realtime subscription kur - benzersiz kanal adı ile
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
     }
 
-    console.log('Setting up realtime subscription for conversation:', conversationId);
-
-    // Yeni channel oluştur ve mesaj insert event'lerini dinle
+    const channelName = `messages:${conversationId}:${Date.now()}`;
     const channel = supabase
-      .channel(`messages:${conversationId}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -89,30 +136,66 @@ export function useMessages(conversationId: string | null) {
           filter: `conversation_id=eq.${conversationId}`,
         },
         (payload) => {
-          console.log('Realtime message received:', payload);
           const newMessage = payload.new as Message;
           setMessages((prev) => {
-            // Duplicate kontrolü
-            if (prev.find((m) => m.id === newMessage.id)) {
-              console.log('Duplicate message, skipping:', newMessage.id);
-              return prev;
-            }
-            console.log('Adding new message to list:', newMessage.id);
+            if (prev.find((m) => m.id === newMessage.id)) return prev;
             return [...prev, newMessage];
           });
+          // Realtime çalışıyor, polling'e gerek yok
+          pollIntervalRef.current = 2000;
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        (payload) => {
+          const updated = payload.new as Message;
+          setMessages((prev) =>
+            prev.map((m) => (m.id === updated.id ? updated : m))
+          );
         }
       )
       .subscribe((status) => {
         console.log('Realtime subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          isRealtimeConnectedRef.current = true;
+          stopPolling(); // Realtime bağlandı, polling durdur
+        } else if (status === 'CHANNEL_ERROR' || status === 'CLOSED' || status === 'TIMED_OUT') {
+          isRealtimeConnectedRef.current = false;
+          // Fallback: polling başlat
+          startPolling(conversationId);
+        }
       });
 
     channelRef.current = channel;
-  };
+
+    // Güvenlik: 3 saniye içinde realtime bağlanmazsa polling başlat
+    const fallbackTimer = setTimeout(() => {
+      if (!isRealtimeConnectedRef.current && isActiveRef.current) {
+        console.log('Realtime not connected after 3s, starting polling fallback');
+        startPolling(conversationId);
+      }
+    }, 3000);
+
+    return () => {
+      isActiveRef.current = false;
+      clearTimeout(fallbackTimer);
+      stopPolling();
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+    };
+  }, [conversationId, user]);
 
   const sendMessage = async (body: string, audioUrl?: string): Promise<boolean> => {
     if (!conversationId || !user || (!body.trim() && !audioUrl)) return false;
 
-    // Optimistic update: mesajı hemen ekle
     const optimisticMessage: Message = {
       id: `temp-${Date.now()}`,
       conversation_id: conversationId,
@@ -120,7 +203,7 @@ export function useMessages(conversationId: string | null) {
       body: body.trim(),
       audio_url: audioUrl || null,
       created_at: new Date().toISOString(),
-      read: true, // Kendi mesajımız okunmuş sayılır
+      read: true,
     };
 
     setMessages((prev) => [...prev, optimisticMessage]);
@@ -128,8 +211,6 @@ export function useMessages(conversationId: string | null) {
     try {
       setSending(true);
       setError(null);
-
-      console.log('Sending message:', body.trim());
 
       const { data, error: insertError } = await supabase
         .from('messages')
@@ -144,9 +225,6 @@ export function useMessages(conversationId: string | null) {
 
       if (insertError) throw insertError;
 
-      console.log('Message sent successfully:', data);
-
-      // Gerçek mesajı optimistic message ile değiştir
       setMessages((prev) =>
         prev.map((msg) => (msg.id === optimisticMessage.id ? (data as Message) : msg))
       );
@@ -155,7 +233,6 @@ export function useMessages(conversationId: string | null) {
     } catch (err: any) {
       console.error('Error sending message:', err);
       setError(err.message);
-      // Hata durumunda optimistic message'ı kaldır
       setMessages((prev) => prev.filter((msg) => msg.id !== optimisticMessage.id));
       return false;
     } finally {
@@ -169,6 +246,18 @@ export function useMessages(conversationId: string | null) {
     sending,
     error,
     sendMessage,
-    refetch: fetchMessages,
+    refetch: async () => {
+      if (!conversationId) return;
+      try {
+        const { data } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('conversation_id', conversationId)
+          .order('created_at', { ascending: true });
+        if (data) setMessages(data);
+      } catch (err) {
+        console.error('Error refetching messages:', err);
+      }
+    },
   };
 }
