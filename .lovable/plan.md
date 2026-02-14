@@ -1,63 +1,55 @@
 
-# Tum Ilanlar Sayfasi ve Ana Sayfa Siralama Degisikligi
+# Mesajlasmada Anlik Mesaj Goruntulenme Sorunu - Duzeltme Plani
 
-## Ozet
-1. Tum aktif ilanlari listeleyen yeni bir `/listings` sayfasi olusturulacak
-2. Ana sayfadaki bolum siralama degistirilecek: Kategoriler -> Tum Ilanlar -> Merak Konulari -> Uzmanlarimiz
+## Sorunun Temel Nedeni
 
-## Degisiklikler
+Konsol loglari sorunu acikca gosteriyor:
 
-### 1. Yeni Query Hook: `useAllListings`
-**Dosya:** `src/lib/queries/listingQueries.ts`
-
-Tum aktif ilanlari ceken yeni bir React Query hook'u. Mevcut `useSubCategoryListings` ile ayni veri yapisini kullanacak (profil bilgisi, minimum fiyat dahil).
-
-### 2. Query Export
-**Dosya:** `src/lib/queries/index.ts`
-
-`useAllListings` export'u eklenecek.
-
-### 3. Yeni Sayfa: Tum Ilanlar
-**Dosya:** `src/pages/AllListings.tsx`
-
-- `SubCategoryDetail.tsx` ile ayni kart tasarimi (kapak gorseli, ogretmen avatari/ismi, baslik, aciklama, fiyat)
-- Responsive grid: `grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4`
-- Breadcrumb, baslik ve ilan sayisi
-- Skeleton loading durumu
-- Bos durum mesaji
-
-### 4. Route Tanimi
-**Dosya:** `src/routes/routeConfig.ts`
-
-`/listings` path'i icin public route eklenecek. Lazy load ile `AllListings` sayfasi tanimlanacak.
-
-### 5. Ana Sayfa Siralama Degisikligi
-**Dosya:** `src/pages/Index.tsx`
-
-Mevcut siralama:
-```text
-Hero -> Merak Konulari -> Kategoriler -> Uzmanlarimiz
+```
+Setting up realtime subscription for conversation: 44cbe63a-...
+Setting up realtime subscription for conversation: 44cbe63a-...
+Realtime subscription status: CLOSED
+Realtime subscription status: CHANNEL_ERROR
 ```
 
-Yeni siralama:
-```text
-Hero -> Kategoriler -> Tum Ilanlar (onizleme) -> Merak Konulari -> Uzmanlarimiz
-```
+**Iki sorun var:**
 
-Ana sayfada "Tum Ilanlar" bolumunde ilk 8 ilan gosterilecek ve "Tumunu Gor" butonu `/listings` sayfasina yonlendirecek. Ayni kart tasarimi kullanilacak.
+1. **CHANNEL_ERROR**: Supabase Realtime aboneligi basarisiz oluyor. Bu genellikle `messages` tablosunda Realtime'in etkin olmamasindan veya RLS politikalarinin Realtime erisimini engellemesinden kaynaklanir.
+2. **Cift abone olma**: React Strict Mode (veya useEffect bagimliliklari) nedeniyle subscription iki kez kuruluyor ve ilk temizleme ikincisini etkiliyor.
+3. **Fallback yok**: Realtime basarisiz oldugunda mesajlari almak icin hicbir yedek mekanizma (polling) bulunmuyor.
 
-### 6. Home Query Genisletme
-**Dosya:** `src/lib/queries/homeQueries.ts`
+## Cozum
 
-Ana sayfa icin ilk 8 ilani da cekecek sekilde genisletilecek (profil ve fiyat bilgileriyle birlikte).
+### 1. Realtime Subscription Duzeltmesi + Fallback Polling
+**Dosya:** `src/hooks/useMessages.ts`
+
+- Subscription kurulumunu saglam hale getir (cift abone olmayi onle)
+- Realtime basarisiz oldugunda otomatik polling baslat (2s-30s arasi exponential backoff)
+- Her iki mekanizmada da duplicate mesaj kontrolu yap
+- Baglanti durumunu takip et
+
+Degisiklikler:
+- `setupRealtimeSubscription` fonksiyonunda kanal adina benzersiz timestamp ekle (cakismayi onle)
+- `CHANNEL_ERROR` veya `CLOSED` durumunda otomatik polling baslat
+- Polling: son mesajin `created_at` degerinden sonraki mesajlari cek
+- Basarili Realtime geldiginde polling'i durdur
+- Cleanup'ta hem channel hem polling timer'i temizle
+
+### 2. Supabase Realtime Yapilandirma Kontrolu
+
+Kullaniciya Supabase Dashboard'da su adimin yapildigini dogrulatmak gerekebilir:
+- `messages` tablosunda Realtime'in aktif edilmis olmasi (Database > Replication > `messages` tablosu tikli olmali)
+
+Bu adim kod disinda oldugundan, kullaniciya bilgi verilecek.
 
 ## Teknik Detaylar
 
-| Dosya | Islem |
-|-------|-------|
-| `src/lib/queries/listingQueries.ts` | `useAllListings` hook ekle |
-| `src/lib/queries/index.ts` | Export ekle |
-| `src/pages/AllListings.tsx` | Yeni sayfa olustur |
-| `src/routes/routeConfig.ts` | Route ve lazy import ekle |
-| `src/pages/Index.tsx` | Bolum siralamasini degistir, Tum Ilanlar onizleme bolumu ekle |
-| `src/lib/queries/homeQueries.ts` | Listings preview verisi ekle |
+| Degisiklik | Aciklama |
+|-----------|----------|
+| Benzersiz kanal adi | `messages:${conversationId}:${Date.now()}` ile cakismayi onle |
+| Polling fallback | Realtime basarisiz olunca 2s aralikla yeni mesajlari kontrol et |
+| Exponential backoff | Degisiklik yoksa polling araligini 1.5x artir (maks 30s) |
+| Duplicate kontrolu | Hem Realtime hem polling'den gelen mesajlarda ID bazli kontrol |
+| Temizlik | Unmount'ta channel + polling timer temizlenir |
+
+Sadece `src/hooks/useMessages.ts` dosyasi degisecek.
