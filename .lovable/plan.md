@@ -1,64 +1,63 @@
 
-# Mobil ve Tablette Scrollbar Gizleme
+# Tum Ilanlar Sayfasi ve Ana Sayfa Siralama Degisikligi
 
 ## Ozet
-Mobil ve tablet gorunumlerinde (767px ve alti) scrollbar gorunmeyecek, ancak kaydirma (scroll) islevi devam edecek. Masaustunde mevcut scrollbar tasarimi korunacak.
+1. Tum aktif ilanlari listeleyen yeni bir `/listings` sayfasi olusturulacak
+2. Ana sayfadaki bolum siralama degistirilecek: Kategoriler -> Tum Ilanlar -> Merak Konulari -> Uzmanlarimiz
 
-## Degisiklik
+## Degisiklikler
 
-**Dosya:** `src/index.css` (satir 74-97 arasi)
+### 1. Yeni Query Hook: `useAllListings`
+**Dosya:** `src/lib/queries/listingQueries.ts`
 
-Mevcut scrollbar stillerini bir `@media (min-width: 768px)` media query icine alarak sadece masaustunde gorunmesini saglamak. Mobil/tablet icin `scrollbar-width: none` ve `::-webkit-scrollbar { display: none }` eklemek.
+Tum aktif ilanlari ceken yeni bir React Query hook'u. Mevcut `useSubCategoryListings` ile ayni veri yapisini kullanacak (profil bilgisi, minimum fiyat dahil).
 
-```css
-/* ONCEKI (satir 74-97): tum cihazlarda scrollbar gorunur */
+### 2. Query Export
+**Dosya:** `src/lib/queries/index.ts`
 
-/* SONRAKI: */
-* {
-  @apply border-border;
-}
+`useAllListings` export'u eklenecek.
 
-/* Mobil ve tablet: scrollbar gizle, kaydirma devam eder */
-@media (max-width: 767px) {
-  * {
-    scrollbar-width: none; /* Firefox */
-  }
-  *::-webkit-scrollbar {
-    display: none; /* Chrome, Safari, Edge */
-  }
-}
+### 3. Yeni Sayfa: Tum Ilanlar
+**Dosya:** `src/pages/AllListings.tsx`
 
-/* Masaustu: mevcut scrollbar tasarimi */
-@media (min-width: 768px) {
-  * {
-    scrollbar-width: thin;
-    scrollbar-color: hsl(var(--scrollbar-thumb)) hsl(var(--scrollbar-track));
-  }
-  *::-webkit-scrollbar {
-    width: var(--scrollbar-size);
-    height: var(--scrollbar-size);
-  }
-  *::-webkit-scrollbar-track {
-    background: hsl(var(--scrollbar-track));
-    border-radius: 50px;
-  }
-  *::-webkit-scrollbar-thumb {
-    background: hsl(var(--scrollbar-thumb));
-    border-radius: 50px;
-  }
-  *::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--scrollbar-thumb-hover));
-  }
-}
+- `SubCategoryDetail.tsx` ile ayni kart tasarimi (kapak gorseli, ogretmen avatari/ismi, baslik, aciklama, fiyat)
+- Responsive grid: `grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4`
+- Breadcrumb, baslik ve ilan sayisi
+- Skeleton loading durumu
+- Bos durum mesaji
+
+### 4. Route Tanimi
+**Dosya:** `src/routes/routeConfig.ts`
+
+`/listings` path'i icin public route eklenecek. Lazy load ile `AllListings` sayfasi tanimlanacak.
+
+### 5. Ana Sayfa Siralama Degisikligi
+**Dosya:** `src/pages/Index.tsx`
+
+Mevcut siralama:
+```text
+Hero -> Merak Konulari -> Kategoriler -> Uzmanlarimiz
 ```
 
-## Teknik Detay
+Yeni siralama:
+```text
+Hero -> Kategoriler -> Tum Ilanlar (onizleme) -> Merak Konulari -> Uzmanlarimiz
+```
 
-| Ozellik | Aciklama |
-|---------|----------|
-| `scrollbar-width: none` | Firefox'ta scrollbar'i gizler |
-| `::-webkit-scrollbar { display: none }` | Chrome/Safari/Edge'de scrollbar'i gizler |
-| `overflow` degismez | Kaydirma islevi aynen devam eder |
-| Breakpoint: 768px | Tailwind'in `md` breakpoint'i ile uyumlu |
+Ana sayfada "Tum Ilanlar" bolumunde ilk 8 ilan gosterilecek ve "Tumunu Gor" butonu `/listings` sayfasina yonlendirecek. Ayni kart tasarimi kullanilacak.
 
-Sadece `src/index.css` degisecek.
+### 6. Home Query Genisletme
+**Dosya:** `src/lib/queries/homeQueries.ts`
+
+Ana sayfa icin ilk 8 ilani da cekecek sekilde genisletilecek (profil ve fiyat bilgileriyle birlikte).
+
+## Teknik Detaylar
+
+| Dosya | Islem |
+|-------|-------|
+| `src/lib/queries/listingQueries.ts` | `useAllListings` hook ekle |
+| `src/lib/queries/index.ts` | Export ekle |
+| `src/pages/AllListings.tsx` | Yeni sayfa olustur |
+| `src/routes/routeConfig.ts` | Route ve lazy import ekle |
+| `src/pages/Index.tsx` | Bolum siralamasini degistir, Tum Ilanlar onizleme bolumu ekle |
+| `src/lib/queries/homeQueries.ts` | Listings preview verisi ekle |
