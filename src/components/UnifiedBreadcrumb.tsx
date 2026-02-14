@@ -16,6 +16,7 @@ const routeLabels: Record<string, string> = {
   "/": "Ana Sayfa",
   "/explore": "Kategorileri Keşfet",
   "/experts": "Uzmanlarımız",
+  "/listings": "Tüm İlanlar",
   "/messages": "Mesajlar",
   "/appointments": "Randevularım",
   "/profile": "Profil",

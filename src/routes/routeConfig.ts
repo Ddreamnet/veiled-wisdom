@@ -33,6 +33,7 @@ export const Terms = lazy(() => import('../pages/static/Terms'));
 export const Privacy = lazy(() => import('../pages/static/Privacy'));
 export const FAQ = lazy(() => import('../pages/static/FAQ'));
 export const Experts = lazy(() => import('../pages/Experts'));
+export const AllListings = lazy(() => import('../pages/AllListings'));
 export const Settings = lazy(() => import('../pages/Settings'));
 export const NotFound = lazy(() => import('../pages/NotFound'));
 
@@ -53,6 +54,7 @@ export const publicRoutes: RouteConfig[] = [
   { path: '/categories/:slug', element: CategoryDetail },
   { path: '/categories/:slug/:subslug', element: SubCategoryDetail },
   { path: '/curiosities/:slug', element: CuriosityDetail },
+  { path: '/listings', element: AllListings },
   { path: '/listings/:id', element: ListingDetail },
   { path: '/profile/:id', element: PublicProfile },
   { path: '/about', element: About },

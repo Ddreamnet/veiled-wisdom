@@ -2,7 +2,7 @@
 export { useCategories, useCategoryWithSubcategories } from './categoryQueries';
 
 // Listing queries
-export { useSubCategoryListings, useListing } from './listingQueries';
+export { useSubCategoryListings, useListing, useAllListings } from './listingQueries';
 
 // Profile queries
 export { usePublicProfile, useProfile } from './profileQueries';
