@@ -100,7 +100,7 @@ export default function Index() {
     data,
     isLoading
   } = useHomeData();
-  const { data: previewListings, isLoading: listingsLoading } = useAllListings(8);
+  const { data: previewListings, isLoading: listingsLoading } = useAllListings(4);
   const categories = data?.categories || [];
   const curiosities = data?.curiosities || [];
   const mousePosition = useMousePosition();
