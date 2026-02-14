@@ -76,6 +76,59 @@ export function useSubCategoryListings(slug: string | undefined, subslug: string
   });
 }
 
+export function useAllListings(limit?: number) {
+  return useQuery({
+    queryKey: ['all-listings', limit],
+    queryFn: async () => {
+      let query = supabase
+        .from('listings')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+
+      if (limit) query = query.limit(limit);
+
+      const { data: listingsRows } = await query;
+
+      if (!listingsRows || listingsRows.length === 0) return [];
+
+      const teacherIds = [...new Set(listingsRows.map(l => l.teacher_id).filter(Boolean))] as string[];
+      const listingIds = listingsRows.map(l => l.id);
+
+      const [profilesResult, pricesResult] = await Promise.all([
+        teacherIds.length > 0
+          ? supabase.from('profiles').select('id, username, avatar_url').in('id', teacherIds)
+          : Promise.resolve({ data: [] }),
+        listingIds.length > 0
+          ? supabase.from('listing_prices').select('listing_id, price').in('listing_id', listingIds)
+          : Promise.resolve({ data: [] }),
+      ]);
+
+      const profilesMap: Record<string, { username: string; avatar_url: string | null }> = {};
+      (profilesResult.data || []).forEach(p => {
+        profilesMap[p.id] = { username: p.username, avatar_url: p.avatar_url };
+      });
+
+      const pricesMap: Record<string, number> = {};
+      (pricesResult.data || []).forEach(p => {
+        if (!pricesMap[p.listing_id] || p.price < pricesMap[p.listing_id]) {
+          pricesMap[p.listing_id] = p.price;
+        }
+      });
+
+      return listingsRows.map(l => ({
+        ...l,
+        profiles: {
+          username: profilesMap[l.teacher_id]?.username ?? 'Öğretmen',
+          avatar_url: profilesMap[l.teacher_id]?.avatar_url ?? null,
+        },
+        minPrice: pricesMap[l.id] ?? undefined,
+      }));
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useListing(id: string | undefined) {
   return useQuery({
     queryKey: ['listing', id],

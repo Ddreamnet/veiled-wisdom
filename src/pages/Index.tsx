@@ -3,13 +3,13 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowRight, ArrowLeft, BookOpen, Users, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowRight, ArrowLeft, BookOpen, Users, ChevronLeft, ChevronRight, User } from "lucide-react";
 import useEmblaCarousel from "embla-carousel-react";
 import { useMousePosition } from "@/hooks/useMousePosition";
 import { useScrollPosition } from "@/hooks/useScrollPosition";
 import { useAuth } from "@/contexts/AuthContext";
-import { useHomeData } from "@/lib/queries";
-import { getOptimizedThumbnailUrl, getOptimizedCoverUrl } from "@/lib/imageOptimizer";
+import { useHomeData, useAllListings } from "@/lib/queries";
+import { getOptimizedThumbnailUrl, getOptimizedCoverUrl, getOptimizedAvatarUrl } from "@/lib/imageOptimizer";
 import { ExpertsCarousel } from "@/components/ExpertsCarousel";
 import logoImage from "@/assets/logo.webp";
 import { Category } from "@/lib/supabase";
@@ -100,6 +100,7 @@ export default function Index() {
     data,
     isLoading
   } = useHomeData();
+  const { data: previewListings, isLoading: listingsLoading } = useAllListings(8);
   const categories = data?.categories || [];
   const curiosities = data?.curiosities || [];
   const mousePosition = useMousePosition();
@@ -178,7 +179,96 @@ export default function Index() {
         />
       </section>
 
-      {/* Curiosities Section */}
+      {/* Categories Section */}
+      <CategoriesCarousel categories={categories} isLoading={isLoading} />
+
+      {/* All Listings Preview Section */}
+      <section className="container py-12 md:py-16 lg:py-24 px-4">
+        <div className="text-center mb-8 md:mb-12">
+          <h2 className="text-3xl md:text-4xl font-serif font-bold text-gradient-silver mb-2 uppercase">TÜM İLANLAR</h2>
+          <p className="text-sm md:text-base text-silver-muted">Uzmanlarımızın İlanlarını Keşfedin! 🌼🤍🌕</p>
+        </div>
+
+        {listingsLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+            {[1, 2, 3, 4].map(i => (
+              <Card key={i} className="overflow-hidden">
+                <Skeleton className="h-40 sm:h-44 md:h-48 w-full" />
+                <CardContent className="p-4 sm:p-5 md:p-6">
+                  <Skeleton className="h-5 w-28 mb-2" />
+                  <Skeleton className="h-4 w-20" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : previewListings && previewListings.length > 0 ? (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+              {previewListings.map((listing) => (
+                <Link key={listing.id} to={`/listings/${listing.id}`}>
+                  <Card className="hover:shadow-glow transition-smooth h-full card-hover">
+                    {listing.cover_url ? (
+                      <img
+                        src={getOptimizedThumbnailUrl(listing.cover_url)}
+                        alt={listing.title}
+                        loading="lazy"
+                        decoding="async"
+                        className="w-full h-40 sm:h-44 md:h-48 object-cover rounded-t-lg"
+                      />
+                    ) : (
+                      <div className="w-full h-40 sm:h-44 md:h-48 bg-primary/20 rounded-t-lg" />
+                    )}
+                    <CardContent className="p-4 sm:p-5 md:p-6">
+                      <Link
+                        to={`/profile/${listing.teacher_id}`}
+                        className="flex items-center gap-2 mb-3 hover:opacity-80 transition-smooth w-fit"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {listing.profiles.avatar_url ? (
+                          <img
+                            src={getOptimizedAvatarUrl(listing.profiles.avatar_url)}
+                            alt={listing.profiles.username}
+                            loading="lazy"
+                            decoding="async"
+                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-muted flex items-center justify-center">
+                            <User className="w-4 h-4 text-muted-foreground" />
+                          </div>
+                        )}
+                        <span className="text-xs sm:text-sm text-muted-foreground">
+                          {listing.profiles.username}
+                        </span>
+                      </Link>
+                      <h3 className="font-semibold text-base sm:text-lg mb-2">{listing.title}</h3>
+                      <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                        {listing.description}
+                      </p>
+                      {listing.minPrice && (
+                        <p className="text-sm font-semibold text-primary">
+                          {listing.minPrice} ₺'den başlayan fiyatlarla
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+            <div className="text-center mt-8">
+              <Link to="/listings">
+                <Button variant="outline" size="lg" className="group">
+                  Tümünü Gör
+                  <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </Button>
+              </Link>
+            </div>
+          </>
+        ) : (
+          <p className="text-center text-muted-foreground">Henüz ilan bulunmuyor.</p>
+        )}
+      </section>
+
       {/* Curiosities Section - Merak Konuları */}
       <section 
         id="merak-konulari" 
@@ -226,9 +316,6 @@ export default function Index() {
           </div>
         </div>
       </section>
-
-      {/* Categories Section */}
-      <CategoriesCarousel categories={categories} isLoading={isLoading} />
 
       {/* Experts Carousel Section */}
       <ExpertsCarousel />
