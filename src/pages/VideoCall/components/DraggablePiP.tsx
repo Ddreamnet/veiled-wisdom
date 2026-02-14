@@ -53,7 +53,7 @@ const SAFE_PADDING = {
 const DEFAULT_BOTTOM_OFFSET = 100;
 
 // Drag threshold - movements below this are considered taps
-const DRAG_THRESHOLD = 8; // pixels
+const DRAG_THRESHOLD = 15; // pixels (higher for mobile touch tolerance)
 
 // PiP size configuration
 const PIP_SIZE = {
@@ -307,11 +307,6 @@ export function DraggablePiP({
       dragConstraints={dragConstraints}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
-      onTap={() => {
-        // Framer Motion's onTap fires only when there's no drag
-        // This is a more reliable way to detect taps
-        onClick?.();
-      }}
       animate={controls}
       initial={false}
       className="fixed z-50 cursor-grab active:cursor-grabbing"
