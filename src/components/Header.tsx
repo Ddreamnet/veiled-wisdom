@@ -47,19 +47,15 @@ const HeaderComponent = () => {
 
   return (
     <header
-      className={`sticky top-0 z-50 w-full border-b transition-all duration-300 ease-out hidden md:block ${
+      className={`sticky top-0 z-50 w-full border-b backdrop-blur-lg transition-[background-color,border-color,box-shadow] duration-300 ease-out hidden md:block ${
         isScrolled
-          ? "backdrop-blur-xl bg-background/95 border-silver/20 shadow-lg"
-          : "backdrop-blur-md bg-background/80 border-silver/10 shadow-sm"
+          ? "bg-background/95 border-silver/20 shadow-lg"
+          : "bg-background/80 border-silver/10 shadow-sm"
       }`}
       style={{ transform: "translateZ(0)" }}
     >
       <div className="container mx-auto px-4">
-        <div
-          className={`flex items-center justify-between transition-all duration-300 ease-out ${
-            isScrolled ? "h-14" : "h-16"
-          }`}
-        >
+        <div className="flex items-center justify-between h-16">
           {/* LEFT AREA - Logo */}
           <Link to="/" className="flex items-center gap-3 group shrink-0">
             <div className="relative">
@@ -68,24 +64,17 @@ const HeaderComponent = () => {
                 alt="Leyl"
                 loading="eager"
                 fetchPriority="high"
-                className={`transition-all duration-300 ease-out group-hover:scale-105 ${
-                  isScrolled ? "h-8 w-8" : "h-10 w-10"
-                }`}
-                style={{ transform: "translateZ(0)" }}
+                className="h-9 w-9 group-hover:scale-105 transition-transform duration-200"
               />
               <div className="absolute inset-0 bg-primary/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
             </div>
             <div className="flex flex-col overflow-hidden">
-              <span
-                className={`font-serif font-bold text-gradient-silver transition-all duration-300 ease-out uppercase ${
-                  isScrolled ? "text-xl sm:text-2xl" : "text-2xl sm:text-3xl"
-                }`}
-              >
+              <span className="font-serif font-bold text-gradient-silver uppercase text-xl sm:text-2xl">
                 LEYL
               </span>
               <span
-                className={`text-xs text-silver-muted transition-all duration-300 ease-out hidden sm:block ${
-                  isScrolled ? "opacity-0 max-h-0" : "opacity-100 max-h-4"
+                className={`text-xs text-silver-muted transition-opacity duration-300 hidden sm:block ${
+                  isScrolled ? "opacity-0" : "opacity-100"
                 }`}
               >
                 Gizli İlimler Platformu
