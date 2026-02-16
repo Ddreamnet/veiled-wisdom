@@ -30,8 +30,12 @@ export const ParticleBackground = () => {
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
-    // Initialize particles (reduced for performance)
-    const particleCount = Math.min(30, Math.floor(canvas.width / 40));
+    // Mobile detection — fewer particles on small screens
+    const isMobile = window.innerWidth < 768;
+    const particleCount = isMobile
+      ? Math.min(12, Math.floor(canvas.width / 60))
+      : Math.min(30, Math.floor(canvas.width / 40));
+
     particlesRef.current = Array.from({ length: particleCount }, () => ({
       x: Math.random() * canvas.width,
       y: Math.random() * canvas.height,
@@ -39,11 +43,26 @@ export const ParticleBackground = () => {
       vy: (Math.random() - 0.5) * 0.5,
       size: Math.random() * 3 + 1,
       opacity: Math.random() * 0.5 + 0.2,
-      hue: Math.random() * 60 + 260, // Purple range: 260-320
+      hue: Math.random() * 60 + 260,
     }));
 
-    // Animation loop
+    // Page Visibility API — pause when tab is hidden
+    let isVisible = true;
+    const handleVisibility = () => {
+      isVisible = !document.hidden;
+      if (isVisible && !animationFrameRef.current) {
+        animationFrameRef.current = requestAnimationFrame(animate);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    // Animation loop — no connection lines (O(n) instead of O(n²))
     const animate = () => {
+      if (!isVisible) {
+        animationFrameRef.current = undefined;
+        return;
+      }
+
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       particlesRef.current.forEach((particle, index) => {
@@ -77,26 +96,6 @@ export const ParticleBackground = () => {
         ctx.beginPath();
         ctx.arc(particle.x, particle.y, particle.size * 3, 0, Math.PI * 2);
         ctx.fill();
-
-        // Draw connections
-        particlesRef.current.forEach((otherParticle, otherIndex) => {
-          if (otherIndex <= index) return;
-          
-          const dx = particle.x - otherParticle.x;
-          const dy = particle.y - otherParticle.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-
-          // Reduced connection distance for performance
-          if (distance < 120) {
-            const connectionOpacity = (1 - distance / 120) * 0.15;
-            ctx.strokeStyle = `hsla(270, 80%, 60%, ${connectionOpacity})`;
-            ctx.lineWidth = 0.5;
-            ctx.beginPath();
-            ctx.moveTo(particle.x, particle.y);
-            ctx.lineTo(otherParticle.x, otherParticle.y);
-            ctx.stroke();
-          }
-        });
       });
 
       animationFrameRef.current = requestAnimationFrame(animate);
@@ -106,6 +105,7 @@ export const ParticleBackground = () => {
 
     return () => {
       window.removeEventListener('resize', resizeCanvas);
+      document.removeEventListener('visibilitychange', handleVisibility);
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
@@ -119,7 +119,6 @@ export const ParticleBackground = () => {
       style={{ 
         width: '100%', 
         height: '100%',
-        // Particle'lar %75'ten sonra fade olmaya başlar, %100'de tamamen kaybolur
         WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 75%, rgba(0,0,0,0) 100%)',
         maskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 75%, rgba(0,0,0,0) 100%)',
       }}

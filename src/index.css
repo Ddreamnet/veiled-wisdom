@@ -146,7 +146,7 @@
       hsl(270, 60%, 8%) 100%
     );
     background-size: 400% 400%;
-    animation: liquid-flow 20s ease infinite;
+    animation: liquid-flow 30s ease infinite;
     position: relative;
   }
   
@@ -158,6 +158,23 @@
                 radial-gradient(circle at 80% 50%, hsl(270 80% 60% / 0.1) 0%, transparent 50%);
     animation: glow-pulse 8s ease-in-out infinite;
     pointer-events: none;
+  }
+
+  /* Reduce motion for users who prefer it */
+  @media (prefers-reduced-motion: reduce) {
+    .liquid-gradient {
+      animation: none;
+    }
+    .liquid-gradient::before {
+      animation: none;
+    }
+  }
+
+  /* Mobile: smaller gradient background-size for less GPU work */
+  @media (max-width: 767px) {
+    .liquid-gradient {
+      background-size: 200% 200%;
+    }
   }
   
   /* Glass Morphism Effect */

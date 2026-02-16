@@ -1,20 +1,36 @@
-import { memo } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import logo from "@/assets/logo.webp";
 import { Facebook, Twitter, Instagram } from "lucide-react";
+
 const FooterComponent = () => {
-  return <footer className="relative z-20 w-full border-t border-silver/10 bg-card/50 backdrop-blur-sm mt-auto overflow-hidden">
+  const footerRef = useRef<HTMLElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  // Pause wave animations when footer is off-screen
+  useEffect(() => {
+    const el = footerRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsVisible(entry.isIntersecting),
+      { threshold: 0 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return <footer ref={footerRef} className="relative z-20 w-full border-t border-silver/10 bg-card/50 backdrop-blur-sm mt-auto overflow-hidden">
       {/* Gradient Overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-primary/10 pointer-events-none" />
 
-      {/* Wave Animation Background */}
+      {/* Wave Animation Background — paused when off-screen */}
       <div className="absolute inset-0 opacity-30 pointer-events-none">
         <svg className="absolute bottom-0 w-full h-32" preserveAspectRatio="none" viewBox="0 0 1200 120">
           <path d="M0,0 C150,60 350,0 600,40 C850,80 1050,20 1200,60 L1200,120 L0,120 Z" fill="url(#wave-gradient-1)" style={{
-          animation: "wave 15s ease-in-out infinite"
+          animation: isVisible ? "wave 15s ease-in-out infinite" : "none"
         }} />
           <path d="M0,20 C200,80 400,20 600,60 C800,100 1000,40 1200,80 L1200,120 L0,120 Z" fill="url(#wave-gradient-2)" style={{
-          animation: "wave-reverse 20s ease-in-out infinite"
+          animation: isVisible ? "wave-reverse 20s ease-in-out infinite" : "none"
         }} opacity="0.5" />
           <defs>
             <linearGradient id="wave-gradient-1" x1="0%" y1="0%" x2="100%" y2="0%">

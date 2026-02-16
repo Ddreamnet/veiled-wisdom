@@ -219,14 +219,17 @@ const MobileBottomNavComponent = () => {
     if (!containerRef.current) return;
 
     const container = containerRef.current;
+    let debounceId: ReturnType<typeof setTimeout>;
     const ro = new ResizeObserver(() => {
-      measurePill();
+      clearTimeout(debounceId);
+      debounceId = setTimeout(() => measurePill(), 250);
     });
 
     ro.observe(container);
 
     return () => {
       ro.disconnect();
+      clearTimeout(debounceId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeHref]);
@@ -268,10 +271,9 @@ const MobileBottomNavComponent = () => {
               height: 44,
             }}
             transition={{
-              type: "spring",
-              stiffness: 400,
-              damping: 35,
-              mass: 0.8,
+              type: "tween",
+              duration: 0.2,
+              ease: "easeOut",
             }}
             style={{ marginTop: -22, pointerEvents: "none" }}
           />

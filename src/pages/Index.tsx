@@ -1,12 +1,10 @@
-import { useMemo, lazy, Suspense, useState, useCallback, useEffect } from "react";
+import { useMemo, lazy, Suspense, useCallback, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowRight, ArrowLeft, BookOpen, Users, ChevronLeft, ChevronRight, User } from "lucide-react";
 import useEmblaCarousel from "embla-carousel-react";
-import { useMousePosition } from "@/hooks/useMousePosition";
-import { useScrollPosition } from "@/hooks/useScrollPosition";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHomeData, useAllListings } from "@/lib/queries";
 import { getOptimizedThumbnailUrl, getOptimizedCoverUrl, getOptimizedAvatarUrl } from "@/lib/imageOptimizer";
@@ -178,17 +176,54 @@ export default function Index() {
   const { data: previewListings, isLoading: listingsLoading } = useAllListings(4);
   const categories = data?.categories || [];
   const curiosities = data?.curiosities || [];
-  const mousePosition = useMousePosition();
-  const scrollPosition = useScrollPosition();
   const {
     user
   } = useAuth();
 
-  // Calculate parallax values (memoized for performance)
-  const parallaxY = useMemo(() => scrollPosition * 0.5, [scrollPosition]);
-  const parallaxScale = useMemo(() => 1 + scrollPosition * 0.0002, [scrollPosition]);
-  const decorativeParallax1 = useMemo(() => parallaxY * 0.3, [parallaxY]);
-  const decorativeParallax2 = useMemo(() => parallaxY * 0.5, [parallaxY]);
+  // Refs for direct DOM manipulation (zero re-renders)
+  const glowRef = useRef<HTMLDivElement>(null);
+  const heroContentRef = useRef<HTMLDivElement>(null);
+  const decorative1Ref = useRef<HTMLDivElement>(null);
+  const decorative2Ref = useRef<HTMLDivElement>(null);
+
+  // Mouse-following glow — ref-based, skip on touch devices
+  useEffect(() => {
+    const mql = window.matchMedia('(hover: hover)');
+    if (!mql.matches) return;
+
+    const onMove = (e: MouseEvent) => {
+      if (glowRef.current) {
+        glowRef.current.style.left = `${e.clientX}px`;
+        glowRef.current.style.top = `${e.clientY}px`;
+      }
+    };
+
+    window.addEventListener('mousemove', onMove, { passive: true });
+    return () => window.removeEventListener('mousemove', onMove);
+  }, []);
+
+  // Scroll-based parallax — ref-based, no state
+  useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY;
+      const parallaxY = y * 0.5;
+      const scale = 1 + y * 0.0002;
+
+      if (heroContentRef.current) {
+        heroContentRef.current.style.transform = `translate3d(0, -${parallaxY}px, 0) scale(${scale})`;
+      }
+      if (decorative1Ref.current) {
+        decorative1Ref.current.style.transform = `translate3d(0, ${parallaxY * 0.3}px, 0)`;
+      }
+      if (decorative2Ref.current) {
+        decorative2Ref.current.style.transform = `translate3d(0, ${parallaxY * 0.5}px, 0)`;
+      }
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   return <div className="min-h-screen">
       {/* Hero Section with Liquid Gradient */}
       <section className="relative liquid-gradient py-16 md:py-24 lg:py-32 overflow-hidden">
@@ -197,20 +232,18 @@ export default function Index() {
           <ParticleBackground />
         </Suspense>
 
-        {/* Mouse-following Glow */}
-        <div className="absolute w-96 h-96 rounded-full pointer-events-none" style={{
-        background: `radial-gradient(circle, hsl(280 90% 70% / 0.15) 0%, transparent 70%)`,
-        left: `${mousePosition.x}px`,
-        top: `${mousePosition.y}px`,
-        transform: `translate3d(-50%, -50%, 0)`,
-        filter: "blur(60px)",
-        willChange: "transform"
-      }} />
+        {/* Mouse-following Glow — positioned via ref, hidden on mobile */}
+        <div
+          ref={glowRef}
+          className="absolute w-96 h-96 rounded-full pointer-events-none hidden md:block"
+          style={{
+            background: `radial-gradient(circle, hsl(280 90% 70% / 0.15) 0%, transparent 70%)`,
+            transform: `translate3d(-50%, -50%, 0)`,
+            filter: "blur(60px)",
+          }}
+        />
 
-        <div className="container relative z-10" style={{
-        transform: `translate3d(0, -${parallaxY}px, 0) scale(${parallaxScale})`,
-        willChange: "transform"
-      }}>
+        <div ref={heroContentRef} className="container relative z-10">
           <div className="text-center space-y-6 md:space-y-8 animate-fade-in-up px-4">
             <div className="flex justify-center mb-2 md:mb-4">
               <img src={logoImage} alt="Leyl Logo" className="h-16 md:h-24 lg:h-28 w-auto object-contain" />
@@ -233,18 +266,18 @@ export default function Index() {
 
         {/* Decorative Elements with Parallax */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-20 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl animate-glow-pulse" style={{
-          transform: `translate3d(0, ${decorativeParallax1}px, 0)`,
-          willChange: "transform"
-        }} />
-          <div className="absolute bottom-20 right-10 w-96 h-96 bg-accent/10 rounded-full blur-3xl animate-glow-pulse" style={{
-          animationDelay: "4s",
-          transform: `translate3d(0, ${decorativeParallax2}px, 0)`,
-          willChange: "transform"
-        }} />
+          <div
+            ref={decorative1Ref}
+            className="absolute top-20 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl animate-glow-pulse"
+          />
+          <div
+            ref={decorative2Ref}
+            className="absolute bottom-20 right-10 w-96 h-96 bg-accent/10 rounded-full blur-3xl animate-glow-pulse"
+            style={{ animationDelay: "4s" }}
+          />
         </div>
 
-        {/* Seamless Transition Overlay - Particle'ların üstüne, Hero'nun altında */}
+        {/* Seamless Transition Overlay */}
         <div
           className="pointer-events-none absolute left-0 right-0 bottom-0 z-20 h-48 md:h-56"
           style={{

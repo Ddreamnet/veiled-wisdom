@@ -1,10 +1,10 @@
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/logo.webp";
 import { MessageSquare } from "lucide-react";
-import { useScrollPosition } from "@/hooks/useScrollPosition";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabase";
@@ -12,29 +12,42 @@ import { getCenterNavItems, UserDropdownMenu } from "@/components/header/index";
 
 const HeaderComponent = () => {
   const { user, role, signOut } = useAuth();
-  const scrollPosition = useScrollPosition();
-  const isScrolled = scrollPosition > 20;
   const { unreadCount } = useUnreadCount();
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
-  // Fetch user avatar
+  // Threshold-based scroll detection — only re-renders when crossing the threshold
+  const [isScrolled, setIsScrolled] = useState(() => window.scrollY > 20);
+  const isScrolledRef = useRef(isScrolled);
+
   useEffect(() => {
-    const fetchAvatar = async () => {
-      if (!user) {
-        setAvatarUrl(null);
-        return;
+    const onScroll = () => {
+      const scrolled = window.scrollY > 20;
+      if (scrolled !== isScrolledRef.current) {
+        isScrolledRef.current = scrolled;
+        setIsScrolled(scrolled);
       }
-      const { data } = await supabase.from("profiles").select("avatar_url").eq("id", user.id).maybeSingle();
-      setAvatarUrl(data?.avatar_url || null);
     };
-    fetchAvatar();
-  }, [user]);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // Cached avatar fetch via React Query
+  const { data: avatarUrl } = useQuery({
+    queryKey: ['header-avatar', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data } = await supabase.from("profiles").select("avatar_url").eq("id", user.id).maybeSingle();
+      return data?.avatar_url || null;
+    },
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
 
   const centerNavItems = getCenterNavItems(role);
 
   return (
     <header
-      className={`sticky top-0 z-50 w-full border-b transition-all duration-300 ease-out will-change-transform hidden md:block ${
+      className={`sticky top-0 z-50 w-full border-b transition-all duration-300 ease-out hidden md:block ${
         isScrolled
           ? "backdrop-blur-xl bg-background/95 border-silver/20 shadow-lg"
           : "backdrop-blur-md bg-background/80 border-silver/10 shadow-sm"
@@ -49,7 +62,7 @@ const HeaderComponent = () => {
         >
           {/* LEFT AREA - Logo */}
           <Link to="/" className="flex items-center gap-3 group shrink-0">
-            <div className="relative will-change-transform">
+            <div className="relative">
               <img
                 src={logo}
                 alt="Leyl"
@@ -115,7 +128,7 @@ const HeaderComponent = () => {
                 )}
 
                 {/* Profile Avatar Dropdown */}
-                <UserDropdownMenu avatarUrl={avatarUrl} role={role} onSignOut={signOut} />
+                <UserDropdownMenu avatarUrl={avatarUrl ?? null} role={role} onSignOut={signOut} />
               </>
             ) : (
               /* Non-logged-in users - Visible buttons */
