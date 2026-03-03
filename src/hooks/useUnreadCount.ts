@@ -8,19 +8,18 @@ export function useUnreadCount() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const conversationIdsRef = useRef<string[]>([]);
   const hasFetchedRef = useRef(false);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchUnreadCount = useCallback(async () => {
     if (!user) return;
 
     try {
-      // Only show loading on first fetch
       if (!hasFetchedRef.current) {
         setLoading(true);
       }
 
-      // Kullanıcının dahil olduğu tüm konuşmaları bul
+      // Get all conversation IDs for the user
       const { data: participantData, error: participantError } = await supabase
         .from('conversation_participants')
         .select('conversation_id')
@@ -29,14 +28,13 @@ export function useUnreadCount() {
       if (participantError) throw participantError;
 
       const conversationIds = participantData?.map((p) => p.conversation_id) || [];
-      conversationIdsRef.current = conversationIds;
 
       if (conversationIds.length === 0) {
         setUnreadCount(0);
         return;
       }
 
-      // Bu konuşmalardaki okunmamış mesajları say
+      // Count unread messages from others
       const { count, error: countError } = await supabase
         .from('messages')
         .select('*', { count: 'exact', head: true })
@@ -55,6 +53,16 @@ export function useUnreadCount() {
     }
   }, [user]);
 
+  // Debounced fetch to batch rapid updates (e.g. marking multiple messages read at once)
+  const debouncedFetch = useCallback(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = setTimeout(() => {
+      fetchUnreadCount();
+    }, 300);
+  }, [fetchUnreadCount]);
+
   useEffect(() => {
     if (!user) {
       setUnreadCount(0);
@@ -70,12 +78,50 @@ export function useUnreadCount() {
 
     // Setup realtime after initial fetch
     const setupRealtimeTimeout = setTimeout(() => {
-      setupRealtimeSubscription();
+      if (channelRef.current) return;
+
+      channelRef.current = supabase
+        .channel('unread-messages')
+        // New message from someone else → increment locally for instant feedback
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'messages' },
+          (payload) => {
+            const msg = payload.new as any;
+            if (msg.sender_id !== user.id) {
+              // Increment optimistically, then verify with debounced fetch
+              setUnreadCount((prev) => prev + 1);
+            }
+          }
+        )
+        // Message marked as read → refetch true count (avoids old payload issues)
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'messages' },
+          (payload) => {
+            const updated = payload.new as any;
+            if (updated.read === true && updated.sender_id !== user.id) {
+              debouncedFetch();
+            }
+          }
+        )
+        // New conversation participant → refetch to include new conversations
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'conversation_participants' },
+          (payload) => {
+            const participant = payload.new as any;
+            if (participant.user_id === user.id) {
+              debouncedFetch();
+            }
+          }
+        )
+        .subscribe();
     }, 1000);
 
     // Listen for custom unread count change events
     const handleUnreadCountChange = () => {
-      fetchUnreadCount();
+      debouncedFetch();
     };
 
     window.addEventListener('unread-count-changed', handleUnreadCountChange);
@@ -83,61 +129,16 @@ export function useUnreadCount() {
     return () => {
       clearTimeout(initialFetchTimeout);
       clearTimeout(setupRealtimeTimeout);
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
       window.removeEventListener('unread-count-changed', handleUnreadCountChange);
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
     };
-  }, [user, fetchUnreadCount]);
-
-  const setupRealtimeSubscription = () => {
-    if (!user || channelRef.current) return;
-
-    // Create channel for realtime updates
-    channelRef.current = supabase
-      .channel('unread-messages')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-        },
-        (payload) => {
-          const newMessage = payload.new as any;
-          // Sadece başkalarından gelen mesajları say
-          if (
-            newMessage.sender_id !== user.id &&
-            conversationIdsRef.current.includes(newMessage.conversation_id)
-          ) {
-            setUnreadCount((prev) => prev + 1);
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'messages',
-        },
-        (payload) => {
-          const updatedMessage = payload.new as any;
-          const oldMessage = payload.old as any;
-          // Mesaj okundu olarak işaretlendiyse ve bizim mesajımız değilse
-          if (
-            updatedMessage.sender_id !== user.id &&
-            conversationIdsRef.current.includes(updatedMessage.conversation_id) &&
-            oldMessage.read === false &&
-            updatedMessage.read === true
-          ) {
-            setUnreadCount((prev) => Math.max(0, prev - 1));
-          }
-        }
-      )
-      .subscribe();
-  };
+  }, [user, fetchUnreadCount, debouncedFetch]);
 
   return { unreadCount, loading, refetch: fetchUnreadCount };
 }
