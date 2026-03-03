@@ -99,22 +99,20 @@ const HeaderComponent = () => {
           <div className="hidden md:flex items-center gap-3 shrink-0">
             {user ? (
               <>
-                {/* Messages Icon - Only for non-admin users */}
-                {role !== "admin" && (
-                  <Link to="/messages">
-                    <Button variant="ghost" size="icon" className="relative transition-all duration-200 ease-out">
-                      <MessageSquare className="h-5 w-5" />
-                      {unreadCount > 0 && (
-                        <Badge
-                          variant="destructive"
-                          className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-0 px-1 text-xs"
-                        >
-                          {unreadCount > 99 ? "99+" : unreadCount}
-                        </Badge>
-                      )}
-                    </Button>
-                  </Link>
-                )}
+                {/* Messages Icon */}
+                <Link to="/messages">
+                  <Button variant="ghost" size="icon" className="relative transition-all duration-200 ease-out">
+                    <MessageSquare className="h-5 w-5" />
+                    {unreadCount > 0 && (
+                      <Badge
+                        variant="destructive"
+                        className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-0 px-1 text-xs"
+                      >
+                        {unreadCount > 99 ? "99+" : unreadCount}
+                      </Badge>
+                    )}
+                  </Button>
+                </Link>
 
                 {/* Profile Avatar Dropdown */}
                 <UserDropdownMenu avatarUrl={avatarUrl ?? null} role={role} onSignOut={signOut} />
