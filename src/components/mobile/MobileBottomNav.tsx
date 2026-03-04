@@ -1,6 +1,6 @@
 import { memo, useState, useRef, useEffect, useLayoutEffect, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useAtomValue } from "jotai";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
@@ -308,23 +308,10 @@ const MobileBottomNavComponent = () => {
                 <div className="relative flex-shrink-0 flex items-center justify-center w-5 h-5">
                   <Icon
                     className={cn(
-                      "h-5 w-5 transition-colors duration-300",
+                      "h-5 w-5 transition-colors duration-200",
                       active ? "text-primary" : "text-silver-muted",
                     )}
                   />
-                  {/* Subtle glow behind active icon */}
-                  <AnimatePresence>
-                    {active && (
-                      <motion.div
-                        key="glow"
-                        className="absolute inset-0 blur-lg bg-primary/50 -z-10"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                      />
-                    )}
-                  </AnimatePresence>
                 </div>
                 {/* Label - overflow korumalı */}
                 <span
