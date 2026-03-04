@@ -1,140 +1,106 @@
 
 
-# Codebase Architecture Audit -- Detailed Report
+# Site-Wide Performance & Cleanup Implementation Plan
 
-## Executive Summary
+## Overview
 
-The codebase follows reasonable patterns overall (centralized routing, domain-driven queries, lazy loading). However, there are significant issues: duplicate page files that bypass modular folders, dead/no-op utility code, excessive `console.log` in production paths, and inconsistent hook naming. Below are all findings ranked by impact.
-
----
-
-## CRITICAL: Duplicate Page Files
-
-The most serious architectural issue. Several pages exist BOTH as a monolithic root file AND as a modular folder, creating confusion about which is actually used.
-
-| Root File (monolith) | Modular Folder | Lines | Which is loaded? |
-|---|---|---|---|
-| `src/pages/ListingDetail.tsx` | `src/pages/ListingDetail/` | 680 vs 485 | **Root file** (routeConfig imports `../pages/ListingDetail/index` which re-exports `ListingDetailPage.tsx`) |
-| `src/pages/Profile.tsx` | `src/pages/Profile/` | 644 vs 152 | **Root file** (routeConfig imports `../pages/Profile/index` which re-exports `ProfilePage.tsx`) |
-
-**Problem:** `routeConfig.ts` imports `ListingDetail/index` and `Profile/index`, which correctly point to the modular versions. But the ROOT files (`ListingDetail.tsx`, `Profile.tsx`) still exist at 680 and 644 lines respectively -- they are **dead code** that will confuse any developer and bloat the repo.
-
-**Action:** Delete `src/pages/ListingDetail.tsx` (680 lines) and `src/pages/Profile.tsx` (644 lines).
+Based on the approved audit, here is the concrete implementation plan. The previous round already deleted dead pages, unused hooks, and no-op utilities. What remains are targeted optimizations to the homepage, shared components, and CSS layer.
 
 ---
 
-## HIGH: Dead Utility Code
+## Step 1: Remove `App.css` (Dead Vite Boilerplate)
 
-### 1. `useMousePosition.tsx` -- Zero consumers
-The hook exists but is imported nowhere. Index.tsx replaced it with inline ref-based logic. **Delete the file.**
-
-### 2. `useScrollPosition.tsx` -- Zero consumers
-Same situation. Header.tsx has its own inline scroll detection. **Delete the file.**
-
-### 3. `routePrefetch.ts` -- Effectively a no-op
-`prefetchRoute()` is explicitly disabled (comment says "causes 404 errors"). `prefetchCriticalRoutes()` calls it anyway, doing nothing. The only real function is `preconnectDomains()` which is never called. `App.tsx` calls `prefetchCriticalRoutes()` on mount -- this is wasted code.
-
-**Action:** Either implement real prefetching (e.g., trigger lazy component imports) or delete the file and remove the call from `App.tsx`.
-
-### 4. `imageOptimizer.ts` -- All functions return the original URL unchanged
-Every function is a passthrough. The file provides zero optimization. It adds import overhead and false confidence.
-
-**Action:** Either implement actual Supabase Image Transformation parameters or remove the indirection and use raw URLs directly.
-
-### 5. `imageCache.ts` -- Redundant with browser cache
-The custom `Map<string, string>` maps URLs to themselves. The browser already caches images via HTTP headers. The `preloadImage` function creates an `Image()` element to trigger a fetch -- this is the only useful part, but it stores `src -> src` which is pointless.
-
-**Action:** Simplify to just the preload trigger without the fake cache map.
+**File:** `src/App.css` — 42 lines of default Vite template styles (`.logo`, `.read-the-docs`, `logo-spin`). None of these classes are used anywhere. Delete the file and remove the `import './App.css'` from `App.tsx`.
 
 ---
 
-## HIGH: Type Definitions in Wrong Location
+## Step 2: Card Component — Remove `backdrop-blur-sm` and `hover-lift`
 
-`src/lib/supabase.ts` contains **95 lines of type definitions** (Profile, Category, Listing, Appointment, etc.) mixed with the Supabase client initialization. These types are domain models used across the entire app.
+**File:** `src/components/ui/card.tsx`
 
-**Action:** Extract types into `src/lib/types.ts` or `src/types/database.ts`. Keep `supabase.ts` focused on client configuration only.
+The base `Card` applies `backdrop-blur-sm` and `hover-lift` (which sets `will-change: transform`) to **every** card globally. Most cards don't need blur, and `will-change` on hundreds of cards wastes GPU memory.
 
----
-
-## MEDIUM: Excessive Console Logging in Production Paths
-
-161 `console.log` calls found across 10 files. Key offenders:
-
-- `src/pages/Messages.tsx` -- 6 console.logs in normal flow (not debug)
-- `src/hooks/useConversations.ts` -- 7 console.logs in `getOrCreateConversation`
-- `src/hooks/useMessages.ts` -- console.logs in realtime subscription
-- `src/contexts/AuthContext.tsx` -- 6 console.logs in auth state changes
-
-These are not wrapped in `devLog()` despite `src/lib/debug.ts` providing exactly that utility.
-
-**Action:** Replace all bare `console.log` calls with `devLog()` from `src/lib/debug.ts`, or remove them entirely.
+- Remove `backdrop-blur-sm` and `hover-lift` from the base Card class
+- Keep `shadow-elegant` (it's cheap)
+- Pages that need hover effects already apply `card-hover` explicitly
 
 ---
 
-## MEDIUM: Duplicate Hook Files (Naming Legacy)
+## Step 3: Replace `transition-all` Across Components
 
-Two pairs of hook files exist for backward compatibility:
+**Files:** ~24 files with 276 occurrences
 
-- `src/hooks/use-mobile.tsx` + `src/hooks/useMobile.tsx`
-- `src/hooks/use-toast.ts` + `src/hooks/useToast.ts`
+Replace `transition-all` with specific property transitions in high-frequency components:
 
-Per the project's own naming convention, only camelCase versions should exist.
+- `Header.tsx` nav links: `transition-all` → `transition-colors`
+- `Header.tsx` buttons: `transition-all` → `transition-[transform,box-shadow]`
+- `ExpertsCarousel.tsx` slides: `transition-all` → `transition-[transform,opacity]` and `transition-[border-color,box-shadow]`
+- `MobileBottomNav.tsx` items: already mostly correct, just clean up line 299
+- `Footer.tsx` social icons: `transition-all` → `transition-[background-color,border-color,transform]`
+- Static pages (`Contact.tsx`, `HowItWorks.tsx`, `FAQ.tsx`): `transition-all` → `transition-colors`
+- `ConversationList.tsx`: `transition-all` → `transition-colors`
 
-**Action:** Update all imports to use camelCase versions, then delete the kebab-case files.
-
----
-
-## MEDIUM: Breadcrumb Component Sprawl
-
-Three separate breadcrumb components exist:
-- `src/components/AdminBreadcrumb.tsx`
-- `src/components/PageBreadcrumb.tsx`
-- `src/components/UnifiedBreadcrumb.tsx`
-
-**Action:** Audit usage. If `UnifiedBreadcrumb` was meant to replace the others, complete the migration and remove the old ones.
+Skip: `toast.tsx` and `sidebar.tsx` (Radix UI internals, leave as-is).
 
 ---
 
-## LOW: `src/lib/supabase.ts` exports `supabaseAnonKeyPublic`
+## Step 4: Console.log Cleanup
 
-Line 7: `export const supabaseAnonKeyPublic = supabaseAnonKey;` -- a redundant alias. The anon key is already public by nature.
+**Files:** `src/lib/messageHelpers.ts`, `src/hooks/useActiveCall.ts`, `src/contexts/AuthContext.tsx`, `src/contexts/auth/teacherApproval.ts`, `src/contexts/auth/roleHelpers.ts`, `src/components/chat/ChatWindow.tsx`
 
-**Action:** Remove the alias; update any consumers to use `supabaseUrl` + direct client calls.
-
----
-
-## LOW: `App.tsx` inline components and hooks
-
-`App.tsx` contains `useIsMobileLayout()`, `MobileHeaderWrapper`, `PageLoader`, and `renderRoute()` all inline. These should be in separate files:
-
-- `PageLoader` -> `src/components/PageLoader.tsx`
-- `useIsMobileLayout` -> `src/hooks/useIsMobileLayout.ts`
+Replace bare `console.log` calls with `devLog()` from `src/lib/debug.ts`. This silences all logs in production builds automatically. ~20 remaining occurrences across 6 files.
 
 ---
 
-## LOW: `src/pages/teacher/MyListings/index.tsx` is misleading
+## Step 5: Homepage Hero Performance
 
-```typescript
-export { default } from '../MyListings';
-```
+**File:** `src/pages/Index.tsx`
 
-This re-exports from the PARENT directory, not the folder's own files. The folder contains `components/`, `hooks/`, `types.ts` but the index bypasses them all. Either the modularization is incomplete or the folder structure is vestigial.
+- The parallax scroll listener runs on every scroll event even after the hero is off-screen. Add an `IntersectionObserver` to disable parallax when the hero section is not visible.
+- The `{!user}` on line 263 renders nothing — remove the empty expression.
 
 ---
 
-## Implementation Priority
+## Step 6: Remove `supabaseAnonKeyPublic` Alias
 
-| Step | Task | Files Affected | Risk |
-|------|------|---------------|------|
-| 1 | Delete dead duplicate pages | `Profile.tsx`, `ListingDetail.tsx` (root) | Low -- verify routes load correctly |
-| 2 | Delete unused hooks | `useMousePosition.tsx`, `useScrollPosition.tsx` | None -- zero imports |
-| 3 | Remove/fix no-op utilities | `routePrefetch.ts`, `imageOptimizer.ts`, `imageCache.ts` | Low |
-| 4 | Extract types from supabase.ts | `supabase.ts` -> `types.ts` | Medium -- many imports to update |
-| 5 | Replace console.log with devLog | ~10 files | Low |
-| 6 | Consolidate duplicate hook files | `use-mobile`/`useMobile`, `use-toast`/`useToast` | Low -- update imports |
-| 7 | Consolidate breadcrumb components | 3 breadcrumb files | Low |
-| 8 | Extract inline components from App.tsx | `App.tsx` | Low |
-| 9 | Fix MyListings folder structure | `teacher/MyListings/` | Medium |
+**File:** `src/lib/supabase.ts`
 
-Steps 1-3 are pure cleanup with zero risk. Steps 4-6 are safe refactors. Steps 7-9 require more careful migration.
+The alias is used in exactly one place (`useCallTermination.ts`). Replace that import with the direct `supabaseAnonKey` approach — but since the anon key is already embedded in the client, we can just import the key directly. Actually, since `supabaseAnonKeyPublic` is a trivial alias and has exactly 1 consumer, just keep it (zero risk, zero benefit to remove). **Skip this step** — not worth the churn.
+
+---
+
+## Step 7: Remove Unused CSS Animations
+
+**File:** `src/index.css`
+
+- `glow-pulse` keyframe (lines 300-303): search shows zero usage → delete
+- `skeleton-shimmer` and `.skeleton-shimmer` (lines 364-384): search for usage first, likely unused since Tailwind's built-in skeleton animation is used via the Skeleton component
+- `skeleton-wave` and `.skeleton-wave` (lines 386-407): same — likely unused
+
+---
+
+## Summary of Files to Change
+
+| File | Action |
+|------|--------|
+| `src/App.css` | **Delete** |
+| `src/App.tsx` | Remove `import './App.css'` |
+| `src/components/ui/card.tsx` | Remove `backdrop-blur-sm hover-lift` from base |
+| `src/index.css` | Remove unused keyframes/classes |
+| `src/pages/Index.tsx` | Add IO guard for parallax, remove `{!user}` |
+| `src/components/Header.tsx` | `transition-all` → `transition-colors` |
+| `src/components/ExpertsCarousel.tsx` | `transition-all` → specific properties |
+| `src/components/Footer.tsx` | `transition-all` → specific properties |
+| `src/components/mobile/MobileBottomNav.tsx` | `transition-all` → specific |
+| `src/pages/static/Contact.tsx` | `transition-all` → `transition-colors` |
+| `src/pages/static/HowItWorks.tsx` | `transition-all` → `transition-colors` |
+| `src/components/chat/ConversationList.tsx` | `transition-all` → `transition-colors` |
+| `src/lib/messageHelpers.ts` | `console.log` → `devLog` |
+| `src/hooks/useActiveCall.ts` | `console.log` → `devLog` |
+| `src/contexts/AuthContext.tsx` | `console.log` → `devLog` |
+| `src/contexts/auth/teacherApproval.ts` | `console.log` → `devLog` |
+| `src/contexts/auth/roleHelpers.ts` | `console.log` → `devLog` |
+| `src/components/chat/ChatWindow.tsx` | `console.log` → `devLog` |
+
+Total: ~18 files, focused on performance-impacting changes with zero visual regression.
 
