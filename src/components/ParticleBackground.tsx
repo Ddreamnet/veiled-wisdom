@@ -99,15 +99,13 @@ export const ParticleBackground = () => {
 
         const opacity = p.baseOpacity + Math.sin(time + i) * 0.15;
 
-        // Simple filled circle — much cheaper than radialGradient per particle
-        ctx.globalAlpha = opacity;
-        ctx.fillStyle = `hsl(${p.hue}, 80%, 65%)`;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size * 2, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Soft outer glow as a second larger circle
-        ctx.globalAlpha = opacity * 0.3;
+        // Smooth radial gradient — no sharp edge between core and glow
+        const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 5);
+        grad.addColorStop(0, `hsla(${p.hue}, 80%, 65%, ${opacity})`);
+        grad.addColorStop(0.3, `hsla(${p.hue}, 80%, 65%, ${opacity * 0.6})`);
+        grad.addColorStop(1, `hsla(${p.hue}, 80%, 65%, 0)`);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = grad;
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size * 5, 0, Math.PI * 2);
         ctx.fill();
