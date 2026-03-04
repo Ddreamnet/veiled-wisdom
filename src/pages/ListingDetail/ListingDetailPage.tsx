@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useListing } from "@/lib/queries";
-import { getOptimizedCoverUrl } from "@/lib/imageOptimizer";
+
 import { TeacherInfoCard, ReviewsSection, ListingDescriptionCard } from "./components";
 
 export default function ListingDetailPage() {
@@ -218,7 +218,7 @@ export default function ListingDetailPage() {
               <div className="relative group overflow-hidden rounded-xl shadow-lg">
                 <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/20 to-transparent z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 <img
-                  src={getOptimizedCoverUrl(listing.cover_url)}
+                  src={listing.cover_url}
                   alt={listing.title}
                   loading="lazy"
                   decoding="async"

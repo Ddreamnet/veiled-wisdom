@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import ScrollToTop from './components/ScrollToTop';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -8,23 +8,12 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { MobileHeader, MobileBottomNav } from './components/mobile';
-import { Skeleton } from './components/ui/skeleton';
-import { prefetchCriticalRoutes } from './lib/routePrefetch';
+import { PageLoader } from './components/PageLoader';
 import { usePresence } from './hooks/usePresence';
+import { useIsMobileLayout } from './hooks/useIsMobileLayout';
 import { ProtectedRoute, allRoutes, RouteConfig } from './routes';
 import './App.css';
-
-// Loading component
-const PageLoader = () => (
-  <div className="min-h-screen flex items-center justify-center">
-    <div className="space-y-4 w-full max-w-md px-4">
-      <Skeleton className="h-12 w-full" />
-      <Skeleton className="h-64 w-full" />
-      <Skeleton className="h-8 w-3/4" />
-      <Skeleton className="h-8 w-1/2" />
-    </div>
-  </div>
-);
+import { useRef } from 'react';
 
 // Optimized QueryClient with aggressive caching
 const queryClient = new QueryClient({
@@ -65,22 +54,6 @@ function renderRoute(route: RouteConfig, user: any) {
 }
 
 import { NotFound } from './routes/routeConfig';
-
-// JS-based mobile detection — accurate on first render, no flash
-function useIsMobileLayout() {
-  const [isMobile, setIsMobile] = useState(
-    () => window.matchMedia('(max-width: 767px)').matches
-  );
-
-  useEffect(() => {
-    const mql = window.matchMedia('(max-width: 767px)');
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mql.addEventListener('change', handler);
-    return () => mql.removeEventListener('change', handler);
-  }, []);
-
-  return isMobile;
-}
 
 // Conditional MobileHeader — hidden on /messages
 function MobileHeaderWrapper() {
@@ -142,10 +115,6 @@ function AppRoutes() {
 }
 
 function App() {
-  useEffect(() => {
-    prefetchCriticalRoutes();
-  }, []);
-
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

@@ -2,9 +2,8 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { User } from 'lucide-react';
-import { PageBreadcrumb } from '@/components/PageBreadcrumb';
+import { UnifiedBreadcrumb as PageBreadcrumb } from '@/components/UnifiedBreadcrumb';
 import { useAllListings } from '@/lib/queries';
-import { getOptimizedThumbnailUrl, getOptimizedAvatarUrl } from '@/lib/imageOptimizer';
 
 export default function AllListings() {
   const { data: listings, isLoading } = useAllListings();
@@ -57,7 +56,7 @@ export default function AllListings() {
               <Card className="hover:shadow-glow transition-smooth h-full">
                 {listing.cover_url ? (
                   <img
-                    src={getOptimizedThumbnailUrl(listing.cover_url)}
+                    src={listing.cover_url}
                     alt={listing.title}
                     loading="lazy"
                     decoding="async"
@@ -74,7 +73,7 @@ export default function AllListings() {
                   >
                     {listing.profiles.avatar_url ? (
                       <img
-                        src={getOptimizedAvatarUrl(listing.profiles.avatar_url)}
+                        src={listing.profiles.avatar_url}
                         alt={listing.profiles.username}
                         loading="lazy"
                         decoding="async"

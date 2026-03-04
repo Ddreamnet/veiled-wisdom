@@ -1,5 +1,5 @@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { PageBreadcrumb } from "@/components/PageBreadcrumb";
+import { UnifiedBreadcrumb as PageBreadcrumb } from "@/components/UnifiedBreadcrumb";
 import { useStaticPage } from "@/hooks/useStaticPages";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";

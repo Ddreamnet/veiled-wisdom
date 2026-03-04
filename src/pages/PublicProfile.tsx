@@ -7,9 +7,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { User, Star, MessageCircle, Briefcase, Calendar, GraduationCap, Award, Clock, ArrowRight, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import { PageBreadcrumb } from "@/components/PageBreadcrumb";
+import { UnifiedBreadcrumb as PageBreadcrumb } from "@/components/UnifiedBreadcrumb";
 import { usePublicProfile } from "@/lib/queries";
-import { getOptimizedThumbnailUrl, getOptimizedAvatarUrl } from "@/lib/imageOptimizer";
 
 // Listing Card Component for expert profiles
 function ListingCard({
@@ -23,7 +22,7 @@ function ListingCard({
   return <div onClick={onClick} className="group relative rounded-2xl border border-primary/10 bg-gradient-to-br from-card via-card to-primary/5 overflow-hidden cursor-pointer transition-all duration-500 hover:border-primary/30 hover:shadow-glow hover:-translate-y-1">
       {/* Cover Image */}
       {listing.cover_url ? <div className="relative h-44 sm:h-52 overflow-hidden">
-          <img src={getOptimizedThumbnailUrl(listing.cover_url)} alt={listing.title} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+          <img src={listing.cover_url} alt={listing.title} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
           <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
           
           {/* Category Badge */}
@@ -156,7 +155,7 @@ export default function PublicProfile() {
                 <div className="absolute -inset-3 bg-gradient-to-b from-primary/50 via-primary/20 to-transparent rounded-full blur-xl opacity-60" />
                 <div className="absolute -inset-1.5 bg-gradient-to-b from-primary to-primary/30 rounded-full opacity-50" />
                 <Avatar className="relative h-36 w-36 sm:h-44 sm:w-44 lg:h-48 lg:w-48 border-4 border-background shadow-2xl ring-2 ring-primary/30">
-                  <AvatarImage src={getOptimizedAvatarUrl(profile.avatar_url, 192)} alt={profile.username || "User"} />
+                  <AvatarImage src={profile.avatar_url || undefined} alt={profile.username || "User"} />
                   <AvatarFallback className="text-4xl sm:text-5xl lg:text-6xl bg-gradient-to-br from-primary/30 to-primary/10">
                     <User className="h-16 w-16 sm:h-20 sm:w-20 lg:h-24 lg:w-24 text-primary" />
                   </AvatarFallback>

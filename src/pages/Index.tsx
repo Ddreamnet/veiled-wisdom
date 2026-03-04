@@ -7,7 +7,7 @@ import { ArrowRight, ArrowLeft, BookOpen, Users, ChevronLeft, ChevronRight, User
 import useEmblaCarousel from "embla-carousel-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHomeData, useAllListings } from "@/lib/queries";
-import { getOptimizedThumbnailUrl, getOptimizedCoverUrl, getOptimizedAvatarUrl } from "@/lib/imageOptimizer";
+
 import { ExpertsCarousel } from "@/components/ExpertsCarousel";
 import logoImage from "@/assets/logo.webp";
 import { Category } from "@/lib/supabase";
@@ -19,7 +19,7 @@ function ListingCard({ listing }: { listing: any }) {
       <Card className="hover:shadow-glow transition-smooth h-full card-hover">
         {listing.cover_url ? (
           <img
-            src={getOptimizedThumbnailUrl(listing.cover_url)}
+            src={listing.cover_url}
             alt={listing.title}
             loading="lazy"
             decoding="async"
@@ -36,7 +36,7 @@ function ListingCard({ listing }: { listing: any }) {
           >
             {listing.profiles.avatar_url ? (
               <img
-                src={getOptimizedAvatarUrl(listing.profiles.avatar_url)}
+                src={listing.profiles.avatar_url}
                 alt={listing.profiles.username}
                 loading="lazy"
                 decoding="async"
@@ -152,7 +152,7 @@ function CategoriesCarousel({
                   <Link to={`/categories/${category.slug}`}>
                     <Card className="group overflow-hidden h-full card-hover">
                       {category.image_url && <div className="relative h-40 sm:h-44 md:h-48 overflow-hidden">
-                          <img src={getOptimizedThumbnailUrl(category.image_url)} alt={category.name} loading="lazy" decoding="async" className="w-full h-full object-cover card-image" />
+                          <img src={category.image_url} alt={category.name} loading="lazy" decoding="async" className="w-full h-full object-cover card-image" />
                           <div className="absolute inset-0 bg-gradient-to-t from-card/50 to-transparent" />
                         </div>}
                       <CardContent className="px-3 py-2 min-h-[48px] flex items-center">
@@ -361,7 +361,7 @@ export default function Index() {
                     </CardContent>
                   </Card>) : curiosities.map(curiosity => <Card key={curiosity.id} className="group overflow-hidden card-hover">
                     {curiosity.cover_url && <div className="relative h-48 sm:h-52 md:h-56 overflow-hidden">
-                        <img src={getOptimizedCoverUrl(curiosity.cover_url)} alt={curiosity.title} loading="lazy" decoding="async" className="w-full h-full object-cover card-image" />
+                        <img src={curiosity.cover_url} alt={curiosity.title} loading="lazy" decoding="async" className="w-full h-full object-cover card-image" />
                         <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
                       </div>}
                     <CardHeader className="p-4 sm:p-5 md:p-6">

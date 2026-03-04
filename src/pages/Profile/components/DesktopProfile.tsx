@@ -18,7 +18,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { AvatarUpload } from "@/components/AvatarUpload";
-import { PageBreadcrumb } from "@/components/PageBreadcrumb";
+import { UnifiedBreadcrumb as PageBreadcrumb } from "@/components/UnifiedBreadcrumb";
 import { User, Shield, Trash2, Calendar, GraduationCap } from "lucide-react";
 import { format } from "date-fns";
 import { Profile } from "@/lib/supabase";

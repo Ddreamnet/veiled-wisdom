@@ -4,8 +4,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Edit } from "lucide-react";
 import { Link } from "react-router-dom";
-import { AdminBreadcrumb } from "@/components/AdminBreadcrumb";
-import { useToast } from "@/hooks/use-toast";
+import { UnifiedBreadcrumb as AdminBreadcrumb } from "@/components/UnifiedBreadcrumb";
+import { useToast } from "@/hooks/useToast";
 
 type Teacher = {
   id: string;
