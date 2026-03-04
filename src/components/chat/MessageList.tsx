@@ -161,36 +161,32 @@ export function MessageList({ messages, loading, currentUserId, conversationId, 
                         />
                       ) : (
                         /* Text Message — inline timestamp */
-                        <div
-                          className={cn(
-                            'px-3.5 py-2 break-words',
-                            isOwnMessage
-                              ? 'bg-gradient-to-br from-primary via-primary to-primary/85 text-white rounded-[20px] rounded-tr-md shadow-md shadow-primary/10'
-                              : 'bg-muted/80 text-foreground rounded-[20px] rounded-tl-md border border-border/40'
-                          )}
-                        >
-                          <p
-                            className="text-[15px] whitespace-pre-wrap leading-relaxed"
-                            style={{
-                              fontWeight: 420,
-                              textShadow: isOwnMessage ? '0 1px 1px rgba(0,0,0,0.15)' : 'none',
-                            }}
+                        <div className="space-y-1">
+                          <div
+                            className={cn(
+                              'px-3.5 py-2 break-words',
+                              isOwnMessage
+                                ? 'bg-gradient-to-br from-primary via-primary to-primary/85 text-white rounded-[20px] rounded-tr-md shadow-md shadow-primary/10'
+                                : 'bg-muted/80 text-foreground rounded-[20px] rounded-tl-md border border-border/40'
+                            )}
                           >
-                            {message.body}
-                          </p>
-                          {/* Inline time + read indicator */}
+                            <p
+                              className="text-[15px] whitespace-pre-wrap leading-relaxed"
+                              style={{
+                                fontWeight: 420,
+                                textShadow: isOwnMessage ? '0 1px 1px rgba(0,0,0,0.15)' : 'none',
+                              }}
+                            >
+                              {message.body}
+                            </p>
+                          </div>
                           <div className={cn(
-                            "flex items-center gap-1 mt-1 select-none",
-                            isOwnMessage ? "justify-end" : "justify-end"
+                            "flex items-center gap-1 px-1",
+                            isOwnMessage ? "justify-end" : "justify-start"
                           )}>
-                            <span className={cn(
-                              "text-[10px] leading-none",
-                              isOwnMessage ? "text-white/60" : "text-muted-foreground/60"
-                            )}>
-                              {time}
-                            </span>
+                            <span className="text-[10px] text-muted-foreground">{time}</span>
                             {isOwnMessage && (
-                              <CheckCheck className="h-3 w-3 text-white/60" />
+                              <CheckCheck className="h-3 w-3 text-primary" />
                             )}
                           </div>
                         </div>
