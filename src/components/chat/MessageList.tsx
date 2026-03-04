@@ -7,7 +7,7 @@ import { Message } from '@/hooks/useMessages';
 import { cn } from '@/lib/utils';
 import { markMessagesAsRead } from '@/lib/messageHelpers';
 import { AudioMessage } from './AudioMessage';
-import { MessageCircle, Check, CheckCheck } from 'lucide-react';
+import { MessageCircle, CheckCheck } from 'lucide-react';
 
 type MessageListProps = {
   messages: Message[];
@@ -19,36 +19,24 @@ type MessageListProps = {
 
 // WhatsApp style date format
 function formatDateSeparator(date: Date): string {
-  if (isToday(date)) {
-    return 'Bugün';
-  }
-  if (isYesterday(date)) {
-    return 'Dün';
-  }
-  if (isThisWeek(date, { weekStartsOn: 1 })) {
-    return format(date, 'EEEE', { locale: tr });
-  }
+  if (isToday(date)) return 'Bugün';
+  if (isYesterday(date)) return 'Dün';
+  if (isThisWeek(date, { weekStartsOn: 1 })) return format(date, 'EEEE', { locale: tr });
   return format(date, 'd MMMM yyyy', { locale: tr });
 }
 
 // Group messages by date
 function groupMessagesByDate(messages: Message[]): { date: Date; messages: Message[] }[] {
   const groups: { date: Date; messages: Message[] }[] = [];
-  
   messages.forEach((message) => {
     const messageDate = new Date(message.created_at);
     const lastGroup = groups[groups.length - 1];
-    
     if (lastGroup && isSameDay(lastGroup.date, messageDate)) {
       lastGroup.messages.push(message);
     } else {
-      groups.push({
-        date: messageDate,
-        messages: [message],
-      });
+      groups.push({ date: messageDate, messages: [message] });
     }
   });
-  
   return groups;
 }
 
@@ -88,14 +76,12 @@ export function MessageList({ messages, loading, currentUserId, conversationId, 
       const hasUnreadMessages = messages.some(
         (msg) => msg.sender_id !== currentUserId && !msg.read
       );
-
       if (hasUnreadMessages) {
         hasMarkedAsRead.current = true;
         const timer = setTimeout(async () => {
           await markMessagesAsRead(conversationId, currentUserId);
           onMessagesRead?.();
         }, 500);
-
         return () => clearTimeout(timer);
       }
     }
@@ -145,12 +131,11 @@ export function MessageList({ messages, loading, currentUserId, conversationId, 
           <div key={group.date.toISOString()}>
             <DateSeparator date={group.date} />
             
-            <div className="space-y-2">
+            <div className="space-y-1">
               {group.messages.map((message, index) => {
                 const isOwnMessage = message.sender_id === currentUserId;
                 const time = format(new Date(message.created_at), 'HH:mm', { locale: tr });
                 
-                // Check if consecutive message from same sender
                 const prevMessage = group.messages[index - 1];
                 const isConsecutive = prevMessage && prevMessage.sender_id === message.sender_id;
 
@@ -169,40 +154,43 @@ export function MessageList({ messages, loading, currentUserId, conversationId, 
                     )}>
                       {/* Audio Message */}
                       {message.audio_url ? (
-                        <div className="space-y-1">
-                          <AudioMessage audioUrl={message.audio_url} isOwnMessage={isOwnMessage} />
-                          <div className={cn(
-                            "flex items-center gap-1 px-1",
-                            isOwnMessage ? "justify-end" : "justify-start"
-                          )}>
-                            <span className="text-[11px] text-muted-foreground">{time}</span>
-                            {isOwnMessage && (
-                              <CheckCheck className="h-3.5 w-3.5 text-primary" />
-                            )}
-                          </div>
-                        </div>
+                        <AudioMessage
+                          audioUrl={message.audio_url}
+                          isOwnMessage={isOwnMessage}
+                          time={time}
+                        />
                       ) : (
-                        /* Text Message */
-                        <div className="space-y-1">
-                          <div
-                            className={cn(
-                              'px-4 py-2.5 break-words shadow-sm',
-                              isOwnMessage
-                                ? 'bg-primary text-primary-foreground rounded-2xl rounded-tr-md'
-                                : 'bg-muted text-foreground rounded-2xl rounded-tl-md',
-                              // Add subtle gradient for own messages
-                              isOwnMessage && 'bg-gradient-to-br from-primary to-primary/90'
-                            )}
+                        /* Text Message — inline timestamp */
+                        <div
+                          className={cn(
+                            'px-3.5 py-2 break-words',
+                            isOwnMessage
+                              ? 'bg-gradient-to-br from-primary via-primary to-primary/85 text-white rounded-[20px] rounded-tr-md shadow-md shadow-primary/10'
+                              : 'bg-muted/80 text-foreground rounded-[20px] rounded-tl-md border border-border/40'
+                          )}
+                        >
+                          <p
+                            className="text-[15px] whitespace-pre-wrap leading-relaxed"
+                            style={{
+                              fontWeight: 420,
+                              textShadow: isOwnMessage ? '0 1px 1px rgba(0,0,0,0.15)' : 'none',
+                            }}
                           >
-                            <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.body}</p>
-                          </div>
+                            {message.body}
+                          </p>
+                          {/* Inline time + read indicator */}
                           <div className={cn(
-                            "flex items-center gap-1 px-1",
-                            isOwnMessage ? "justify-end" : "justify-start"
+                            "flex items-center gap-1 mt-1 select-none",
+                            isOwnMessage ? "justify-end" : "justify-end"
                           )}>
-                            <span className="text-[11px] text-muted-foreground">{time}</span>
+                            <span className={cn(
+                              "text-[10px] leading-none",
+                              isOwnMessage ? "text-white/60" : "text-muted-foreground/60"
+                            )}>
+                              {time}
+                            </span>
                             {isOwnMessage && (
-                              <CheckCheck className="h-3.5 w-3.5 text-primary" />
+                              <CheckCheck className="h-3 w-3 text-white/60" />
                             )}
                           </div>
                         </div>
