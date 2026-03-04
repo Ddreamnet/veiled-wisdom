@@ -89,7 +89,7 @@ export function ConversationList({
               key={conversation.id}
               onClick={() => onSelectConversation(conversation.id)}
               className={cn(
-                "w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 text-left group",
+                "w-full flex items-center gap-3 p-3 rounded-xl transition-colors duration-200 text-left group",
                 isSelected 
                   ? "bg-primary/10 shadow-sm" 
                   : "hover:bg-muted/50 active:bg-muted/70"

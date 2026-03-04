@@ -81,7 +81,7 @@ export default function HowItWorks() {
           return (
             <Card 
               key={index} 
-              className="border-border/50 bg-card/50 backdrop-blur-sm hover:bg-card/80 transition-all duration-300 group relative overflow-hidden"
+              className="border-border/50 bg-card/50 backdrop-blur-sm hover:bg-card/80 transition-colors duration-300 group relative overflow-hidden"
             >
               <div className="absolute top-3 left-3 w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
                 {index + 1}

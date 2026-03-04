@@ -12,7 +12,7 @@ import { PageLoader } from './components/PageLoader';
 import { usePresence } from './hooks/usePresence';
 import { useIsMobileLayout } from './hooks/useIsMobileLayout';
 import { ProtectedRoute, allRoutes, RouteConfig } from './routes';
-import './App.css';
+
 import { useRef } from 'react';
 
 // Optimized QueryClient with aggressive caching

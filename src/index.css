@@ -297,11 +297,6 @@
   50% { background-position: 100% 50%; }
 }
 
-@keyframes glow-pulse {
-  0%, 100% { opacity: 0.5; }
-  50% { opacity: 0.8; }
-}
-
 @keyframes fade-in-up {
   from {
     opacity: 0;
@@ -361,48 +356,4 @@
   }
 }
 
-/* Skeleton Shimmer Effect */
-.skeleton-shimmer {
-  animation: shimmer 2s ease-in-out infinite;
-  position: relative;
-}
-
-.skeleton-shimmer::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    hsl(var(--primary-glow) / 0.1) 50%,
-    transparent 100%
-  );
-  animation: shimmer 2s ease-in-out infinite;
-}
-
-/* Skeleton Wave Effect */
-.skeleton-wave {
-  position: relative;
-  overflow: hidden;
-}
-
-.skeleton-wave::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    hsl(var(--foreground) / 0.05) 50%,
-    transparent 100%
-  );
-  transform: translateX(-100%);
-  animation: skeleton-wave 1.5s ease-in-out infinite;
-}
 
