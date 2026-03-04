@@ -23,29 +23,33 @@ const FooterComponent = () => {
       {/* Gradient Overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-primary/10 pointer-events-none" />
 
-      {/* Wave Animation Background — paused when off-screen */}
-      <div className="absolute inset-0 opacity-30 pointer-events-none">
-        <svg className="absolute bottom-0 w-full h-32" preserveAspectRatio="none" viewBox="0 0 1200 120">
-          <path d="M0,0 C150,60 350,0 600,40 C850,80 1050,20 1200,60 L1200,120 L0,120 Z" fill="url(#wave-gradient-1)" style={{
-          animation: isVisible ? "wave 15s ease-in-out infinite" : "none"
-        }} />
-          <path d="M0,20 C200,80 400,20 600,60 C800,100 1000,40 1200,80 L1200,120 L0,120 Z" fill="url(#wave-gradient-2)" style={{
-          animation: isVisible ? "wave-reverse 20s ease-in-out infinite" : "none"
-        }} opacity="0.5" />
-          <defs>
-            <linearGradient id="wave-gradient-1" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="hsl(270, 80%, 60%)" stopOpacity="0.3" />
-              <stop offset="50%" stopColor="hsl(280, 90%, 70%)" stopOpacity="0.5" />
-              <stop offset="100%" stopColor="hsl(270, 80%, 60%)" stopOpacity="0.3" />
-            </linearGradient>
-            <linearGradient id="wave-gradient-2" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="hsl(280, 90%, 70%)" stopOpacity="0.2" />
-              <stop offset="50%" stopColor="hsl(270, 80%, 60%)" stopOpacity="0.4" />
-              <stop offset="100%" stopColor="hsl(280, 90%, 70%)" stopOpacity="0.2" />
-            </linearGradient>
-          </defs>
-        </svg>
-      </div>
+      {/* Wave Animation Background — only render SVG when visible */}
+      {isVisible && (
+        <div className="absolute inset-0 opacity-30 pointer-events-none">
+          <svg className="absolute bottom-0 w-full h-32" preserveAspectRatio="none" viewBox="0 0 1200 120">
+            <path d="M0,0 C150,60 350,0 600,40 C850,80 1050,20 1200,60 L1200,120 L0,120 Z" fill="url(#wave-gradient-1)" style={{
+              animation: "wave 15s ease-in-out infinite",
+              willChange: "transform",
+            }} />
+            <path d="M0,20 C200,80 400,20 600,60 C800,100 1000,40 1200,80 L1200,120 L0,120 Z" fill="url(#wave-gradient-2)" style={{
+              animation: "wave-reverse 20s ease-in-out infinite",
+              willChange: "transform",
+            }} opacity="0.5" />
+            <defs>
+              <linearGradient id="wave-gradient-1" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="hsl(270, 80%, 60%)" stopOpacity="0.3" />
+                <stop offset="50%" stopColor="hsl(280, 90%, 70%)" stopOpacity="0.5" />
+                <stop offset="100%" stopColor="hsl(270, 80%, 60%)" stopOpacity="0.3" />
+              </linearGradient>
+              <linearGradient id="wave-gradient-2" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="hsl(280, 90%, 70%)" stopOpacity="0.2" />
+                <stop offset="50%" stopColor="hsl(270, 80%, 60%)" stopOpacity="0.4" />
+                <stop offset="100%" stopColor="hsl(280, 90%, 70%)" stopOpacity="0.2" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+      )}
 
       <div className="relative z-10 w-full py-8">
         <div className="container mx-auto px-4">

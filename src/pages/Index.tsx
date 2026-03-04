@@ -235,11 +235,12 @@ export default function Index() {
         {/* Mouse-following Glow — positioned via ref, hidden on mobile */}
         <div
           ref={glowRef}
-          className="absolute w-96 h-96 rounded-full pointer-events-none hidden md:block"
+          className="absolute w-64 h-64 rounded-full pointer-events-none hidden md:block"
           style={{
-            background: `radial-gradient(circle, hsl(280 90% 70% / 0.15) 0%, transparent 70%)`,
+            background: `radial-gradient(circle, hsl(280 90% 70% / 0.12) 0%, transparent 70%)`,
             transform: `translate3d(-50%, -50%, 0)`,
-            filter: "blur(60px)",
+            filter: "blur(40px)",
+            willChange: "left, top",
           }}
         />
 
@@ -264,16 +265,17 @@ export default function Index() {
           </div>
         </div>
 
-        {/* Decorative Elements with Parallax */}
+        {/* Decorative Elements with Parallax — static blurs, no animation */}
         <div className="absolute inset-0 pointer-events-none">
           <div
             ref={decorative1Ref}
-            className="absolute top-20 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl animate-glow-pulse"
+            className="absolute top-20 left-10 w-72 h-72 bg-primary/10 rounded-full blur-2xl opacity-60"
+            style={{ willChange: "transform" }}
           />
           <div
             ref={decorative2Ref}
-            className="absolute bottom-20 right-10 w-96 h-96 bg-accent/10 rounded-full blur-3xl animate-glow-pulse"
-            style={{ animationDelay: "4s" }}
+            className="absolute bottom-20 right-10 w-80 h-80 bg-accent/10 rounded-full blur-2xl opacity-60"
+            style={{ willChange: "transform" }}
           />
         </div>
 
