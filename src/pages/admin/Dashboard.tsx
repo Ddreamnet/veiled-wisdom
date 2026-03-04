@@ -5,7 +5,7 @@ import { Users, FolderTree, FileText, Sparkles, TrendingUp, Calendar, UserCheck 
 import { TurkishLiraIcon } from "@/components/icons/TurkishLiraIcon";
 import { useEffect, useState, lazy, Suspense } from "react";
 import { supabase } from "@/lib/supabase";
-import { AdminBreadcrumb } from "@/components/AdminBreadcrumb";
+import { UnifiedBreadcrumb as AdminBreadcrumb } from "@/components/UnifiedBreadcrumb";
 
 // Lazy load chart components
 const ChartContainer = lazy(() => import("@/components/ui/chart").then((m) => ({ default: m.ChartContainer })));

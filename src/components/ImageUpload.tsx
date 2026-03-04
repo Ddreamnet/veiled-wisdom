@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 import { Upload, Loader2, X } from 'lucide-react';
 import { uploadListingImage } from '@/lib/storage';
 

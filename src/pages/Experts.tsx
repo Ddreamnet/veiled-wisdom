@@ -1,9 +1,8 @@
 import { Link } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageBreadcrumb } from "@/components/PageBreadcrumb";
+import { UnifiedBreadcrumb as PageBreadcrumb } from "@/components/UnifiedBreadcrumb";
 import { User, Sparkles } from "lucide-react";
-import { getOptimizedAvatarUrl } from "@/lib/imageOptimizer";
 import { useApprovedExperts, type Expert } from "@/lib/queries";
 
 function ExpertCard({ expert }: { expert: Expert }) {
@@ -26,7 +25,7 @@ function ExpertCard({ expert }: { expert: Expert }) {
             {/* Inner ring */}
             <div className="absolute -inset-1 rounded-full bg-gradient-to-b from-primary via-primary/50 to-transparent opacity-40 group-hover:opacity-70 transition-opacity duration-500" />
             <Avatar className="relative h-28 w-28 border-4 border-background shadow-2xl ring-2 ring-primary/20 group-hover:ring-primary/50 transition-all duration-500">
-              <AvatarImage src={getOptimizedAvatarUrl(expert.avatar_url, 112)} alt={expert.username || "Expert"} className="object-cover" />
+              <AvatarImage src={expert.avatar_url || undefined} alt={expert.username || "Expert"} className="object-cover" />
               <AvatarFallback className="bg-gradient-to-br from-primary/30 to-primary/10 text-2xl">
                 <User className="h-12 w-12 text-primary" />
               </AvatarFallback>

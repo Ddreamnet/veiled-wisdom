@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 import { Trash2, Plus, Edit } from 'lucide-react';
 import {
   Dialog,
@@ -16,7 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { AdminBreadcrumb } from '@/components/AdminBreadcrumb';
+import { UnifiedBreadcrumb as AdminBreadcrumb } from '@/components/UnifiedBreadcrumb';
 
 export default function CuriositiesManagement() {
   const [curiosities, setCuriosities] = useState<Curiosity[]>([]);

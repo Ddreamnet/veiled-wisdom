@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, ArrowRight, User, Sparkles } from "lucide-react";
-import { getOptimizedAvatarUrl } from "@/lib/imageOptimizer";
+
 import { cn } from "@/lib/utils";
 import { useApprovedExperts, type Expert } from "@/lib/queries";
 
@@ -53,7 +53,7 @@ function ExpertSlide({ expert, isActive }: { expert: Expert; isActive: boolean }
                 isActive ? "ring-primary/50" : "ring-primary/20"
               )}>
                 <AvatarImage 
-                  src={getOptimizedAvatarUrl(expert.avatar_url, 96)} 
+                  src={expert.avatar_url || undefined} 
                   alt={expert.username || "Expert"} 
                   className="object-cover" 
                 />

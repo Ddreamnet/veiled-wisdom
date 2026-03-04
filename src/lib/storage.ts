@@ -1,5 +1,4 @@
 import { supabase } from './supabase';
-import { preloadImage } from './imageCache';
 
 export const AVATAR_BUCKET = 'avatars';
 export const LISTING_IMAGES_BUCKET = 'listing-images';
@@ -97,12 +96,6 @@ export async function uploadAvatar(file: File, userId: string, oldUrl?: string |
       await deleteFile(AVATAR_BUCKET, oldUrl);
     }
 
-    // Preload the image for better performance
-    try {
-      await preloadImage(data.publicUrl);
-    } catch (preloadError) {
-      console.warn('Failed to preload avatar:', preloadError);
-    }
 
     return { url: data.publicUrl, error: null };
   } catch (error) {
@@ -153,12 +146,6 @@ export async function uploadListingImage(file: File, listingId: string, oldUrl?:
       await deleteFile(LISTING_IMAGES_BUCKET, oldUrl);
     }
 
-    // Preload the image for better performance
-    try {
-      await preloadImage(data.publicUrl);
-    } catch (preloadError) {
-      console.warn('Failed to preload listing image:', preloadError);
-    }
 
     return { url: data.publicUrl, error: null };
   } catch (error) {
@@ -233,12 +220,6 @@ export async function uploadCategoryImage(file: File, categoryId: string, oldUrl
       await deleteFile(CATEGORY_IMAGES_BUCKET, oldUrl);
     }
 
-    // Preload the image for better performance
-    try {
-      await preloadImage(data.publicUrl);
-    } catch (preloadError) {
-      console.warn('Failed to preload category image:', preloadError);
-    }
 
     return { url: data.publicUrl, error: null };
   } catch (error) {

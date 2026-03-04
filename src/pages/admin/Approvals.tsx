@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/useToast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CheckCircle, XCircle, Mail, Phone, GraduationCap, Calendar, AlertTriangle, Wrench } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -18,7 +18,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { AdminBreadcrumb } from "@/components/AdminBreadcrumb";
+import { UnifiedBreadcrumb as AdminBreadcrumb } from "@/components/UnifiedBreadcrumb";
 
 type TeacherApproval = {
   id: string;

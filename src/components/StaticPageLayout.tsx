@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { LucideIcon } from "lucide-react";
-import { PageBreadcrumb } from "@/components/PageBreadcrumb";
+import { UnifiedBreadcrumb as PageBreadcrumb } from "@/components/UnifiedBreadcrumb";
 import { DynamicPageContent } from "@/components/DynamicPageContent";
 import { useStaticPage } from "@/hooks/useStaticPages";
 

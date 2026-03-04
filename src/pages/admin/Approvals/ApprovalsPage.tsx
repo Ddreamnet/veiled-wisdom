@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle } from "lucide-react";
-import { AdminBreadcrumb } from "@/components/AdminBreadcrumb";
+import { UnifiedBreadcrumb as AdminBreadcrumb } from "@/components/UnifiedBreadcrumb";
 import { ApprovalsList } from "./components/ApprovalsList";
 import { useApprovals } from "./hooks/useApprovals";
 

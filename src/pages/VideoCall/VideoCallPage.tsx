@@ -14,7 +14,7 @@ import { Phone, PhoneOff } from 'lucide-react';
 import { useSetAtom } from 'jotai';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 import { devLog } from '@/lib/debug';
 import { isChatOpenAtom } from '@/atoms/chatAtoms';
 

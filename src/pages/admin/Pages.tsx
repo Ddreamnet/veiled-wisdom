@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, Loader2 } from "lucide-react";
-import { AdminBreadcrumb } from "@/components/AdminBreadcrumb";
+import { UnifiedBreadcrumb as AdminBreadcrumb } from "@/components/UnifiedBreadcrumb";
 import { useStaticPages, StaticPage } from "@/hooks/useStaticPages";
 import { PageEditDialog } from "@/components/admin/PageEditDialog";
 

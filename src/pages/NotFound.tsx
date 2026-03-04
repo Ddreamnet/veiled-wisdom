@@ -1,6 +1,6 @@
 import { useLocation, Link } from "react-router-dom";
 import { useEffect } from "react";
-import { PageBreadcrumb } from '@/components/PageBreadcrumb';
+import { UnifiedBreadcrumb as PageBreadcrumb } from '@/components/UnifiedBreadcrumb';
 
 const NotFound = () => {
   const location = useLocation();

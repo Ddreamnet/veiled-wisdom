@@ -6,8 +6,7 @@ import { useConversations } from '@/hooks/useConversations';
 import { useUnreadCount } from '@/hooks/useUnreadCount';
 import { ConversationList } from '@/components/chat/ConversationList';
 import { ChatWindow } from '@/components/chat/ChatWindow';
-import { toast } from '@/hooks/use-toast';
-import { PageBreadcrumb } from '@/components/PageBreadcrumb';
+import { toast } from '@/hooks/useToast';
 import { MessageCircle } from 'lucide-react';
 import { isChatOpenAtom } from '@/atoms/chatAtoms';
 
@@ -24,27 +23,19 @@ export default function Messages() {
   // URL'den userId parametresi varsa yeni konuşma başlat
   useEffect(() => {
     const userId = searchParams.get('userId');
-    console.log('Messages page - userId from URL:', userId, 'current user:', user?.id);
-    
     if (userId && user) {
-      console.log('Starting conversation with:', userId);
       handleStartConversation(userId);
     }
   }, [searchParams, user]);
 
   const handleStartConversation = async (otherUserId: string) => {
-    console.log('handleStartConversation called with:', otherUserId);
     const conversationId = await getOrCreateConversation(otherUserId);
-    console.log('getOrCreateConversation returned:', conversationId);
     
     if (conversationId) {
-      console.log('Setting selected conversation to:', conversationId);
       setSelectedConversationId(conversationId);
       setShowMobileChat(true);
-      // URL'den userId parametresini temizle
       navigate('/messages', { replace: true });
     } else {
-      console.log('Failed to create/get conversation');
       toast({
         title: 'Hata',
         description: 'Konuşma oluşturulamadı. Lütfen tekrar deneyin.',
@@ -73,13 +64,10 @@ export default function Messages() {
   }, [setIsChatOpen]);
 
   const handleMessagesRead = async () => {
-    console.log('handleMessagesRead - Refetching conversations and unread count');
-    // Konuşma listesini ve okunmamış sayacı güncelle
     await Promise.all([
       refetchConversations(),
       refetchUnreadCount()
     ]);
-    console.log('handleMessagesRead - Refetch completed');
   };
 
   if (!user) {

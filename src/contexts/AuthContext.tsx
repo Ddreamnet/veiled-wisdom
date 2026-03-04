@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase, UserRole } from "@/lib/supabase";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/useToast";
 import {
   ensureUserProfile,
   ensureUserRole,
@@ -97,11 +97,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Auth state change listener
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("[AuthContext] onAuthStateChange:", event, "initialized:", hasInitializedRef.current);
-
       if (hasInitializedRef.current) {
         if (event === "SIGNED_OUT") {
-          console.log("[AuthContext] User signed out");
           wasSignedOutRef.current = true;
           currentUserIdRef.current = null;
           setSession(null);
@@ -112,11 +109,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (event === "SIGNED_IN" && session?.user && wasSignedOutRef.current) {
-          console.log("[AuthContext] New sign in after sign out");
           wasSignedOutRef.current = false;
           currentUserIdRef.current = session.user.id;
         } else {
-          console.log("[AuthContext] Skipping event:", event);
           return;
         }
       }
@@ -245,7 +240,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (data.user) {
-        console.log("[AuthContext] User created:", data.user.id, "Role:", selectedRole);
+        console.log("[AuthContext] User created:", data.user.id);
 
         const profileResult = await ensureUserProfile(data.user.id, username, false);
         if (!profileResult.success) {
@@ -263,7 +258,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               duration: 6000,
             });
           } else {
-            console.log("[AuthContext] Customer role assigned successfully");
           }
 
           toast({

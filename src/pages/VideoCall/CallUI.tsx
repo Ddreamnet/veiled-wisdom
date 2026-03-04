@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { DailyCall, DailyParticipant, DailyEventObjectParticipant, DailyEventObjectParticipantLeft } from '@daily-co/daily-js';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Video, VideoOff, Mic, MicOff, PhoneOff, Clock } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 import { createTransitionLogger, devLog } from '@/lib/debug';
 
 // Types
@@ -46,7 +46,7 @@ import {
 } from './components';
 
 // Hooks
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks/useMobile';
 import { useCallTermination } from '@/hooks/video-call/useCallTermination';
 
 // ═══════════════════════════════════════════════════════════════════════════════

@@ -2,7 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Star, MessageSquare } from "lucide-react";
-import { getOptimizedAvatarUrl } from "@/lib/imageOptimizer";
+
 import { TeacherDetails, ReviewWithProfile } from "../types";
 
 interface TeacherInfoCardProps {
@@ -35,7 +35,7 @@ export function TeacherInfoCard({
         <div className="flex items-start gap-3 md:gap-4 pb-3 md:pb-4 border-b">
           {teacher.avatar_url ? (
             <img
-              src={getOptimizedAvatarUrl(teacher.avatar_url)}
+              src={teacher.avatar_url}
               alt={teacher.username}
               className="w-12 h-12 md:w-16 md:h-16 rounded-full object-cover flex-shrink-0"
             />

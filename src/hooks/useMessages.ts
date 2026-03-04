@@ -161,7 +161,6 @@ export function useMessages(conversationId: string | null) {
         }
       )
       .subscribe((status) => {
-        console.log('Realtime subscription status:', status);
         if (status === 'SUBSCRIBED') {
           isRealtimeConnectedRef.current = true;
           stopPolling(); // Realtime bağlandı, polling durdur
@@ -177,7 +176,6 @@ export function useMessages(conversationId: string | null) {
     // Güvenlik: 3 saniye içinde realtime bağlanmazsa polling başlat
     const fallbackTimer = setTimeout(() => {
       if (!isRealtimeConnectedRef.current && isActiveRef.current) {
-        console.log('Realtime not connected after 3s, starting polling fallback');
         startPolling(conversationId);
       }
     }, 3000);

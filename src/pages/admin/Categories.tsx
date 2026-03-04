@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 import { Trash2, Plus, FolderPlus, Edit, GripVertical } from 'lucide-react';
 import {
   DndContext,
@@ -48,7 +48,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { AdminBreadcrumb } from '@/components/AdminBreadcrumb';
+import { UnifiedBreadcrumb as AdminBreadcrumb } from '@/components/UnifiedBreadcrumb';
 import { CategoryImageUpload } from '@/components/CategoryImageUpload';
 
 interface SortableCategoryProps {

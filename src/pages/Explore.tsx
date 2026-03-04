@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PageBreadcrumb } from '@/components/PageBreadcrumb';
+import { UnifiedBreadcrumb as PageBreadcrumb } from '@/components/UnifiedBreadcrumb';
 import { useCategories } from '@/lib/queries';
 export default function Explore() {
   const {

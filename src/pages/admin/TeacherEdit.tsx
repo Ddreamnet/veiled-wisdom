@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/useToast";
 import { ArrowLeft, Save, GraduationCap, Award, Calendar, Phone } from "lucide-react";
 import { AvatarUpload } from "@/components/AvatarUpload";
 import { Skeleton } from "@/components/ui/skeleton";
