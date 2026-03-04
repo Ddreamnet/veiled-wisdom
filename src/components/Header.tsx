@@ -88,7 +88,7 @@ const HeaderComponent = () => {
               <Link
                 key={item.href}
                 to={item.href}
-                className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-all duration-200 ease-out font-medium"
+                className="px-4 py-2 rounded-xl text-silver-muted hover:text-silver hover:bg-secondary/50 transition-colors duration-200 ease-out font-medium"
               >
                 {item.label}
               </Link>
@@ -101,7 +101,7 @@ const HeaderComponent = () => {
               <>
                 {/* Messages Icon */}
                 <Link to="/messages">
-                  <Button variant="ghost" size="icon" className="relative transition-all duration-200 ease-out">
+                  <Button variant="ghost" size="icon" className="relative transition-colors duration-200 ease-out">
                     <MessageSquare className="h-5 w-5" />
                     {unreadCount > 0 && (
                       <Badge
@@ -121,12 +121,12 @@ const HeaderComponent = () => {
               /* Non-logged-in users - Visible buttons */
               <div className="flex items-center gap-3">
                 <Link to="/auth/sign-in">
-                  <Button variant="secondary" size="sm" className="transition-all duration-200 ease-out">
+                  <Button variant="secondary" size="sm" className="transition-colors duration-200 ease-out">
                     Giriş Yap
                   </Button>
                 </Link>
                 <Link to="/auth/sign-up">
-                  <Button size="sm" className="transition-all duration-200 ease-out">
+                  <Button size="sm" className="transition-colors duration-200 ease-out">
                     Kayıt Ol
                   </Button>
                 </Link>

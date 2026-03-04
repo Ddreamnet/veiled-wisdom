@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Link, useNavigate } from 'react-router-dom';
 import { formatPresenceStatus } from '@/hooks/usePresence';
 import { cn } from '@/lib/utils';
+import { devLog } from '@/lib/debug';
 import { motion, AnimatePresence } from 'framer-motion';
 
 type ChatWindowProps = {
@@ -36,10 +37,10 @@ export function ChatWindow({ conversation, onBack, onMessagesRead }: ChatWindowP
         video: true 
       });
       stream.getTracks().forEach(t => t.stop());
-      console.log('[ChatWindow] Media permissions prefetched');
+      devLog('ChatWindow', 'Media permissions prefetched');
     } catch (e) {
       // Permission denied or not available - that's fine, will be handled during call
-      console.log('[ChatWindow] Media prefetch skipped:', e);
+      devLog('ChatWindow', 'Media prefetch skipped:', e);
     }
   }, []);
 

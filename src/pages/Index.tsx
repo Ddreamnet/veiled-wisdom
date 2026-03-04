@@ -156,7 +156,7 @@ function CategoriesCarousel({
                           <div className="absolute inset-0 bg-gradient-to-t from-card/50 to-transparent" />
                         </div>}
                       <CardContent className="px-3 py-2 min-h-[48px] flex items-center">
-                        <h3 className="font-semibold text-base sm:text-lg text-silver group-hover:text-gradient-purple transition-all font-serif">
+                        <h3 className="font-semibold text-base sm:text-lg text-silver group-hover:text-gradient-purple transition-colors font-serif">
                           {category.name.toLocaleUpperCase("tr-TR")}
                         </h3>
                       </CardContent>
@@ -202,9 +202,24 @@ export default function Index() {
     return () => window.removeEventListener('mousemove', onMove);
   }, []);
 
-  // Scroll-based parallax — ref-based, no state
+  // Scroll-based parallax — ref-based, no state, disabled when hero is off-screen
+  const heroSectionRef = useRef<HTMLElement>(null);
+  const heroVisibleRef = useRef(true);
+
+  useEffect(() => {
+    const el = heroSectionRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { heroVisibleRef.current = entry.isIntersecting; },
+      { threshold: 0 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   useEffect(() => {
     const onScroll = () => {
+      if (!heroVisibleRef.current) return;
       const y = window.scrollY;
       const parallaxY = y * 0.5;
       const scale = 1 + y * 0.0002;
@@ -226,7 +241,7 @@ export default function Index() {
 
   return <div className="min-h-screen">
       {/* Hero Section with Liquid Gradient */}
-      <section className="relative liquid-gradient py-16 md:py-24 lg:py-32 overflow-hidden">
+      <section ref={heroSectionRef} className="relative liquid-gradient py-16 md:py-24 lg:py-32 overflow-hidden">
         {/* Particle Background - Lazy loaded */}
         <Suspense fallback={null}>
           <ParticleBackground />
@@ -259,8 +274,6 @@ export default function Index() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center pt-2 md:pt-4">
-              
-              {!user}
             </div>
           </div>
         </div>
@@ -365,7 +378,7 @@ export default function Index() {
                         <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
                       </div>}
                     <CardHeader className="p-4 sm:p-5 md:p-6">
-                      <CardTitle className="text-lg sm:text-xl text-silver group-hover:text-gradient-purple transition-all font-serif">
+                      <CardTitle className="text-lg sm:text-xl text-silver group-hover:text-gradient-purple transition-colors font-serif">
                         {curiosity.title.toLocaleUpperCase('tr-TR')}
                       </CardTitle>
                     </CardHeader>

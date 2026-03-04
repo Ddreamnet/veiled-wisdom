@@ -1,18 +1,19 @@
 import { supabase } from './supabase';
+import { devLog } from './debug';
 
 /**
  * Bir konuşmadaki tüm mesajları okundu olarak işaretle
  */
 export async function markMessagesAsRead(conversationId: string, userId: string): Promise<void> {
   try {
-    console.log('markMessagesAsRead - Calling RPC for conversation:', conversationId, 'userId:', userId);
+    devLog('markMessagesAsRead', 'Calling RPC for conversation:', conversationId, 'userId:', userId);
     
     const { error } = await supabase.rpc('mark_messages_as_read', {
       p_conversation_id: conversationId,
       p_user_id: userId
     });
 
-    console.log('markMessagesAsRead - RPC completed, error:', error);
+    devLog('markMessagesAsRead', 'RPC completed, error:', error);
 
     if (error) throw error;
 

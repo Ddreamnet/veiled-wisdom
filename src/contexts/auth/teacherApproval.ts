@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { devLog } from "@/lib/debug";
 import type { TeacherApplicationData } from "./types";
 
 /**
@@ -22,14 +23,14 @@ export async function createTeacherApproval(
     });
 
     if (error) {
-      console.error("[AuthContext] Teacher approval creation error:", error);
+      devLog("AuthContext", "Teacher approval creation error:", error);
       return { success: false, error: error.message };
     }
 
-    console.log("[AuthContext] Teacher approval created for user:", userId);
+    devLog("AuthContext", "Teacher approval created for user:", userId);
     return { success: true };
   } catch (err: any) {
-    console.error("[AuthContext] Teacher approval exception:", err);
+    devLog("AuthContext", "Teacher approval exception:", err);
     return { success: false, error: err.message };
   }
 }
@@ -48,7 +49,7 @@ export async function checkTeacherApprovalStatus(
       .maybeSingle();
 
     if (error) {
-      console.error("[AuthContext] Teacher approval check error:", error);
+      devLog("AuthContext", "Teacher approval check error:", error);
       return { status: "none", shouldSignOut: false };
     }
 
@@ -61,7 +62,7 @@ export async function checkTeacherApprovalStatus(
     
     return { status, shouldSignOut };
   } catch (err) {
-    console.error("[AuthContext] Teacher approval check exception:", err);
+    devLog("AuthContext", "Teacher approval check exception:", err);
     return { status: "none", shouldSignOut: false };
   }
 }

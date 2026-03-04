@@ -1,4 +1,5 @@
 import { supabase, UserRole } from "@/lib/supabase";
+import { devLog } from "@/lib/debug";
 
 /**
  * Assigns a role to user in user_roles table
@@ -17,13 +18,13 @@ export async function ensureUserRole(
       .maybeSingle();
 
     if (checkError) {
-      console.error("[AuthContext] Role check error:", checkError);
+      devLog("AuthContext", "Role check error:", checkError);
       return { success: false, error: checkError.message };
     }
 
     // If role already exists, don't insert again
     if (existingRole) {
-      console.log("[AuthContext] User already has role:", existingRole.role);
+      devLog("AuthContext", "User already has role:", existingRole.role);
       return { success: true, alreadyExists: true };
     }
 
@@ -34,14 +35,14 @@ export async function ensureUserRole(
     });
 
     if (insertError) {
-      console.error("[AuthContext] Role insert error:", insertError);
+      devLog("AuthContext", "Role insert error:", insertError);
       return { success: false, error: insertError.message };
     }
 
-    console.log("[AuthContext] Role assigned successfully:", role, "for user:", userId);
+    devLog("AuthContext", "Role assigned successfully:", role, "for user:", userId);
     return { success: true };
   } catch (err: any) {
-    console.error("[AuthContext] Role assignment exception:", err);
+    devLog("AuthContext", "Role assignment exception:", err);
     return { success: false, error: err.message };
   }
 }
@@ -58,7 +59,7 @@ export async function fetchUserRoleFromDB(userId: string): Promise<UserRole | nu
       .eq("user_id", userId);
 
     if (error) {
-      console.error("[AuthContext] Error fetching user role:", error);
+      devLog("AuthContext", "Error fetching user role:", error);
       return null;
     }
 
@@ -74,7 +75,7 @@ export async function fetchUserRoleFromDB(userId: string): Promise<UserRole | nu
     
     return roles[0] as UserRole;
   } catch (error) {
-    console.error("[AuthContext] Error fetching user role:", error);
+    devLog("AuthContext", "Error fetching user role:", error);
     return null;
   }
 }

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useRef, useState, useCallb
 import { User, Session } from "@supabase/supabase-js";
 import { supabase, UserRole } from "@/lib/supabase";
 import { useToast } from "@/hooks/useToast";
+import { devLog, devWarn } from "@/lib/debug";
 import {
   ensureUserProfile,
   ensureUserRole,
@@ -87,7 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } catch (err) {
-      console.error("[AuthContext] Post sign-in checks error:", err);
+      devLog("AuthContext", "Post sign-in checks error:", err);
       setRole("customer");
     } finally {
       setLoading(false);
@@ -192,7 +193,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return { error: null };
     } catch (error: any) {
-      console.error("[AuthContext] Sign in error:", error);
+      devLog("AuthContext", "Sign in error:", error);
       return { error };
     }
   };
@@ -230,7 +231,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) {
-        console.error("[AuthContext] SignUp error:", error);
+        devLog("AuthContext", "SignUp error:", error);
         toast({
           title: "Kayıt Başarısız",
           description: error.message || "Beklenmeyen bir hata oluştu",
@@ -240,18 +241,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (data.user) {
-        console.log("[AuthContext] User created:", data.user.id);
+        devLog("AuthContext", "User created:", data.user.id);
 
         const profileResult = await ensureUserProfile(data.user.id, username, false);
         if (!profileResult.success) {
-          console.warn("[AuthContext] Profile creation failed:", profileResult.error);
+          devWarn("AuthContext", "Profile creation failed:", profileResult.error);
         }
 
         if (selectedRole === "customer") {
           const roleResult = await ensureUserRole(data.user.id, "customer");
           
           if (!roleResult.success) {
-            console.error("[AuthContext] Customer role assignment failed:", roleResult.error);
+            devLog("AuthContext", "Customer role assignment failed:", roleResult.error);
             toast({
               title: "Uyarı",
               description: "Hesabınız oluşturuldu ancak rol atama işlemi başarısız oldu. Giriş yaptığınızda otomatik düzelecektir.",
@@ -273,7 +274,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const approvalResult = await createTeacherApproval(data.user.id, username, teacherData);
           
           if (!approvalResult.success) {
-            console.error("[AuthContext] Teacher approval creation failed:", approvalResult.error);
+            devLog("AuthContext", "Teacher approval creation failed:", approvalResult.error);
             toast({
               title: "Başvuru Kaydedilemedi",
               description: "Hesabınız oluşturuldu ancak uzman başvurusu kaydedilemedi. Lütfen destek ile iletişime geçin.",
@@ -289,7 +290,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return { error: null, isTeacher: false };
     } catch (error: any) {
-      console.error("[AuthContext] SignUp exception:", error);
+      devLog("AuthContext", "SignUp exception:", error);
       return { error };
     }
   };

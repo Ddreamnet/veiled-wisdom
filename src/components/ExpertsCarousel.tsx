@@ -22,7 +22,7 @@ function ExpertSlide({ expert, isActive }: { expert: Expert; isActive: boolean }
     >
       <div 
         className={cn(
-          "relative mx-auto transition-all duration-500 ease-out",
+          "relative mx-auto transition-[transform,opacity] duration-500 ease-out",
           isActive 
             ? "scale-100 opacity-100" 
             : "scale-90 opacity-50"
@@ -30,7 +30,7 @@ function ExpertSlide({ expert, isActive }: { expert: Expert; isActive: boolean }
       >
         {/* Card container */}
         <div className={cn(
-          "relative pt-16 pb-6 px-6 rounded-2xl border bg-gradient-to-br from-card via-card to-primary/5 transition-all duration-500",
+          "relative pt-16 pb-6 px-6 rounded-2xl border bg-gradient-to-br from-card via-card to-primary/5 transition-[border-color,box-shadow] duration-500",
           isActive 
             ? "border-primary/40 shadow-glow" 
             : "border-primary/10 shadow-elegant"
@@ -146,7 +146,7 @@ export function ExpertsCarousel() {
       {/* Section Header */}
       <div className="text-center mb-8 md:mb-12">
         <Link to="/experts" className="inline-block group">
-          <h2 className="text-3xl md:text-4xl font-serif font-bold text-gradient-silver mb-2 uppercase group-hover:text-gradient-purple transition-all">
+          <h2 className="text-3xl md:text-4xl font-serif font-bold text-gradient-silver mb-2 uppercase group-hover:text-gradient-purple transition-colors">
             UZMANLARIMIZ
           </h2>
         </Link>

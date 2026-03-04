@@ -97,7 +97,7 @@ export default function Contact() {
         {contactCards.map((card) => (
           <Card 
             key={card.title} 
-            className="border-border/50 bg-card/50 backdrop-blur-sm hover:bg-card/80 transition-all duration-300 group"
+            className="border-border/50 bg-card/50 backdrop-blur-sm hover:bg-card/80 transition-colors duration-300 group"
           >
             <CardContent className="p-6 text-center">
               <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">

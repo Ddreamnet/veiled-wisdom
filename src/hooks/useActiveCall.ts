@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { devLog } from '@/lib/debug';
 
 export type ActiveCallInfo = {
   room_name: string;
@@ -90,7 +91,7 @@ export function useActiveCall(conversationId: string | null) {
       }).catch(() => {
         // Ignore errors - this is just a warm-up ping
       });
-      console.log('[useActiveCall] Edge function warm-up POST sent');
+      devLog('useActiveCall', 'Edge function warm-up POST sent');
     }
 
     // Subscribe to realtime updates for this conversation
