@@ -17,8 +17,8 @@ ALTER TABLE public.bank_accounts ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Anyone can read active bank accounts" ON public.bank_accounts FOR SELECT TO authenticated USING (is_active = true);
 CREATE POLICY "Admin can manage bank accounts" ON public.bank_accounts FOR ALL TO authenticated USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
 INSERT INTO public.bank_accounts (bank_name, iban, account_holder, display_order) VALUES
-  ('Ziraat Bankası', 'TR00 0000 0000 0000 0000 0000 00', 'LEYL TEKNOLOJİ A.Ş.', 1),
-  ('KuveytTürk', 'TR00 0000 0000 0000 0000 0000 00', 'LEYL TEKNOLOJİ A.Ş.', 2);
+  ('Ziraat Bankası', 'TR38 0001 0023 5466 5225 5450 07', 'DİLAN BÖKE', 1),
+  ('KuveytTürk', 'TR88 0020 5000 0983 8554 7000 01', 'DİLAN BÖKE', 2);
 
 -- 2. payment_requests
 CREATE TABLE IF NOT EXISTS public.payment_requests (
