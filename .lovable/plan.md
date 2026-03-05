@@ -1,205 +1,203 @@
 
 
-# Temizlik & Ön Hazırlık — Toplam Plan
+# Ödeme Sistemi Planı — Revize v3 (Atomik İşlem + Güvenlik Sertleştirme + Phase Ayrımı)
 
-## Proje Hedefi
-Ödeme sistemi implementasyonundan önce kod tabanını stabilize etmek: rol güvenliği riskini ortadan kaldırmak, ölü kodu temizlemek, product akışını ayrıştırmak, UI tutarlılığını sağlamak ve geçici earnings hesaplamasını düzeltmek.
+## Eklenen 3 Kritik Madde
 
----
+### EK-6) Atomik İşlem: RPC ile `create_payment_request_and_appointment()`
 
-## Değişecek Dosyalar Özeti
+**Problem:** Plan v2'de "TEK TRANSACTION" deniyor ama client'tan iki ayrı INSERT (`payment_requests` + `appointments`) gerçek DB transaction değil. Ağ kesilirse biri olur biri olmaz; reference_code çakışması gibi edge case'ler oluşur.
 
-| # | Dosya | Değişiklik Türü | Satırlar |
-|---|-------|-----------------|----------|
-| 1 | `src/pages/admin/Approvals/hooks/useApprovals.ts` | Admin guard ekle (2 fonksiyon) | ~20 satır ekleme |
-| 2 | `src/types/database.ts` | 3 ölü type sil | ~20 satır silme |
-| 3 | `src/lib/supabase.ts` | Re-export'ları kaldır | ~6 satır silme |
-| 4 | `src/pages/ListingDetail/ListingDetailPage.tsx` | Product guard + UI koşulu | ~15 satır değişiklik |
-| 5 | `src/lib/queries/appointmentQueries.ts` | Filtre değişikliği (start_ts → end_ts + cancelled filtre) | ~4 satır |
-| 6 | `src/pages/Appointments.tsx` | Status badge Türkçe mapping | ~8 satır ekleme |
-| 7 | `src/pages/admin/Earnings.tsx` | Geçici fix + banner + nowIso | ~20 satır değişiklik |
-| 8 | `src/pages/teacher/Earnings.tsx` | Geçici fix + banner + nowIso | ~15 satır değişiklik |
-| 9 | Misc (ListingDetailPage, Appointments) | TODO yorumları | ~2 satır |
+**Çözüm:** Postgres RPC fonksiyonu (SECURITY DEFINER):
 
-**Toplam etki: ~90 satır kod değişikliği/ekleme, hiçbir breaking change yok.**
-
----
-
-## Detaylı Plan Maddeleri
-
-### (1) ROL GÜVENLİĞİ — `useApprovals.ts` (KRİTİK)
-
-**Problem:** `assignTeacherRole` ve `handleRepair` fonksiyonlarında `DELETE FROM user_roles WHERE user_id = $1` komutu, admin kullanıcının admin rolünü de siler. Admin özellikleri sonrası, yanlış onay veya recovery işlemi sırasında admin panele erişim kaybı riski.
-
-**Çözüm:**
-- `assignTeacherRole` fonksiyonunun başında (satır 185 civarı):
-  1. `user_roles` tablosundan hedef `userId`'nin admin rolü olup olmadığını kontrol et (simple SELECT)
-  2. Admin rolü varsa → Toast hata göster: "Admin kullanıcıya öğretmen rolü atanamaz" ve return (işlem durdur)
-  3. Admin değilse → mevcut DELETE + INSERT mantığı çalışır (tek rol korunur)
-
-- `handleRepair` fonksiyonunda (satır 150 civarı) aynı admin guard yapısı: kontrol et, admin ise uyar ve durdur
-
-- **Ek güvenlik katmanı:** DELETE sorgusuna koşul ekle: `DELETE FROM user_roles WHERE user_id = $1 AND role != 'admin'` (admin rolü hiçbir koşulda silinmez)
-
-**Sonuç:** Admin rolü çift koruma ile hiçbir scenario'da silinmez.
-
----
-
-### (2) ÖLÜ KOD & TİP TEMİZLİĞİ
-
-**`src/types/database.ts`:**
-- Satırları sil:
-  - `MessageType` (DB: audio_url, read alanları eksik; hiçbir yerde import edilmiyor)
-  - `Conversation` (useConversations.ts kendi lokal tipini kullanıyor)
-  - `ConversationParticipant` (hiçbir yerde kullanılmıyor)
-- Kalan tipleri koru: `Profile`, `UserRole`, `Category`, `ConsultationType`, `Listing`, `ListingPrice`, `Appointment`, `Curiosity`, `Review`
-
-**`src/lib/supabase.ts`:**
-- Re-export listesinden (satırlar 34-48) `MessageType`, `Conversation`, `ConversationParticipant` satırlarını kaldır
-- Diğer re-export'ları tut
-
-**TypeScript derlemesi:** Build hatasız olmalı, hiçbir dosya bu tipleri bu kaynaklardan import etmiyor.
-
----
-
-### (3) PRODUCT BOOKING AYRIŞTIRMA — `ListingDetailPage.tsx`
-
-**Problem:** `consultation_type === 'product'` ilanları, randevu booking akışı ile beraber çalışıyor. Ürün satışı `appointments` tablosuna (yanlış model) insert ediliyor.
-
-**Çözüm:**
-- `handleBooking` fonksiyonunun başında (satır 59 civarı) guard ekle:
-  ```
-  if (listing.consultation_type === 'product') {
-    toast.error('Ürün satışı yakında aktif olacak');
-    return;
-  }
-  ```
-  (Bu, handleBooking'e eklenen herhangi bir insert çağrısını önler.)
-
-- Product kartı rendering (satır 374-462):
-  - Satın Al butonunu ve adet seçim UI'ını koşulu ile gizle: `{listing.consultation_type !== 'product' && <button>...}</button>`
-  - Placeholder metni ekle: "Ürün satışı yakında aktif olacak. Detaylar için uzmanla mesajlaşın."
-  - Mesaj Gönder butonu (zaten var) kalır
-
-**Sonuç:** Product ilanlarında appointment insert edilmez, sadece mesajlaşma kanalı açık kalır.
-
----
-
-### (4) APPOINTMENTS UI TUTARLILIK — `appointmentQueries.ts` + `Appointments.tsx`
-
-**`appointmentQueries.ts` — Sekme Ayrımı:**
-- Mevcut: Bekleyen tab `start_ts >= now`, Tamamlanan tab `start_ts < now` (seans başlamadığı halde tamamlı görüntülenmesi riski)
-- Hedef: Bekleyen tab `end_ts >= now AND status != 'cancelled'`, Tamamlanan tab `end_ts < now AND status != 'cancelled'`
-  - `end_ts >= now`: Seans hâlâ devam ediyor veya gelecekte
-  - `end_ts < now`: Seans geçmiş
-  - `status != 'cancelled'`: İptal edilen randevular her iki tabda görünmez (cancel sistemi ileride ele alınacak)
-
-- Kod değişiklikleri:
-  - Satır 23: `.gte('start_ts', now)` → `.gte('end_ts', now).neq('status', 'cancelled')`
-  - Satır 34: `.lt('start_ts', now)` → `.lt('end_ts', now).neq('status', 'cancelled')`
-
-**`Appointments.tsx` — Status Badge:**
-- Satır 96 civarı status badge kodu:
-  - Mevcut: `{appointment.status}` (ham değer: "pending", "confirmed", vb.)
-  - Hedef: Türkçe mapping ile göster:
-    ```
-    pending → "Bekliyor"
-    confirmed → "Onaylandı"
-    cancelled → "İptal Edildi"
-    completed → "Tamamlandı"
-    ```
-  - Badge variant'ı status'e göre renklendirme:
-    - pending/confirmed → info/success
-    - cancelled → destructive
-    - completed → secondary
-
-**Sonuç:** Sekmeler mantıksal olarak tutarlı, cancelled randevular görünmez, status Türkçe ve renkli.
-
----
-
-### (5) COMPLETED GEÇİCİ FIX — `admin/Earnings.tsx` + `teacher/Earnings.tsx`
-
-**Problem:** Ödeme sistemi olmadığı için hiçbir appointment `status = 'completed'` durumuna geçmiyor. Earnings raporları hep 0 gösteriyor.
-
-**Çözüm (geçici, ödeme sistemi gelince yenilecek):**
-- Her sayfanın başında (useEffect veya render başında) `nowIso` değişkeni oluştur:
-  ```
-  const nowIso = new Date().toISOString();
-  ```
-  (Tüm query'lerde tutarlı zaman kullanılması için)
-
-- **`admin/Earnings.tsx`:**
-  - Satır 114: `.eq("status", "completed")` → `.eq("status", "confirmed").lt("end_ts", nowIso)`
-  - Satır 133: Aynı değişiklik (pending payout için)
-  - Satır 216: Trend grafiği — aynı filtre
-  - Sayfanın üstüne uyarı banner: "⚠️ Geçici hesaplama: Ödeme sistemi gelince güncellenecek."
-
-- **`teacher/Earnings.tsx`:**
-  - Satır 59 civarı: `.eq("status", "completed")` → `.eq("status", "confirmed").lt("end_ts", nowIso)`
-  - Aynı uyarı banner
-
-**Sonuç:** Earnings raporları geçici olarak çalışır (confirmed + geçmiş seanslar bazında). Ödeme sistemi gelince bu kod yenilecek.
-
----
-
-### (6) EDGE FUNCTIONS — TODO Yorumları
-
-**`ListingDetailPage.tsx`:**
-- Satır 109 (`send-appointment-email` invoke) üstüne TODO: 
-  ```
-  // TODO: Ödeme sistemi gelince bu invoke noktası değişecek — appointment artık ödeme sonrası oluşacak
-  ```
-
-**`Appointments.tsx`:**
-- Satır 49 civarı (`send-status-update-email` invoke) üstüne TODO:
-  ```
-  // TODO: Ödeme sistemi gelince bu invoke admin paneline taşınacak (uzman değil admin onaylayacak)
-  ```
-
-**Sonuç:** Geliştiriciye bilgi, kod değişikliği yok.
-
----
-
-## Uygulama Sırası (Risk Düşükten Yükseğe)
-
+```text
+create_payment_request_and_appointment(
+  _customer_id      uuid,
+  _teacher_id       uuid,
+  _listing_id       uuid,
+  _listing_price_id uuid,
+  _item_type        text,        -- 'appointment' | 'product'
+  _quantity          int,
+  _amount            numeric,
+  _bank_account_id   uuid,
+  _start_ts          timestamptz, -- NULL for product
+  _end_ts            timestamptz, -- NULL for product
+  _duration_minutes  int          -- NULL for product
+)
+RETURNS jsonb  -- { payment_request_id, appointment_id (nullable), reference_code }
 ```
-1. Ölü Kod Temizliği (database.ts + supabase.ts)
-   → Bağımlılık sıfır, güvenli
 
-2. Product Booking Guard (ListingDetailPage.tsx)
-   → Küçük değişiklik, isolated
+Fonksiyon içinde (tek transaction):
+1. `reference_code` server-side üretilir (`'EL-' || upper(substr(md5(random()::text), 1, 6))`)
+2. `payment_requests` INSERT (status='pending')
+3. `item_type='appointment'` ise → `appointments` INSERT (status='pending', payment_request_id)
+4. Tek `jsonb` response döner
 
-3. Appointments UI Tutarlılığı (appointmentQueries.ts + Appointments.tsx)
-   → UI logic değişikliği, bağımlılık az
+**Avantajlar:**
+- Atomik: ya ikisi de olur, ya hiçbiri
+- reference_code server-side → çakışma halinde retry DB tarafında
+- RLS basitleşir: client sadece RPC çağırır, doğrudan INSERT yapmaz
+- `appointments` tablosuna customer INSERT RLS'i gerekli olmaz
 
-4. Earnings Geçici Fix (admin/Earnings.tsx + teacher/Earnings.tsx)
-   → Query değişikliği, düşük risk
+**Etki:** `BankTransferScreen.tsx`'te `supabase.rpc('create_payment_request_and_appointment', {...})` çağrısı yapılır. `supabase.from('appointments').insert()` ve `supabase.from('payment_requests').insert()` client'tan hiç çağrılmaz.
 
-5. Role Güvenliği (useApprovals.ts) — EN SON
-   → Kritik, tüm önlemler aldıktan sonra apply et
+---
+
+### EK-7) Duplicate Önleme: UNIQUE Constraint'ler + İdempotent Update
+
+**DB constraint'leri:**
+- `appointments.payment_request_id` → UNIQUE (NULL serbest; legacy kayıtlar etkilenmez)
+- `earnings_ledger.payment_request_id` → UNIQUE (her PR için tek ledger kaydı)
+- `orders.payment_request_id` → UNIQUE (zaten planda var)
+
+**Admin onay idempotency:**
+- Admin "Onayla" butonundaki UPDATE sorgusu:
+  ```text
+  UPDATE payment_requests SET status='confirmed', confirmed_at=now()
+  WHERE id = $1 AND status = 'pending'
+  ```
+  `AND status = 'pending'` koşulu: zaten onaylanmış talebi tekrar onaylamayı engeller (0 row affected → "Zaten işlenmiş" toast)
+- `earnings_ledger` INSERT'te `ON CONFLICT (payment_request_id) DO NOTHING` eklenebilir (ekstra güvenlik)
+
+---
+
+### EK-8) RLS Basitleştirme: Client INSERT Kaldırılır
+
+**Eski risk:** Client'tan `appointments.insert()` yapılırsa kullanıcı başkasının `payment_request_id`'sini bağlayabilir.
+
+**Çözüm (EK-6 ile entegre):**
+- Client asla doğrudan `appointments` veya `payment_requests` INSERT yapmaz
+- Tüm INSERT'ler RPC fonksiyonu içinde (SECURITY DEFINER)
+- RPC fonksiyonu `auth.uid()` kontrolü yapar: `_customer_id = auth.uid()` olmalı
+- `appointments` tablosundaki mevcut customer INSERT RLS policy'si korunabilir (legacy uyum) ama yeni akışta kullanılmaz
+
+**Admin onay tarafı:**
+- Admin, `payment_requests` UPDATE yapabilir (RLS: `has_role(auth.uid(), 'admin')`)
+- Admin, `appointments` UPDATE yapabilir (status: pending→confirmed)
+- Admin, `earnings_ledger` INSERT yapabilir (RLS: admin only)
+- Admin, `orders` INSERT yapabilir (RLS: admin only)
+- Alternatif: admin onay akışı da RPC ile atomik yapılabilir (`confirm_payment_request(pr_id)`) — Phase 2'de değerlendirilebilir
+
+---
+
+## Güncellenen Plan Bölümleri
+
+### A) DB/SQL — Ek değişiklikler
+
+Mevcut plan v2 tablolarına ek olarak:
+
+**UNIQUE constraint'ler:**
+- `ALTER TABLE appointments ADD CONSTRAINT uq_appointments_payment_request UNIQUE (payment_request_id);`
+- `ALTER TABLE earnings_ledger ADD CONSTRAINT uq_ledger_payment_request UNIQUE (payment_request_id);`
+- `orders.payment_request_id` zaten UNIQUE (plan v2'de var)
+
+**RPC fonksiyonu:**
+- `create_payment_request_and_appointment()` — yukarıdaki tanım
+- SECURITY DEFINER, `search_path = public`
+- `auth.uid()` = `_customer_id` kontrolü fonksiyon başında
+
+### B) RLS — Güncellenmiş
+
+| Tablo | SELECT | INSERT | UPDATE |
+|-------|--------|--------|--------|
+| `payment_requests` | customer: own / admin: all | **RPC ile** (doğrudan INSERT yok) | admin: status UPDATE |
+| `appointments` | mevcut RLS korunur | **RPC ile** (yeni akış) / mevcut RLS (legacy) | admin: status UPDATE |
+| `orders` | customer: own / teacher: own / admin: all | admin only | admin only |
+| `earnings_ledger` | teacher: own / admin: all | admin only | admin: payout_id set |
+| `bank_accounts` | authenticated (is_active=true) | admin | admin |
+
+### C) UI Akış — Güncellenmiş
+
+`BankTransferScreen.tsx` "Ödemeyi Yaptım" double confirm sonrası:
+```text
+const { data, error } = await supabase.rpc('create_payment_request_and_appointment', {
+  _customer_id: user.id,
+  _teacher_id: listing.teacher_id,
+  _listing_id: listing.id,
+  _listing_price_id: selectedPrice.id,
+  _item_type: 'appointment',  // veya 'product'
+  _quantity: quantity,
+  _amount: totalAmount,
+  _bank_account_id: selectedBank.id,
+  _start_ts: selectedSlot?.start,
+  _end_ts: selectedSlot?.end,
+  _duration_minutes: selectedPrice.duration_minutes
+});
+// data = { payment_request_id, appointment_id, reference_code }
+```
+
+### D) Admin Onay — İdempotent
+
+```text
+Admin "Onayla":
+1. UPDATE payment_requests SET status='confirmed' WHERE id=$1 AND status='pending'
+   → 0 rows? → Toast: "Bu talep zaten işlenmiş"
+   → 1 row? → devam:
+2. UPDATE appointments SET status='confirmed' WHERE payment_request_id=$1
+3. earnings_ledger INSERT (ON CONFLICT DO NOTHING)
+4. item_type='product' → orders INSERT (ON CONFLICT DO NOTHING)
+5. Email invoke
 ```
 
 ---
 
-## Doğrulama & Test Noktaları
+## Phase Ayrımı (2 Seferde Uygulama)
 
-- **TS compile:** `npm run build` hatasız çalışmalı
-- **Dead code:** `useConversations.ts`, `useMessages.ts` hatasız import çalışmalı
-- **Appointments:** 
-  - Bekleyen tab'da cancelled randevular görünmemeli
-  - Sekmeler end_ts'ye göre ayrılmalı
-  - Status badge'ler Türkçe ve renkli
-- **Earnings:** 
-  - Admin/Teacher earnings > 0 göstermeli (confirmed + end_ts < now)
-  - Uyarı banner visible
-- **Product:** Product ilanında randevu booking UI gizli, toast çıkmazsa button click'lenseydi dönerdi
+### PHASE 1: Altyapı + Ödeme Akışı (DB → RPC → UI → Temel Admin)
+
+**Scope:**
+1. DB migration: `bank_accounts`, `payment_requests`, `orders`, `earnings_ledger` tabloları + `appointments.payment_request_id` kolonu + UNIQUE constraint'ler + RLS policy'leri
+2. `bank_accounts` seed: Ziraat + KuveytTürk
+3. RPC: `create_payment_request_and_appointment()` fonksiyonu
+4. `src/lib/constants.ts` → `PLATFORM_COMMISSION_RATE = 0.25`
+5. `src/components/CopyableField.tsx`
+6. `src/pages/Payment/PaymentMethodPage.tsx` + `BankTransferScreen.tsx`
+7. `ListingDetailPage.tsx` → handleBooking değişikliği (ödeme akışına yönlendirme)
+8. `appointmentQueries.ts` → teacher pending filtresi (`.neq('status', 'pending')`)
+9. `Appointments.tsx` → badge mapping güncelleme ("Ödeme Kontrol Ediliyor")
+10. Route güncellemeleri (`routeConfig.ts`)
+
+**Phase 1 sonunda çalışan akış:**
+- Danışan ilan seçer → ödeme yöntemi → banka bilgileri → "Ödemeyi Yaptım" → atomik RPC → appointments sayfasında "Ödeme Kontrol Ediliyor"
+- Teacher pending görmez
+- Admin henüz onaylayamaz (Phase 2)
 
 ---
 
-## Sonraki Adımlar (Ödeme Sistemi Sonrası)
+### PHASE 2: Admin Panel + Earnings Geçişi + Payout Kalem Listesi
 
-- Earnings fix kodunu ödeme/ledger tablolarına geçir
-- Completed status'ü otomatik set eden cron/trigger ekle
-- send-status-update-email invoke'unu admin paneline taşı
-- Product satışlarını order tablosuna ve ayrı flow'a taşı
+**Scope:**
+1. `/admin/payments` sayfası (tablo + filtre + onayla/reddet + idempotent update)
+2. Admin nav "Finans" grubu (Ödeme Onayları / Gelirler / Uzman Ödemeleri)
+3. `admin/Earnings.tsx` → ledger bazlı geçiş + legacy UNION + `PLATFORM_COMMISSION_RATE` sabiti (0.15 → 0.25)
+4. `teacher/Earnings.tsx` → ledger bazlı geçiş
+5. Payout "Kalem Listesi" UI (dialog/drawer: `earnings_ledger WHERE payout_id = X`)
+6. Product akışı aktif etme (`ListingDetailPage` placeholder kaldırma, item_type='product' ile RPC çağrısı)
+7. Edge function güncellemeleri (`send-appointment-email` admin onayından invoke, `send-status-update-email` genişletme)
+8. `Appointments.tsx` → teacher onayla/reddet butonları kaldırma (artık admin onaylıyor)
+
+**Phase 2 sonunda çalışan akış:**
+- Tam uçtan uca: danışan ödeme → admin onay → uzman confirmed görür → earnings ledger → payout kalem listesi
+
+---
+
+## Güncel Blocker / Riskler (7 madde)
+
+1. **RLS mevcut durumu bilinmiyor** — Supabase UI'dan yönetiliyor; yeni tablolar + RPC için migration gerekli
+2. **Referans kodu çakışma** — Server-side üretim + DB UNIQUE; retry mantığı RPC içinde (düşük risk)
+3. **Concurrent admin onay** — `WHERE status='pending'` idempotent guard + UNIQUE constraint'ler → çözülmüş
+4. **Legacy earnings UNION** — İki kaynağı (ledger + eski appointments) birleştirme geçici karmaşıklık
+5. **Product listing_prices semantik** — `duration_minutes` product'ta anlamsız; quantity ile karıştırılma riski
+6. **Edge function JWT** — Tüm function'lar `verify_jwt=false`; ödeme emaili için function içinde auth kontrolü
+7. **0.15 hardcoded** — `admin/Earnings.tsx` satır 164 ve 239'da hala 0.15; Phase 2'de `PLATFORM_COMMISSION_RATE` ile değişecek
+
+## Kesinleşen Kararlar (soru kalmadı)
+
+1. **Komisyon:** %25 platform / %75 teacher — `PLATFORM_COMMISSION_RATE = 0.25`
+2. **FK standardı:** `profiles(id)` tüm yeni tablolarda
+3. **Payout:** `payout_items` yok; `earnings_ledger.payout_id` tek kaynak
+4. **Appointment oluşturma:** RPC ile atomik (payment_request + appointment tek transaction)
+5. **Banka bilgileri:** DB `bank_accounts` tablosu
+6. **Duplicate önleme:** UNIQUE constraint + idempotent admin UPDATE
+7. **Client INSERT yok:** payment_requests + appointments INSERT sadece RPC üzerinden
 
