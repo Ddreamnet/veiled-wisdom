@@ -57,6 +57,15 @@ export default function ListingDetailPage() {
   const productPackages = consultationType === 'product' ? sortedPrices.slice(1) : [];
 
   const handleBooking = async () => {
+    // Product guard: ürünler için appointment oluşturma
+    if (listing?.consultation_type === 'product') {
+      toast({
+        title: "Ürün Satışı",
+        description: "Ürün satışı yakında aktif olacak. Detaylar için uzmanla mesajlaşın.",
+        variant: "destructive"
+      });
+      return;
+    }
     if (!user) {
       toast({
         title: "Giriş Gerekli",
@@ -106,6 +115,7 @@ export default function ListingDetailPage() {
     const { data: teacherProfile } = await supabase.from("profiles").select("username").eq("user_id", listing.teacher_id).maybeSingle();
 
     try {
+      // TODO: Ödeme sistemi gelince bu invoke noktası değişecek — appointment artık ödeme sonrası oluşacak
       await supabase.functions.invoke("send-appointment-email", {
         body: {
           customerUserId: user.id,
@@ -370,94 +380,37 @@ export default function ListingDetailPage() {
             </Card>
           )}
 
-          {/* Product Purchase Card */}
+          {/* Product Card — Satış yakında */}
           {consultationType === "product" && (
             <Card className="border-2 border-primary/20 shadow-lg">
               <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10">
                 <CardTitle className="text-xl md:text-2xl flex items-center gap-2">
-                  <ShoppingCart className="h-5 w-5 md:h-6 md:w-6 text-primary" />
-                  Ürün Satın Al
+                  <Package className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+                  Ürün Bilgisi
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-5 md:space-y-6 p-5 md:p-6">
+                {sortedPrices.length > 0 && (
+                  <div className="space-y-2">
+                    {sortedPrices.map(price => (
+                      <div key={price.duration_minutes} className="flex items-center justify-between p-3 border rounded-lg">
+                        <span className="text-sm font-medium">{price.duration_minutes === 1 ? "1 adet" : `${price.duration_minutes} adet`}</span>
+                        <span className="font-bold text-primary">{price.price} TL</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="bg-amber-50 dark:bg-amber-950/20 border-l-4 border-amber-500 rounded-r-lg p-4">
+                  <p className="text-sm text-amber-800 dark:text-amber-200">
+                    Ürün satışı yakında aktif olacak. Detaylar için uzmanla mesajlaşın.
+                  </p>
+                </div>
+
                 <Button onClick={() => navigate(`/messages?userId=${listing.teacher_id}`)} className="w-full h-12 text-base" variant="outline" size="lg">
                   <MessageSquare className="h-5 w-5 mr-2" />
                   Mesaj Gönder
                 </Button>
-
-                <div className="border-t pt-5">
-                  <Label className="text-base font-semibold mb-4 block">Adet Seçimi</Label>
-                  <RadioGroup value={selectedDuration?.toString()} onValueChange={v => setSelectedDuration(parseInt(v))} className="space-y-3">
-                    {unitPrice && (
-                      <div onClick={() => setSelectedDuration(unitPrice.duration_minutes)} className="flex items-center justify-between p-4 border-2 rounded-xl hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer">
-                        <div className="flex items-center space-x-3">
-                          <RadioGroupItem value={unitPrice.duration_minutes.toString()} id={`duration-${unitPrice.duration_minutes}`} />
-                          <Label htmlFor={`duration-${unitPrice.duration_minutes}`} className="cursor-pointer text-sm md:text-base font-medium flex items-center gap-2">
-                            <Package className="h-4 w-4 text-primary" />
-                            1 Adet
-                          </Label>
-                        </div>
-                        <span className="font-bold text-base md:text-lg text-primary">{unitPrice.price} TL</span>
-                      </div>
-                    )}
-                    
-                    {productPackages.map(price => (
-                      <div key={price.duration_minutes} onClick={() => setSelectedDuration(price.duration_minutes)} className="flex items-center justify-between p-4 border-2 rounded-xl hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer">
-                        <div className="flex items-center space-x-3">
-                          <RadioGroupItem value={price.duration_minutes.toString()} id={`duration-${price.duration_minutes}`} />
-                          <Label htmlFor={`duration-${price.duration_minutes}`} className="cursor-pointer text-sm md:text-base font-medium flex items-center gap-2">
-                            <Package className="h-4 w-4 text-primary" />
-                            {price.duration_minutes} Adet
-                            {unitPrice && (
-                              <span className="text-xs text-green-600 dark:text-green-400 ml-2">
-                                (Birim: {(price.price / price.duration_minutes).toFixed(2)} TL)
-                              </span>
-                            )}
-                          </Label>
-                        </div>
-                        <span className="font-bold text-base md:text-lg text-primary">{price.price} TL</span>
-                      </div>
-                    ))}
-                  </RadioGroup>
-                </div>
-
-                {selectedPrice && (
-                  <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-xl p-5 border-2 border-primary/20">
-                    <div className="flex items-center justify-between text-lg md:text-xl font-bold">
-                      <span>Toplam Tutar:</span>
-                      <span className="text-primary">{selectedPrice.price} TL</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      {selectedDuration === 1 ? "1 adet" : `${selectedDuration} adet`} ürün
-                    </p>
-                  </div>
-                )}
-
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button className="w-full h-12 text-base font-semibold" size="lg" disabled={!selectedDuration || bookingLoading}>
-                      <ShoppingCart className="h-5 w-5 mr-2" />
-                      Satın Al
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Satın Alma Onayı</AlertDialogTitle>
-                      <AlertDialogDescription className="space-y-2 text-base">
-                        Satın almak istediğinize emin misiniz?
-                        <div className="mt-4 space-y-2 text-foreground">
-                          <p><strong>Ürün:</strong> {listing.title}</p>
-                          <p><strong>Adet:</strong> {selectedDuration === 1 ? "1 adet" : `${selectedDuration} adet`}</p>
-                          <p><strong>Tutar:</strong> {selectedPrice?.price} TL</p>
-                        </div>
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>İptal</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleBooking}>Onayla ve Satın Al</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
               </CardContent>
             </Card>
           )}

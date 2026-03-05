@@ -147,7 +147,26 @@ export function useApprovals() {
 
       // Step 2: Fix role if missing (only for approved teachers)
       if (approval.hasRoleIssue && approval.status === "approved") {
-        await supabase.from("user_roles").delete().eq("user_id", approval.user_id);
+        // Admin guard: admin kullanıcıya teacher rolü atanamaz
+        const { data: adminCheck } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", approval.user_id)
+          .eq("role", "admin")
+          .maybeSingle();
+
+        if (adminCheck) {
+          toast({
+            title: "İşlem Engellendi",
+            description: "Admin kullanıcıya öğretmen rolü atanamaz.",
+            variant: "destructive",
+          });
+          setRepairing(null);
+          return;
+        }
+
+        // Ek güvenlik: admin rolünü asla silme
+        await supabase.from("user_roles").delete().eq("user_id", approval.user_id).neq("role", "admin");
 
         const { error: roleError } = await supabase
           .from("user_roles")
@@ -183,9 +202,22 @@ export function useApprovals() {
   };
 
   const assignTeacherRole = async (userId: string, maxRetries = 3): Promise<{ success: boolean; error?: string }> => {
+    // Admin guard: admin kullanıcıya teacher rolü atanamaz
+    const { data: adminCheck } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("role", "admin")
+      .maybeSingle();
+
+    if (adminCheck) {
+      return { success: false, error: "Admin kullanıcıya öğretmen rolü atanamaz" };
+    }
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        const { error: deleteError } = await supabase.from("user_roles").delete().eq("user_id", userId);
+        // Ek güvenlik: admin rolünü asla silme
+        const { error: deleteError } = await supabase.from("user_roles").delete().eq("user_id", userId).neq("role", "admin");
         
         if (deleteError) {
           console.error(`Role delete error (attempt ${attempt}):`, deleteError);

@@ -49,6 +49,8 @@ export default function TeacherEarnings() {
     }
   }, [user]);
 
+  const nowIso = new Date().toISOString();
+
   const fetchData = async () => {
     if (!user) return;
     setLoading(true);
@@ -56,7 +58,7 @@ export default function TeacherEarnings() {
     try {
       // Fetch all data in parallel
       const [completedResult, payoutSummaryResult, payoutHistoryResult] = await Promise.all([
-        supabase.from("appointments").select("price_at_booking").eq("teacher_id", user.id).eq("status", "completed"),
+        supabase.from("appointments").select("price_at_booking").eq("teacher_id", user.id).eq("status", "confirmed").lt("end_ts", nowIso),
         supabase.from("teacher_payouts").select("appointment_count, amount").eq("teacher_id", user.id),
         supabase.from("teacher_payouts").select("*").eq("teacher_id", user.id).order("paid_at", { ascending: false }),
       ]);
@@ -111,7 +113,14 @@ export default function TeacherEarnings() {
         </Breadcrumb>
       </div>
 
-      <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Gelirlerim</h1>
+      <h1 className="text-2xl md:text-3xl font-bold mb-4">Gelirlerim</h1>
+
+      <div className="bg-amber-50 dark:bg-amber-950/20 border-l-4 border-amber-500 rounded-r-lg p-4 mb-6 md:mb-8">
+        <p className="text-sm text-amber-800 dark:text-amber-200 flex items-start gap-2">
+          <span className="text-lg">⚠️</span>
+          <span>Geçici hesaplama: Onaylanmış ve süresi geçmiş randevular baz alınmaktadır. Ödeme sistemi gelince güncellenecek.</span>
+        </p>
+      </div>
 
       {loading ? (
         <div className="space-y-6">
