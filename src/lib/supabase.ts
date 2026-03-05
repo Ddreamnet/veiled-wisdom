@@ -42,7 +42,4 @@ export type {
   Appointment,
   Curiosity,
   Review,
-  Conversation,
-  ConversationParticipant,
-  MessageType,
 } from '@/types/database';

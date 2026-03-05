@@ -20,7 +20,8 @@ export function useAppointments(userId: string | undefined, role: string | null)
             teacher:profiles!appointments_teacher_id_fkey(username)
           `)
           .eq(column, userId)
-          .gte('start_ts', now)
+          .gte('end_ts', now)
+          .neq('status', 'cancelled')
           .order('start_ts', { ascending: true }),
         supabase
           .from('appointments')
@@ -31,7 +32,8 @@ export function useAppointments(userId: string | undefined, role: string | null)
             teacher:profiles!appointments_teacher_id_fkey(username)
           `)
           .eq(column, userId)
-          .lt('start_ts', now)
+          .lt('end_ts', now)
+          .neq('status', 'cancelled')
           .order('start_ts', { ascending: false }),
       ]);
 

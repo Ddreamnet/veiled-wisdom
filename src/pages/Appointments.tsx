@@ -46,6 +46,7 @@ export default function Appointments() {
       if (updateError) throw updateError;
 
       // Send email notification
+      // TODO: Ödeme sistemi gelince bu invoke admin paneline taşınacak (uzman değil admin onaylayacak)
       await supabase.functions.invoke('send-status-update-email', {
         body: {
           customerUserId: appointment.customer_id,
@@ -93,7 +94,18 @@ export default function Appointments() {
         <CardHeader className="pb-3">
           <CardTitle className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-base md:text-lg">
             <span className="truncate">Randevu #{appointment.id.slice(0, 8)}</span>
-            <Badge className="self-start sm:self-auto">{appointment.status}</Badge>
+            <Badge 
+              className="self-start sm:self-auto"
+              variant={
+                appointment.status === 'confirmed' ? 'default' :
+                appointment.status === 'cancelled' ? 'destructive' :
+                appointment.status === 'completed' ? 'secondary' : 'outline'
+              }
+            >
+              {
+                { pending: 'Bekliyor', confirmed: 'Onaylandı', cancelled: 'İptal Edildi', completed: 'Tamamlandı' }[appointment.status as string] || appointment.status
+              }
+            </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">

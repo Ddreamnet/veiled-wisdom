@@ -79,6 +79,8 @@ export default function AdminEarnings() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
+  const nowIso = new Date().toISOString();
+
   useEffect(() => {
     fetchEarnings();
     fetchPayoutHistory();
@@ -111,7 +113,8 @@ export default function AdminEarnings() {
           .from("appointments")
           .select("price_at_booking, created_at")
           .eq("teacher_id", teacher.user_id)
-          .eq("status", "completed");
+          .eq("status", "confirmed")
+          .lt("end_ts", nowIso);
 
         // Apply date filter
         if (dateRange !== "all") {
@@ -130,7 +133,8 @@ export default function AdminEarnings() {
           .from("appointments")
           .select("id, price_at_booking")
           .eq("teacher_id", teacher.user_id)
-          .eq("status", "completed");
+          .eq("status", "confirmed")
+          .lt("end_ts", nowIso);
 
         // Get last payout
         const { data: lastPayout } = await supabase
@@ -213,7 +217,8 @@ export default function AdminEarnings() {
       let query = supabase
         .from("appointments")
         .select("price_at_booking, created_at, teacher_id")
-        .eq("status", "completed")
+        .eq("status", "confirmed")
+        .lt("end_ts", nowIso)
         .gte("created_at", startDate.toISOString())
         .order("created_at", { ascending: true });
 
@@ -299,6 +304,12 @@ export default function AdminEarnings() {
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Platform Gelirleri</h1>
           <p className="text-muted-foreground mt-2">Uzman kazançları ve ödeme yönetimi</p>
+        </div>
+        <div className="bg-amber-50 dark:bg-amber-950/20 border-l-4 border-amber-500 rounded-r-lg p-4">
+          <p className="text-sm text-amber-800 dark:text-amber-200 flex items-start gap-2">
+            <span className="text-lg">⚠️</span>
+            <span>Geçici hesaplama: Onaylanmış ve süresi geçmiş randevular baz alınmaktadır. Ödeme sistemi gelince güncellenecek.</span>
+          </p>
         </div>
       </div>
 
