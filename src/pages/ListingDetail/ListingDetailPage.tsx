@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase, ListingPrice, ConsultationType } from "@/lib/supabase";
+import { ConsultationType } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/useToast";
-import { MessageSquare, Calendar as CalendarIcon, Clock, Star, Home, ChevronRight, Video, Package, ShoppingCart } from "lucide-react";
+import { MessageSquare, Calendar as CalendarIcon, Clock, Home, ChevronRight, Video, Package } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -31,7 +31,7 @@ export default function ListingDetailPage() {
   const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedTime, setSelectedTime] = useState("");
-  const [bookingLoading, setBookingLoading] = useState(false);
+  const [bookingLoading] = useState(false);
 
   const reviews = listing?.reviews || [];
   const averageRating = listing?.averageRating || 0;
@@ -56,16 +56,7 @@ export default function ListingDetailPage() {
   const unitPrice = consultationType === 'product' && sortedPrices.length > 0 ? sortedPrices[0] : null;
   const productPackages = consultationType === 'product' ? sortedPrices.slice(1) : [];
 
-  const handleBooking = async () => {
-    // Product guard: ürünler için appointment oluşturma
-    if (listing?.consultation_type === 'product') {
-      toast({
-        title: "Ürün Satışı",
-        description: "Ürün satışı yakında aktif olacak. Detaylar için uzmanla mesajlaşın.",
-        variant: "destructive"
-      });
-      return;
-    }
+  const handleBooking = () => {
     if (!user) {
       toast({
         title: "Giriş Gerekli",
@@ -83,60 +74,30 @@ export default function ListingDetailPage() {
       });
       return;
     }
-    setBookingLoading(true);
     const selectedPrice = listing?.prices.find(p => p.duration_minutes === selectedDuration);
-    if (!selectedPrice || !listing) {
-      setBookingLoading(false);
-      return;
-    }
-    const startTs = selectedDate ? new Date(`${format(selectedDate, "yyyy-MM-dd")}T${selectedTime}`) : new Date();
+    if (!selectedPrice || !listing) return;
+
+    const startTs = new Date(`${format(selectedDate, "yyyy-MM-dd")}T${selectedTime}`);
     const endTs = new Date(startTs.getTime() + selectedDuration * 60000);
-    const { error } = await supabase.from("appointments").insert({
-      listing_id: listing.id,
-      customer_id: user.id,
-      teacher_id: listing.teacher_id,
-      status: "pending",
-      start_ts: startTs.toISOString(),
-      end_ts: endTs.toISOString(),
-      duration_minutes: selectedDuration,
-      price_at_booking: selectedPrice.price
-    });
-    if (error) {
-      toast({
-        title: "Hata",
-        description: "Randevu oluşturulamadı.",
-        variant: "destructive"
-      });
-      setBookingLoading(false);
-      return;
-    }
 
-    const { data: customerProfile } = await supabase.from("profiles").select("username").eq("user_id", user.id).maybeSingle();
-    const { data: teacherProfile } = await supabase.from("profiles").select("username").eq("user_id", listing.teacher_id).maybeSingle();
-
-    try {
-      // TODO: Ödeme sistemi gelince bu invoke noktası değişecek — appointment artık ödeme sonrası oluşacak
-      await supabase.functions.invoke("send-appointment-email", {
-        body: {
-          customerUserId: user.id,
-          customerName: customerProfile?.username || "Kullanıcı",
-          teacherUserId: listing.teacher_id,
-          teacherName: teacherProfile?.username || listing.teacher.username,
-          listingTitle: listing.title,
-          startTime: startTs.toISOString(),
-          duration: selectedDuration,
-          price: selectedPrice.price
-        }
-      });
-    } catch (emailError) {
-      console.error("Email sending failed:", emailError);
-    }
-    toast({
-      title: "Randevu Oluşturuldu",
-      description: "Randevunuz başarıyla oluşturuldu. Email bildirimleri gönderildi."
+    // Navigate to payment method page with flow state
+    navigate("/payment/method", {
+      state: {
+        listingId: listing.id,
+        listingTitle: listing.title,
+        teacherId: listing.teacher_id,
+        teacherName: listing.teacher?.username || "Uzman",
+        priceId: selectedPrice.id,
+        price: selectedPrice.price,
+        durationMinutes: selectedDuration,
+        consultationType: listing.consultation_type,
+        quantity: 1,
+        startTs: startTs.toISOString(),
+        endTs: endTs.toISOString(),
+        selectedDate: selectedDate.toISOString(),
+        selectedTime: selectedTime,
+      }
     });
-    navigate("/appointments");
-    setBookingLoading(false);
   };
 
   if (loading) {

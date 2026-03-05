@@ -10,19 +10,27 @@ export function useAppointments(userId: string | undefined, role: string | null)
       const column = role === 'teacher' ? 'teacher_id' : 'customer_id';
       const now = new Date().toISOString();
 
+      // Build pending query
+      let pendingQuery = supabase
+        .from('appointments')
+        .select(`
+          *,
+          listing:listings(title, id),
+          customer:profiles!appointments_customer_id_fkey(username),
+          teacher:profiles!appointments_teacher_id_fkey(username)
+        `)
+        .eq(column, userId)
+        .gte('end_ts', now)
+        .neq('status', 'cancelled')
+        .order('start_ts', { ascending: true });
+
+      // Teacher should NOT see pending appointments (payment not yet confirmed)
+      if (role === 'teacher') {
+        pendingQuery = pendingQuery.neq('status', 'pending');
+      }
+
       const [pendingResult, completedResult] = await Promise.all([
-        supabase
-          .from('appointments')
-          .select(`
-            *,
-            listing:listings(title, id),
-            customer:profiles!appointments_customer_id_fkey(username),
-            teacher:profiles!appointments_teacher_id_fkey(username)
-          `)
-          .eq(column, userId)
-          .gte('end_ts', now)
-          .neq('status', 'cancelled')
-          .order('start_ts', { ascending: true }),
+        pendingQuery,
         supabase
           .from('appointments')
           .select(`
