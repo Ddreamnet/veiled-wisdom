@@ -341,32 +341,75 @@ export default function ListingDetailPage() {
             </Card>
           )}
 
-          {/* Product Card — Satış yakında */}
+          {/* Product Card */}
           {consultationType === "product" && (
             <Card className="border-2 border-primary/20 shadow-lg">
               <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10">
                 <CardTitle className="text-xl md:text-2xl flex items-center gap-2">
                   <Package className="h-5 w-5 md:h-6 md:w-6 text-primary" />
-                  Ürün Bilgisi
+                  Ürün Satın Al
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-5 md:space-y-6 p-5 md:p-6">
                 {sortedPrices.length > 0 && (
-                  <div className="space-y-2">
+                  <RadioGroup
+                    value={selectedDuration?.toString() || ""}
+                    onValueChange={(val) => setSelectedDuration(Number(val))}
+                    className="space-y-2"
+                  >
                     {sortedPrices.map(price => (
-                      <div key={price.duration_minutes} className="flex items-center justify-between p-3 border rounded-lg">
-                        <span className="text-sm font-medium">{price.duration_minutes === 1 ? "1 adet" : `${price.duration_minutes} adet`}</span>
-                        <span className="font-bold text-primary">{price.price} TL</span>
+                      <div key={price.duration_minutes} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-accent/50 cursor-pointer">
+                        <RadioGroupItem value={price.duration_minutes.toString()} id={`product-${price.duration_minutes}`} />
+                        <Label htmlFor={`product-${price.duration_minutes}`} className="flex-1 flex items-center justify-between cursor-pointer">
+                          <span className="text-sm font-medium">{price.duration_minutes === 1 ? "1 adet" : `${price.duration_minutes} adet`}</span>
+                          <span className="font-bold text-primary">{price.price} TL</span>
+                        </Label>
                       </div>
                     ))}
+                  </RadioGroup>
+                )}
+
+                {selectedPrice && (
+                  <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-xl p-5 border-2 border-primary/20">
+                    <div className="flex items-center justify-between text-lg md:text-xl font-bold">
+                      <span>Toplam Tutar:</span>
+                      <span className="text-primary">{selectedPrice.price} TL</span>
+                    </div>
                   </div>
                 )}
 
-                <div className="bg-amber-50 dark:bg-amber-950/20 border-l-4 border-amber-500 rounded-r-lg p-4">
-                  <p className="text-sm text-amber-800 dark:text-amber-200">
-                    Ürün satışı yakında aktif olacak. Detaylar için uzmanla mesajlaşın.
-                  </p>
-                </div>
+                <Button
+                  className="w-full h-12 text-base font-semibold"
+                  size="lg"
+                  disabled={!selectedDuration}
+                  onClick={() => {
+                    if (!user) {
+                      toast({ title: "Giriş Gerekli", description: "Satın almak için giriş yapmalısınız.", variant: "destructive" });
+                      navigate("/auth/sign-in");
+                      return;
+                    }
+                    if (!selectedPrice || !listing) return;
+                    navigate("/payment/method", {
+                      state: {
+                        listingId: listing.id,
+                        listingTitle: listing.title,
+                        teacherId: listing.teacher_id,
+                        teacherName: listing.teacher?.username || "Uzman",
+                        priceId: selectedPrice.id,
+                        price: selectedPrice.price,
+                        durationMinutes: selectedDuration,
+                        consultationType: "product",
+                        quantity: selectedDuration,
+                        startTs: null,
+                        endTs: null,
+                        selectedDate: null,
+                        selectedTime: null,
+                      }
+                    });
+                  }}
+                >
+                  Satın Al
+                </Button>
 
                 <Button onClick={() => navigate(`/messages?userId=${listing.teacher_id}`)} className="w-full h-12 text-base" variant="outline" size="lg">
                   <MessageSquare className="h-5 w-5 mr-2" />
