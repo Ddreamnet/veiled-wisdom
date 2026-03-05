@@ -5,6 +5,7 @@ import { Users, FolderTree, FileText, Sparkles, TrendingUp, Calendar, UserCheck 
 import { TurkishLiraIcon } from "@/components/icons/TurkishLiraIcon";
 import { useEffect, useState, lazy, Suspense } from "react";
 import { supabase } from "@/lib/supabase";
+import { PLATFORM_COMMISSION_RATE } from "@/lib/constants";
 import { UnifiedBreadcrumb as AdminBreadcrumb } from "@/components/UnifiedBreadcrumb";
 
 // Lazy load chart components
@@ -90,7 +91,7 @@ export default function AdminDashboard() {
           .order("created_at", { ascending: true }),
       ]);
 
-      const monthlyRevenue = revenueResult.data?.reduce((sum, apt) => sum + apt.price_at_booking * 0.25, 0) || 0;
+      const monthlyRevenue = revenueResult.data?.reduce((sum, apt) => sum + apt.price_at_booking * PLATFORM_COMMISSION_RATE, 0) || 0;
 
       // Group trends by date
       const trendMap = new Map<string, number>();

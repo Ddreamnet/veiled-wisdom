@@ -208,7 +208,7 @@ export default function BankTransferScreen() {
               )}
 
               {/* Sticky CTA */}
-              <div className="pt-2 md:pt-4">
+              <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-t p-4 md:static md:bg-transparent md:backdrop-blur-none md:border-t-0 md:p-0 md:pt-4">
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button
@@ -244,6 +244,8 @@ export default function BankTransferScreen() {
               </div>
             </>
           )}
+          {/* Spacer for mobile sticky CTA */}
+          <div className="h-24 md:h-0" />
         </div>
       </div>
     </div>

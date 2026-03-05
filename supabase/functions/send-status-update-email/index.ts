@@ -24,12 +24,40 @@ interface StatusUpdateEmailRequest {
   status: "confirmed" | "cancelled";
 }
 
+// Verify caller is admin
+async function verifyAdmin(req: Request): Promise<boolean> {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) return false;
+
+  const token = authHeader.replace("Bearer ", "");
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  if (error || !user) return false;
+
+  const { data: roles } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("role", "admin")
+    .limit(1);
+
+  return (roles && roles.length > 0) || false;
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // Admin auth check
+    const isAdmin = await verifyAdmin(req);
+    if (!isAdmin) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
     const {
       customerUserId,
       customerName,
@@ -84,7 +112,7 @@ const handler = async (req: Request): Promise<Response> => {
       `
         : `
         <h1>Merhaba ${customerName},</h1>
-        <p>Üzgünüz, randevu talebiniz uzman tarafından reddedildi.</p>
+        <p>Üzgünüz, randevu talebiniz reddedildi.</p>
         
         <h2>İptal Edilen Randevu:</h2>
         <ul>

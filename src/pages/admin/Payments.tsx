@@ -162,7 +162,7 @@ export default function AdminPayments() {
       const teacherAmount = pr.amount * (1 - PLATFORM_COMMISSION_RATE);
       const platformAmount = pr.amount * PLATFORM_COMMISSION_RATE;
 
-      await supabase.from("earnings_ledger").insert({
+      const { error: ledgerError } = await supabase.from("earnings_ledger").upsert({
         payment_request_id: pr.id,
         teacher_id: pr.teacher_id,
         source_type: pr.item_type,
@@ -170,7 +170,8 @@ export default function AdminPayments() {
         gross_amount: pr.amount,
         teacher_amount: teacherAmount,
         platform_amount: platformAmount,
-      });
+      }, { onConflict: "payment_request_id", ignoreDuplicates: true });
+      if (ledgerError) console.error("Ledger insert error (may be duplicate):", ledgerError);
 
       // 5. Send email notification
       try {
