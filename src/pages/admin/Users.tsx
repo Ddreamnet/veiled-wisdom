@@ -150,8 +150,26 @@ export default function UsersManagement() {
         targetRole = user.role;
       }
 
-      // Delete existing roles first
-      await supabase.from("user_roles").delete().eq("user_id", user.id);
+      // Check if user is admin — never touch admin roles
+      const { data: adminCheck } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+
+      if (adminCheck) {
+        toast({
+          title: "İşlem Engellendi",
+          description: "Admin kullanıcının rolü değiştirilemez.",
+          variant: "destructive",
+        });
+        setRepairing(null);
+        return;
+      }
+
+      // Delete existing roles (excluding admin as safety net)
+      await supabase.from("user_roles").delete().eq("user_id", user.id).neq("role", "admin");
 
       // Insert correct role
       const { error: roleError } = await supabase
@@ -214,7 +232,21 @@ export default function UsersManagement() {
           targetRole = user.role;
         }
 
-        await supabase.from("user_roles").delete().eq("user_id", user.id);
+        // Check admin before bulk repair
+        const { data: adminCheck } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("role", "admin")
+          .maybeSingle();
+
+        if (adminCheck) {
+          // Skip admin users silently
+          successCount++;
+          continue;
+        }
+
+        await supabase.from("user_roles").delete().eq("user_id", user.id).neq("role", "admin");
 
         const { error: roleError } = await supabase
           .from("user_roles")
