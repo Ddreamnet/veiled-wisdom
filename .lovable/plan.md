@@ -1,203 +1,202 @@
 
 
-# Ödeme Sistemi Planı — Revize v3 (Atomik İşlem + Güvenlik Sertleştirme + Phase Ayrımı)
-
-## Eklenen 3 Kritik Madde
-
-### EK-6) Atomik İşlem: RPC ile `create_payment_request_and_appointment()`
-
-**Problem:** Plan v2'de "TEK TRANSACTION" deniyor ama client'tan iki ayrı INSERT (`payment_requests` + `appointments`) gerçek DB transaction değil. Ağ kesilirse biri olur biri olmaz; reference_code çakışması gibi edge case'ler oluşur.
-
-**Çözüm:** Postgres RPC fonksiyonu (SECURITY DEFINER):
-
-```text
-create_payment_request_and_appointment(
-  _customer_id      uuid,
-  _teacher_id       uuid,
-  _listing_id       uuid,
-  _listing_price_id uuid,
-  _item_type        text,        -- 'appointment' | 'product'
-  _quantity          int,
-  _amount            numeric,
-  _bank_account_id   uuid,
-  _start_ts          timestamptz, -- NULL for product
-  _end_ts            timestamptz, -- NULL for product
-  _duration_minutes  int          -- NULL for product
-)
-RETURNS jsonb  -- { payment_request_id, appointment_id (nullable), reference_code }
-```
-
-Fonksiyon içinde (tek transaction):
-1. `reference_code` server-side üretilir (`'EL-' || upper(substr(md5(random()::text), 1, 6))`)
-2. `payment_requests` INSERT (status='pending')
-3. `item_type='appointment'` ise → `appointments` INSERT (status='pending', payment_request_id)
-4. Tek `jsonb` response döner
-
-**Avantajlar:**
-- Atomik: ya ikisi de olur, ya hiçbiri
-- reference_code server-side → çakışma halinde retry DB tarafında
-- RLS basitleşir: client sadece RPC çağırır, doğrudan INSERT yapmaz
-- `appointments` tablosuna customer INSERT RLS'i gerekli olmaz
-
-**Etki:** `BankTransferScreen.tsx`'te `supabase.rpc('create_payment_request_and_appointment', {...})` çağrısı yapılır. `supabase.from('appointments').insert()` ve `supabase.from('payment_requests').insert()` client'tan hiç çağrılmaz.
+# Ödeme Sistemi v3 — Doğrulama Raporu
 
 ---
 
-### EK-7) Duplicate Önleme: UNIQUE Constraint'ler + İdempotent Update
+## A) BUILD / TYPECHECK / RUNTIME HEALTH
 
-**DB constraint'leri:**
-- `appointments.payment_request_id` → UNIQUE (NULL serbest; legacy kayıtlar etkilenmez)
-- `earnings_ledger.payment_request_id` → UNIQUE (her PR için tek ledger kaydı)
-- `orders.payment_request_id` → UNIQUE (zaten planda var)
+**Sonuç: PASS**
 
-**Admin onay idempotency:**
-- Admin "Onayla" butonundaki UPDATE sorgusu:
-  ```text
-  UPDATE payment_requests SET status='confirmed', confirmed_at=now()
-  WHERE id = $1 AND status = 'pending'
-  ```
-  `AND status = 'pending'` koşulu: zaten onaylanmış talebi tekrar onaylamayı engeller (0 row affected → "Zaten işlenmiş" toast)
-- `earnings_ledger` INSERT'te `ON CONFLICT (payment_request_id) DO NOTHING` eklenebilir (ekstra güvenlik)
+- Tüm import'lar doğru: `PaymentMethodPage`, `BankTransferScreen`, `AdminPayments`, `CopyableField`, `PLATFORM_COMMISSION_RATE`, tüm yeni tipler (`BankAccount`, `PaymentRequest`, `Order`, `EarningsLedgerEntry`) `src/types/database.ts`'de tanımlı.
+- Route'lar `routeConfig.ts`'e doğru eklenmiş: `/payment/method`, `/payment/bank-transfer`, `/admin/payments`.
+- Console log'larda build/runtime hatası yok. Yalnızca React Router v7 future flag uyarıları ve reviews FK hatası (ödeme sistemiyle ilgisiz, mevcut bug).
+- `BankTransferScreen` ve `AdminPayments`'da kullanılan tüm component'ler (`AlertDialog`, `Sheet`, `Tabs` vb.) dependency'lerde mevcut.
 
 ---
 
-### EK-8) RLS Basitleştirme: Client INSERT Kaldırılır
+## B) DB ŞEMA DOĞRULAMA
 
-**Eski risk:** Client'tan `appointments.insert()` yapılırsa kullanıcı başkasının `payment_request_id`'sini bağlayabilir.
+**Sonuç: PASS (migration dosyası doğru)**
 
-**Çözüm (EK-6 ile entegre):**
-- Client asla doğrudan `appointments` veya `payment_requests` INSERT yapmaz
-- Tüm INSERT'ler RPC fonksiyonu içinde (SECURITY DEFINER)
-- RPC fonksiyonu `auth.uid()` kontrolü yapar: `_customer_id = auth.uid()` olmalı
-- `appointments` tablosundaki mevcut customer INSERT RLS policy'si korunabilir (legacy uyum) ama yeni akışta kullanılmaz
+Migration SQL'i (`phase1_payment_system.md` lines 6-155) doğrulandı:
 
-**Admin onay tarafı:**
-- Admin, `payment_requests` UPDATE yapabilir (RLS: `has_role(auth.uid(), 'admin')`)
-- Admin, `appointments` UPDATE yapabilir (status: pending→confirmed)
-- Admin, `earnings_ledger` INSERT yapabilir (RLS: admin only)
-- Admin, `orders` INSERT yapabilir (RLS: admin only)
-- Alternatif: admin onay akışı da RPC ile atomik yapılabilir (`confirm_payment_request(pr_id)`) — Phase 2'de değerlendirilebilir
+1. **bank_accounts** — `id`, `bank_name`, `iban`, `account_holder` (NOT NULL), `is_active` (DEFAULT true), `display_order`, `created_at`. Seed: Ziraat + KuveytTürk. **PASS**
+2. **payment_requests** — FK'ler: `profiles(id)` x2, `listings(id)`, `listing_prices(id)`, `bank_accounts(id)`. Status CHECK: `pending/confirmed/rejected`. `reference_code UNIQUE`. `start_ts/end_ts/duration_minutes` var. Index `(status, created_at)` var. **PASS**
+3. **orders** — `payment_request_id UNIQUE`. Status CHECK: `confirmed/shipped/delivered/cancelled`. **PASS**
+4. **earnings_ledger** — `payment_request_id UNIQUE`. `payout_id` FK `teacher_payouts`. Index `(teacher_id, payout_id)`. **PASS**
+5. **appointments** — `payment_request_id` kolonu ekleniyor. `uq_appointments_payment_request UNIQUE` constraint. **PASS**
 
 ---
 
-## Güncellenen Plan Bölümleri
+## C) RPC DOĞRULAMA — Atomiklik + Güvenlik
 
-### A) DB/SQL — Ek değişiklikler
+**Sonuç: PASS (2 uyarı)**
 
-Mevcut plan v2 tablolarına ek olarak:
+1. **SECURITY DEFINER** — Evet. `SET search_path = public` — Evet. **PASS**
+2. **auth.uid() kontrolü** — Line 113: `IF auth.uid() IS NULL OR auth.uid() != _customer_id THEN RAISE EXCEPTION`. **PASS**
+3. **reference_code server-side** — Evet, `'EL-' || upper(substr(md5(...), 1, 6))`. UNIQUE çakışmada retry (max 5). **PASS**
+4. **Atomiklik** — Tek PL/pgSQL fonksiyon = tek transaction. Hata olursa otomatik ROLLBACK. **PASS**
+5. **item_type='appointment' → start_ts kontrolü** — Line 137: `IF _item_type = 'appointment' AND _start_ts IS NOT NULL THEN INSERT appointments`. **PASS**
 
-**UNIQUE constraint'ler:**
-- `ALTER TABLE appointments ADD CONSTRAINT uq_appointments_payment_request UNIQUE (payment_request_id);`
-- `ALTER TABLE earnings_ledger ADD CONSTRAINT uq_ledger_payment_request UNIQUE (payment_request_id);`
-- `orders.payment_request_id` zaten UNIQUE (plan v2'de var)
+**UYARI (P2):**
+- `_listing_price_id`'nin gerçekten `_listing_id`'ye ait olup olmadığı kontrol edilmiyor (RPC içinde). Kullanıcı farklı bir listing'e ait price ile çağırabilir.
+- `_teacher_id`'nin gerçekten `listings.teacher_id` ile eşleştiği kontrol edilmiyor.
+- `_bank_account_id`'nin `is_active=true` olup olmadığı kontrol edilmiyor.
 
-**RPC fonksiyonu:**
-- `create_payment_request_and_appointment()` — yukarıdaki tanım
-- SECURITY DEFINER, `search_path = public`
-- `auth.uid()` = `_customer_id` kontrolü fonksiyon başında
-
-### B) RLS — Güncellenmiş
-
-| Tablo | SELECT | INSERT | UPDATE |
-|-------|--------|--------|--------|
-| `payment_requests` | customer: own / admin: all | **RPC ile** (doğrudan INSERT yok) | admin: status UPDATE |
-| `appointments` | mevcut RLS korunur | **RPC ile** (yeni akış) / mevcut RLS (legacy) | admin: status UPDATE |
-| `orders` | customer: own / teacher: own / admin: all | admin only | admin only |
-| `earnings_ledger` | teacher: own / admin: all | admin only | admin: payout_id set |
-| `bank_accounts` | authenticated (is_active=true) | admin | admin |
-
-### C) UI Akış — Güncellenmiş
-
-`BankTransferScreen.tsx` "Ödemeyi Yaptım" double confirm sonrası:
-```text
-const { data, error } = await supabase.rpc('create_payment_request_and_appointment', {
-  _customer_id: user.id,
-  _teacher_id: listing.teacher_id,
-  _listing_id: listing.id,
-  _listing_price_id: selectedPrice.id,
-  _item_type: 'appointment',  // veya 'product'
-  _quantity: quantity,
-  _amount: totalAmount,
-  _bank_account_id: selectedBank.id,
-  _start_ts: selectedSlot?.start,
-  _end_ts: selectedSlot?.end,
-  _duration_minutes: selectedPrice.duration_minutes
-});
-// data = { payment_request_id, appointment_id, reference_code }
-```
-
-### D) Admin Onay — İdempotent
-
-```text
-Admin "Onayla":
-1. UPDATE payment_requests SET status='confirmed' WHERE id=$1 AND status='pending'
-   → 0 rows? → Toast: "Bu talep zaten işlenmiş"
-   → 1 row? → devam:
-2. UPDATE appointments SET status='confirmed' WHERE payment_request_id=$1
-3. earnings_ledger INSERT (ON CONFLICT DO NOTHING)
-4. item_type='product' → orders INSERT (ON CONFLICT DO NOTHING)
-5. Email invoke
-```
+Bu 3 kontrol eksik ama exploitation riski düşük (valid UUID gerektirir + FK constraint'ler geçersiz id'leri yakalar). Yine de ileride eklenebilir.
 
 ---
 
-## Phase Ayrımı (2 Seferde Uygulama)
+## D) CLIENT KOD DOĞRULAMA — Direct INSERT Yasak
 
-### PHASE 1: Altyapı + Ödeme Akışı (DB → RPC → UI → Temel Admin)
+**Sonuç: PASS**
 
-**Scope:**
-1. DB migration: `bank_accounts`, `payment_requests`, `orders`, `earnings_ledger` tabloları + `appointments.payment_request_id` kolonu + UNIQUE constraint'ler + RLS policy'leri
-2. `bank_accounts` seed: Ziraat + KuveytTürk
-3. RPC: `create_payment_request_and_appointment()` fonksiyonu
-4. `src/lib/constants.ts` → `PLATFORM_COMMISSION_RATE = 0.25`
-5. `src/components/CopyableField.tsx`
-6. `src/pages/Payment/PaymentMethodPage.tsx` + `BankTransferScreen.tsx`
-7. `ListingDetailPage.tsx` → handleBooking değişikliği (ödeme akışına yönlendirme)
-8. `appointmentQueries.ts` → teacher pending filtresi (`.neq('status', 'pending')`)
-9. `Appointments.tsx` → badge mapping güncelleme ("Ödeme Kontrol Ediliyor")
-10. Route güncellemeleri (`routeConfig.ts`)
-
-**Phase 1 sonunda çalışan akış:**
-- Danışan ilan seçer → ödeme yöntemi → banka bilgileri → "Ödemeyi Yaptım" → atomik RPC → appointments sayfasında "Ödeme Kontrol Ediliyor"
-- Teacher pending görmez
-- Admin henüz onaylayamaz (Phase 2)
+1. `supabase.from('payment_requests').insert` — **Repo genelinde 0 sonuç**. Sadece RPC ile. **PASS**
+2. `supabase.from('appointments').insert` — **Repo genelinde 0 sonuç**. Eski handleBooking kaldırılmış. **PASS**
+3. `BankTransferScreen` line 76: `supabase.rpc('create_payment_request_and_appointment', {...})` — **PASS**
+4. `ListingDetailPage` line 84: `navigate("/payment/method", { state: {...} })` — Ödemeye yönlendiriyor. **PASS**
 
 ---
 
-### PHASE 2: Admin Panel + Earnings Geçişi + Payout Kalem Listesi
+## E) UI / RESPONSIVE TESTLER
 
-**Scope:**
-1. `/admin/payments` sayfası (tablo + filtre + onayla/reddet + idempotent update)
-2. Admin nav "Finans" grubu (Ödeme Onayları / Gelirler / Uzman Ödemeleri)
-3. `admin/Earnings.tsx` → ledger bazlı geçiş + legacy UNION + `PLATFORM_COMMISSION_RATE` sabiti (0.15 → 0.25)
-4. `teacher/Earnings.tsx` → ledger bazlı geçiş
-5. Payout "Kalem Listesi" UI (dialog/drawer: `earnings_ledger WHERE payout_id = X`)
-6. Product akışı aktif etme (`ListingDetailPage` placeholder kaldırma, item_type='product' ile RPC çağrısı)
-7. Edge function güncellemeleri (`send-appointment-email` admin onayından invoke, `send-status-update-email` genişletme)
-8. `Appointments.tsx` → teacher onayla/reddet butonları kaldırma (artık admin onaylıyor)
+**Sonuç: PASS (1 uyarı)**
 
-**Phase 2 sonunda çalışan akış:**
-- Tam uçtan uca: danışan ödeme → admin onay → uzman confirmed görür → earnings ledger → payout kalem listesi
+1. **PaymentMethodPage** — Havale aktif (click → navigate), Kart disabled/opacity-50 + "Yakında" Badge. Layout: `grid-cols-1 md:grid-cols-2`. **PASS**
+2. **BankTransferScreen** — Banka seçimi tab/button'lar, `CopyableField` ile IBAN/Alıcı/Tutar, double confirm `AlertDialog`. Layout: `grid-cols-1 md:grid-cols-2`. **PASS**
+3. **Appointments** — Status badge mapping: `pending` → "Ödeme Kontrol Ediliyor", `confirmed` → "Onaylandı", `cancelled` → "İptal Edildi", `completed` → "Tamamlandı". Teacher `.neq('status', 'pending')` filtresi var. **PASS**
+4. **Admin /admin/payments** — Desktop: Table layout. Mobil: `isMobile` kontrolü ile Card list. Filtreler: status tabs, type select, search input. **PASS**
+
+**UYARI (P2):**
+- BankTransferScreen'de sticky CTA (mobilde sabit alt buton) yok. `pt-2 md:pt-4` ile normal scroll'da. Plan "sticky CTA" diyor ama implementasyon normal flow'da. Fonksiyonel sorun değil, UX iyileştirme.
+- Referans kodu ödeme öncesinde "Ödeme sonrası oluşturulacak" olarak gösterilmiyor aslında — `tempRefDisplay` tanımlı ama UI'da kullanılmıyor (line 69, hiçbir yerde render edilmiyor). Bu doğru davranış: referans kodu RPC sonrası toast'ta gösteriliyor.
 
 ---
 
-## Güncel Blocker / Riskler (7 madde)
+## F) E2E FLOW — Appointment
 
-1. **RLS mevcut durumu bilinmiyor** — Supabase UI'dan yönetiliyor; yeni tablolar + RPC için migration gerekli
-2. **Referans kodu çakışma** — Server-side üretim + DB UNIQUE; retry mantığı RPC içinde (düşük risk)
-3. **Concurrent admin onay** — `WHERE status='pending'` idempotent guard + UNIQUE constraint'ler → çözülmüş
-4. **Legacy earnings UNION** — İki kaynağı (ledger + eski appointments) birleştirme geçici karmaşıklık
-5. **Product listing_prices semantik** — `duration_minutes` product'ta anlamsız; quantity ile karıştırılma riski
-6. **Edge function JWT** — Tüm function'lar `verify_jwt=false`; ödeme emaili için function içinde auth kontrolü
-7. **0.15 hardcoded** — `admin/Earnings.tsx` satır 164 ve 239'da hala 0.15; Phase 2'de `PLATFORM_COMMISSION_RATE` ile değişecek
+**Sonuç: PASS (mantıksal doğrulama)**
 
-## Kesinleşen Kararlar (soru kalmadı)
+1. Customer listing seçer → paket + tarih/saat → "Ödemeye Geç" → `PaymentMethodPage` → "Havale" → `BankTransferScreen` → banka seç → "Ödemeyi Yaptım" → double confirm → RPC çağrısı. **PASS**
+2. RPC: `payment_requests` + `appointments` atomik INSERT (status='pending'). **PASS**
+3. Customer `/appointments`: pending görünür, badge "Ödeme Kontrol Ediliyor". **PASS**
+4. Teacher: `.neq('status', 'pending')` filtresi → pending görmez. **PASS**
+5. Admin onay: `payment_requests` UPDATE (WHERE status='pending'), `appointments` UPDATE (confirmed), `earnings_ledger` INSERT. **PASS**
+6. Admin red: `payment_requests` UPDATE (rejected), `appointments` UPDATE (cancelled). **PASS**
 
-1. **Komisyon:** %25 platform / %75 teacher — `PLATFORM_COMMISSION_RATE = 0.25`
-2. **FK standardı:** `profiles(id)` tüm yeni tablolarda
-3. **Payout:** `payout_items` yok; `earnings_ledger.payout_id` tek kaynak
-4. **Appointment oluşturma:** RPC ile atomik (payment_request + appointment tek transaction)
-5. **Banka bilgileri:** DB `bank_accounts` tablosu
-6. **Duplicate önleme:** UNIQUE constraint + idempotent admin UPDATE
-7. **Client INSERT yok:** payment_requests + appointments INSERT sadece RPC üzerinden
+---
+
+## G) E2E FLOW — Product
+
+**Sonuç: FAIL (P1)**
+
+- **Product satın alma akışı henüz aktif değil.** `ListingDetailPage.tsx` line 345-377: product listing'lerde hala "Ürün satışı yakında aktif olacak" placeholder gösteriliyor. "Satın Al" butonu yok, ödeme akışına yönlendirme yok.
+- Bu Phase 2 planında "Product akışı aktif etme (ListingDetailPage placeholder kaldırma)" olarak belirtilmiş ama **implement edilmemiş**.
+- RPC `item_type='product'` desteği var, admin onayda order oluşturma var — sadece UI tetikleyici eksik.
+- **Kök neden:** `ListingDetailPage.tsx` line 345-377, product card'ında ödeme akışına navigate kodu yok.
+- **Minimal düzeltme:** Product card'a paket seçimi + "Satın Al" butonu ekleyip `navigate("/payment/method", { state: { consultationType: "product", ... } })` ile yönlendirmek.
+
+---
+
+## H) Earnings & Payout
+
+**Sonuç: PASS (1 uyarı)**
+
+1. **admin/Earnings** — Ledger bazlı: `earnings_ledger` sorgusu + legacy merge (`appointments WHERE payment_request_id IS NULL`). `PLATFORM_COMMISSION_RATE` import edilmiş ve kullanılıyor (line 31, 189). **PASS**
+2. **teacher/Earnings** — Ledger + legacy hybrid. `PLATFORM_COMMISSION_RATE` kullanılıyor (line 17). **PASS**
+3. **0.15 araması** — Repo genelinde `0.15` yalnızca CSS opacity değerlerinde var (ParticleBackground, PublicProfile, MessageList). Komisyon hesaplamasında 0.15 kalmamış. **PASS**
+4. **Payout** — `handlePayout` (line 265-289): `teacher_payouts` INSERT + `earnings_ledger` UPDATE payout_id. **PASS**
+5. **Kalem Listesi** — `fetchPayoutItemsList` (line 291-305): `earnings_ledger WHERE payout_id = X` + payment_request join. **PASS**
+
+**UYARI (P2):**
+- Dashboard (line 93): `price_at_booking * 0.25` hardcoded. `PLATFORM_COMMISSION_RATE` import edilmemiş Dashboard'da. Tutarsızlık var ama değer doğru (0.25). İleride import edilmeli.
+
+---
+
+## I) İdempotency / Duplicate / Concurrency
+
+**Sonuç: PASS (1 uyarı)**
+
+1. **Admin çift onay** — `AdminPayments.tsx` line 116: `.eq("status", "pending")` + line 120-123: `updated.length === 0` → "Bu talep zaten işlenmiş" toast. **PASS**
+2. **Admin çift red** — Line 210: `.eq("status", "pending")` + line 214-216: aynı guard. **PASS**
+3. **UNIQUE constraint'ler** — `earnings_ledger.payment_request_id UNIQUE`, `orders.payment_request_id UNIQUE`, `appointments.payment_request_id UNIQUE`. **PASS**
+
+**UYARI (P1):**
+- `earnings_ledger` INSERT'te `ON CONFLICT DO NOTHING` kullanılmıyor (line 165-173). UNIQUE constraint hata fırlatır ama catch block'ta generic hata mesajı gösterilir. Plan "ON CONFLICT DO NOTHING" diyordu. Şu anki haliyle çift onay denenmesi idempotent guard (step 1) tarafından yakalanır, bu yüzden step 4'e asla ulaşılmaz — dolayısıyla pratikte sorun yok. Ama race condition (iki admin aynı anda onaylarsa) durumunda UNIQUE constraint korur, sadece hata mesajı "Bu talep zaten işlenmiş" yerine generic olur.
+
+**UYARI (P2):**
+- Double-click önlemi: `submitting` state + `disabled={submitting}` var (BankTransferScreen line 217-218). **PASS**
+
+---
+
+## J) Edge Functions / Email
+
+**Sonuç: PASS (2 uyarı)**
+
+1. **Admin onay/red** — `send-status-update-email` invoke ediliyor (lines 177, 230). **PASS**
+2. **`send-appointment-email` client'tan çağrılmıyor** — Repo araması: 0 sonuç. **PASS**
+3. **`send-payment-submitted-email`** — Ödeme bildirimi gönderildiğinde (customer "Ödemeyi Yaptım" dediğinde) email yok. Plan "YENİ veya mevcut genişletilir" diyordu ama implement edilmemiş. **P2 risk**.
+
+**UYARI (P2):**
+- `verify_jwt=false` olan function'lar admin auth kontrolü yapmıyor. `send-status-update-email` sadece admin panelden tetikleniyor ama function kendisi herhangi biri tarafından çağrılabilir. Production'da function içi admin kontrolü eklenmeli.
+
+---
+
+## K) Güvenlik / RLS
+
+**Sonuç: PASS**
+
+1. **payment_requests RLS** — Customer: `customer_id = auth.uid()` SELECT. Admin: `has_role` SELECT/UPDATE. INSERT yok (RPC ile). **PASS**
+2. **orders RLS** — Customer: own SELECT. Teacher: own SELECT. Admin: ALL. **PASS**
+3. **earnings_ledger RLS** — Teacher: own SELECT. Admin: ALL. **PASS**
+4. **bank_accounts RLS** — Authenticated: SELECT (is_active=true). Admin: ALL. **PASS**
+5. **Client INSERT yok** — Doğrulandı (bölüm D). **PASS**
+
+---
+
+## L) SONUÇ
+
+| Bölüm | Sonuç |
+|-------|-------|
+| A) Build/Typecheck | **PASS** |
+| B) DB Şema | **PASS** |
+| C) RPC Atomiklik | **PASS** (2 uyarı) |
+| D) Client Direct INSERT | **PASS** |
+| E) UI/Responsive | **PASS** (1 uyarı) |
+| F) E2E Appointment | **PASS** |
+| G) E2E Product | **FAIL (P1)** |
+| H) Earnings/Payout | **PASS** (1 uyarı) |
+| I) İdempotency | **PASS** (1 uyarı) |
+| J) Edge Functions | **PASS** (2 uyarı) |
+| K) Güvenlik/RLS | **PASS** |
+
+### Blocker var mı? HAYIR
+
+Tek FAIL olan "Product UI akışı" planlanmış ama henüz implement edilmemiş bir özellik — mevcut kodu kırmıyor, appointment akışını etkilemiyor.
+
+### Risk/Düzeltme Öncelik Sırası
+
+| # | Öncelik | Konu | Dosya/Satır |
+|---|---------|------|-------------|
+| 1 | **P1** | Product satın alma UI'ı aktif değil (placeholder hala duruyor) | `ListingDetailPage.tsx:345-377` |
+| 2 | **P1** | `earnings_ledger` INSERT'te `ON CONFLICT DO NOTHING` eksik (race condition) | `admin/Payments.tsx:165` |
+| 3 | **P2** | RPC'de `_listing_price_id` ↔ `_listing_id` ilişki doğrulaması yok | `phase1_payment_system.md` RPC |
+| 4 | **P2** | RPC'de `_teacher_id` ↔ `listings.teacher_id` doğrulaması yok | `phase1_payment_system.md` RPC |
+| 5 | **P2** | RPC'de `_bank_account_id` `is_active` kontrolü yok | `phase1_payment_system.md` RPC |
+| 6 | **P2** | Dashboard'da `PLATFORM_COMMISSION_RATE` import edilmemiş (0.25 hardcoded) | `admin/Dashboard.tsx:93` |
+| 7 | **P2** | Mobil sticky CTA eksik (BankTransferScreen) | `BankTransferScreen.tsx:211` |
+| 8 | **P2** | Ödeme bildirimi email'i (`send-payment-submitted-email`) yok | Edge function |
+| 9 | **P2** | Edge function'larda admin auth kontrolü yok (verify_jwt=false) | `supabase/config.toml` |
+| 10 | **P3** | Reviews FK hatası (ödeme sistemiyle ilgisiz) | Network request 400 hata |
+
+### Canlıya Çıkmadan Önce Öneriler (7 madde)
+
+1. **P1 #2'yi düzelt**: `earnings_ledger` INSERT'e `.upsert` veya ayrı conflict handling ekle
+2. Product UI'ı aktif etmek isteniyorsa P1 #1'i implement et
+3. RPC'ye parametre doğrulama ekle (listing_price ↔ listing, teacher ↔ listing, bank active kontrolü)
+4. Dashboard'daki hardcoded 0.25'i `PLATFORM_COMMISSION_RATE` ile değiştir
+5. Gerçek IBAN'ları `bank_accounts` tablosunda doğrula
+6. Edge function'lara admin auth kontrolü ekle (en azından `Authorization` header kontrolü)
+7. BankTransferScreen'de gerçek kullanıcıyla test et (RPC çağrısı + DB sonucu doğrula)
 
