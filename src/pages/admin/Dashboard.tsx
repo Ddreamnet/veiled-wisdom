@@ -76,11 +76,12 @@ export default function AdminDashboard() {
         supabase.from("teacher_approvals").select("*", { count: "exact", head: true }).eq("status", "pending"),
         supabase.from("categories").select("*", { count: "exact", head: true }),
         supabase.from("appointments").select("*", { count: "exact", head: true }),
-        supabase.from("appointments").select("*", { count: "exact", head: true }).eq("status", "completed"),
+        supabase.from("appointments").select("*", { count: "exact", head: true }).eq("status", "confirmed").lt("end_ts", new Date().toISOString()),
         supabase
           .from("appointments")
           .select("price_at_booking")
-          .eq("status", "completed")
+          .eq("status", "confirmed")
+          .lt("end_ts", new Date().toISOString())
           .gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
         supabase
           .from("appointments")
