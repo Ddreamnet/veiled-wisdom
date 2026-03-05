@@ -37,6 +37,10 @@ export const AllListings = lazy(() => import('../pages/AllListings'));
 export const Settings = lazy(() => import('../pages/Settings'));
 export const NotFound = lazy(() => import('../pages/NotFound'));
 
+// Payment pages
+export const PaymentMethodPage = lazy(() => import('../pages/Payment/PaymentMethodPage'));
+export const BankTransferScreen = lazy(() => import('../pages/Payment/BankTransferScreen'));
+
 // Route configuration types
 export interface RouteConfig {
   path: string;
@@ -79,6 +83,8 @@ export const protectedRoutes: RouteConfig[] = [
   { path: '/settings', element: Settings, protected: true },
   { path: '/call/:conversationId', element: VideoCall, protected: true },
   { path: '/appointments', element: Appointments, protected: true },
+  { path: '/payment/method', element: PaymentMethodPage, protected: true },
+  { path: '/payment/bank-transfer', element: BankTransferScreen, protected: true },
 ];
 
 // Teacher routes - require teacher role

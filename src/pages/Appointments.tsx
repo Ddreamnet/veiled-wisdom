@@ -1,13 +1,9 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/useToast';
-import { Check, X, Home } from 'lucide-react';
+import { Home } from 'lucide-react';
 import { ReviewDialog } from '@/components/ReviewDialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -23,70 +19,20 @@ import { useQueryClient } from '@tanstack/react-query';
 
 export default function Appointments() {
   const { user, role } = useAuth();
-  const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [loading, setLoading] = useState<string | null>(null);
 
   const { data, isLoading: dataLoading } = useAppointments(user?.id, role);
   const pending = data?.pending || [];
   const completed = data?.completed || [];
   const reviewedAppointments = data?.reviewedIds || new Set<string>();
 
-  const handleStatusUpdate = async (appointment: any, newStatus: 'confirmed' | 'cancelled') => {
-    setLoading(appointment.id);
-
-    try {
-      // Update appointment status
-      const { error: updateError } = await supabase
-        .from('appointments')
-        .update({ status: newStatus })
-        .eq('id', appointment.id);
-
-      if (updateError) throw updateError;
-
-      // Send email notification
-      // TODO: Ödeme sistemi gelince bu invoke admin paneline taşınacak (uzman değil admin onaylayacak)
-      await supabase.functions.invoke('send-status-update-email', {
-        body: {
-          customerUserId: appointment.customer_id,
-          customerName: appointment.customer?.username || 'Kullanıcı',
-          teacherName: appointment.teacher?.username || 'Öğretmen',
-          listingTitle: appointment.listing?.title || 'İlan',
-          startTime: appointment.start_ts,
-          duration: appointment.duration_minutes,
-          price: appointment.price_at_booking,
-          status: newStatus,
-        },
-      });
-
-      toast({
-        title: newStatus === 'confirmed' ? 'Randevu Onaylandı' : 'Randevu İptal Edildi',
-        description: 'Kullanıcıya email bildirimi gönderildi.',
-      });
-
-      // Invalidate cache to refresh data
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
-    } catch (error: any) {
-      toast({
-        title: 'Hata',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(null);
-    }
-  };
-
   const handleReviewSubmitted = () => {
     queryClient.invalidateQueries({ queryKey: ['appointments'] });
   };
 
   const renderAppointment = (appointment: any, isCompletedTab = false) => {
-    const isPending = appointment.status === 'pending';
-    const isTeacher = role === 'teacher';
     const isCustomer = role === 'customer';
-    const isLoading = loading === appointment.id;
     const hasReviewed = reviewedAppointments.has(appointment.id);
 
     return (
@@ -103,7 +49,7 @@ export default function Appointments() {
               }
             >
               {
-                { pending: 'Bekliyor', confirmed: 'Onaylandı', cancelled: 'İptal Edildi', completed: 'Tamamlandı' }[appointment.status as string] || appointment.status
+                { pending: 'Ödeme Kontrol Ediliyor', confirmed: 'Onaylandı', cancelled: 'İptal Edildi', completed: 'Tamamlandı' }[appointment.status as string] || appointment.status
               }
             </Badge>
           </CardTitle>
@@ -112,7 +58,7 @@ export default function Appointments() {
           <div>
             <p className="text-sm font-medium break-words">İlan: {appointment.listing?.title}</p>
             <p className="text-sm text-muted-foreground truncate">
-              {isTeacher ? 'Danışan' : 'Uzman'}: {isTeacher ? appointment.customer?.username : appointment.teacher?.username}
+              {role === 'teacher' ? 'Danışan' : 'Uzman'}: {role === 'teacher' ? appointment.customer?.username : appointment.teacher?.username}
             </p>
           </div>
           <div className="text-sm text-muted-foreground space-y-1">
@@ -121,29 +67,7 @@ export default function Appointments() {
             <p>Fiyat: {appointment.price_at_booking} TL</p>
           </div>
           
-          {isTeacher && isPending && (
-            <div className="flex flex-col sm:flex-row gap-2 pt-2">
-              <Button
-                size="sm"
-                onClick={() => handleStatusUpdate(appointment, 'confirmed')}
-                disabled={isLoading}
-                className="w-full sm:w-auto"
-              >
-                <Check className="w-4 h-4 mr-1" />
-                Onayla
-              </Button>
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => handleStatusUpdate(appointment, 'cancelled')}
-                disabled={isLoading}
-                className="w-full sm:w-auto"
-              >
-                <X className="w-4 h-4 mr-1" />
-                Reddet
-              </Button>
-            </div>
-          )}
+          {/* Teacher approve/reject buttons removed — admin handles approval now */}
 
           {isCustomer && isCompletedTab && appointment.listing?.id && !hasReviewed && (
             <div className="pt-2">

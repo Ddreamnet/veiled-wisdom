@@ -55,6 +55,7 @@ export type Appointment = {
   end_ts: string;
   duration_minutes: number;
   price_at_booking: number;
+  payment_request_id: string | null;
   created_at: string;
 };
 
@@ -76,3 +77,64 @@ export type Review = {
   created_at: string;
 };
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// PAYMENT SYSTEM TYPES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export type BankAccount = {
+  id: string;
+  bank_name: string;
+  iban: string;
+  account_holder: string;
+  is_active: boolean;
+  display_order: number;
+  created_at: string;
+};
+
+export type PaymentRequestStatus = 'pending' | 'confirmed' | 'rejected';
+export type PaymentItemType = 'appointment' | 'product';
+
+export type PaymentRequest = {
+  id: string;
+  customer_id: string;
+  teacher_id: string;
+  listing_id: string;
+  listing_price_id: string;
+  item_type: PaymentItemType;
+  quantity: number;
+  amount: number;
+  bank_account_id: string | null;
+  reference_code: string;
+  status: PaymentRequestStatus;
+  admin_note: string | null;
+  confirmed_at: string | null;
+  created_at: string;
+  start_ts: string | null;
+  end_ts: string | null;
+  duration_minutes: number | null;
+};
+
+export type Order = {
+  id: string;
+  payment_request_id: string;
+  customer_id: string;
+  teacher_id: string;
+  listing_id: string;
+  quantity: number;
+  total_amount: number;
+  status: 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
+  created_at: string;
+};
+
+export type EarningsLedgerEntry = {
+  id: string;
+  payment_request_id: string;
+  teacher_id: string;
+  source_type: 'appointment' | 'product';
+  source_id: string;
+  gross_amount: number;
+  teacher_amount: number;
+  platform_amount: number;
+  payout_id: string | null;
+  created_at: string;
+};
