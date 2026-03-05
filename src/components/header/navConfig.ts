@@ -9,6 +9,7 @@ export function getCenterNavItems(role: UserRole | null): NavItem[] {
   if (role === "admin") {
     return [
       { label: "Dashboard", href: "/admin/dashboard" },
+      { label: "Ödeme Onayları", href: "/admin/payments" },
       { label: "Gelirler", href: "/admin/earnings" },
     ];
   }

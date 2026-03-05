@@ -90,7 +90,7 @@ export default function AdminDashboard() {
           .order("created_at", { ascending: true }),
       ]);
 
-      const monthlyRevenue = revenueResult.data?.reduce((sum, apt) => sum + apt.price_at_booking * 0.15, 0) || 0;
+      const monthlyRevenue = revenueResult.data?.reduce((sum, apt) => sum + apt.price_at_booking * 0.25, 0) || 0;
 
       // Group trends by date
       const trendMap = new Map<string, number>();
@@ -119,6 +119,12 @@ export default function AdminDashboard() {
   };
 
   const adminCards = [
+    {
+      title: "Ödeme Onayları",
+      description: "Havale ödemelerini kontrol et ve onayla",
+      icon: TrendingUp,
+      href: "/admin/payments",
+    },
     {
       title: "Onaylamalar",
       description: "Uzman başvurularını incele ve onayla",
@@ -183,8 +189,8 @@ export default function AdminDashboard() {
       title: "Aylık Gelir",
       value: `₺${stats.monthlyRevenue.toFixed(2)}`,
       icon: TurkishLiraIcon,
-      description: "Son 30 gün komisyon",
-      color: "text-green-500",
+      description: "Son 30 gün (%25 komisyon)",
+      color: "text-primary",
     },
   ];
 

@@ -89,6 +89,7 @@ const MobileBottomNavComponent = () => {
           href: "/admin/dashboard", 
           matchPrefixes: ["/admin/dashboard", "/admin/users", "/admin/teachers", "/admin/categories", "/admin/curiosities", "/admin/pages", "/admin/approvals"] 
         },
+        { icon: CheckCircle, label: "Ödemeler", href: "/admin/payments", matchPrefixes: ["/admin/payments"] },
         { icon: TurkishLiraIcon, label: "Gelirler", href: "/admin/earnings", matchPrefixes: ["/admin/earnings"] },
         { icon: MessageSquare, label: "Mesajlar", href: "/messages", badge: unreadCount, matchPrefixes: messagesMatchPrefixes },
         {

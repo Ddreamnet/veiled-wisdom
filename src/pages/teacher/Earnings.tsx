@@ -1,12 +1,10 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Calendar, CreditCard, Clock, Home } from "lucide-react";
 import { TurkishLiraIcon } from "@/components/icons/TurkishLiraIcon";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Breadcrumb,
@@ -16,6 +14,17 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { PLATFORM_COMMISSION_RATE } from "@/lib/constants";
+
+type EarningsSummary = {
+  totalTransactions: number;
+  totalTeacherEarnings: number;
+  pendingCount: number;
+  pendingAmount: number;
+  // Legacy
+  legacyCount: number;
+  legacyAmount: number;
+};
 
 type PayoutHistory = {
   id: string;
@@ -24,59 +33,68 @@ type PayoutHistory = {
   paid_at: string;
 };
 
-type EarningsSummary = {
-  totalCompleted: number;
-  totalEarnings: number;
-  pendingCount: number;
-  pendingAmount: number;
-};
-
 export default function TeacherEarnings() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [summary, setSummary] = useState<EarningsSummary>({
-    totalCompleted: 0,
-    totalEarnings: 0,
+    totalTransactions: 0,
+    totalTeacherEarnings: 0,
     pendingCount: 0,
     pendingAmount: 0,
+    legacyCount: 0,
+    legacyAmount: 0,
   });
   const [payouts, setPayouts] = useState<PayoutHistory[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      fetchData();
-    }
+    if (user) fetchData();
   }, [user]);
-
-  const nowIso = new Date().toISOString();
 
   const fetchData = async () => {
     if (!user) return;
     setLoading(true);
 
     try {
-      // Fetch all data in parallel
-      const [completedResult, payoutSummaryResult, payoutHistoryResult] = await Promise.all([
-        supabase.from("appointments").select("price_at_booking").eq("teacher_id", user.id).eq("status", "confirmed").lt("end_ts", nowIso),
-        supabase.from("teacher_payouts").select("appointment_count, amount").eq("teacher_id", user.id),
-        supabase.from("teacher_payouts").select("*").eq("teacher_id", user.id).order("paid_at", { ascending: false }),
+      const nowIso = new Date().toISOString();
+
+      const [ledgerResult, legacyResult, payoutHistoryResult] = await Promise.all([
+        // Ledger-based earnings
+        supabase
+          .from("earnings_ledger")
+          .select("teacher_amount, payout_id")
+          .eq("teacher_id", user.id),
+        // Legacy: appointments without payment_request_id
+        supabase
+          .from("appointments")
+          .select("price_at_booking")
+          .eq("teacher_id", user.id)
+          .eq("status", "confirmed")
+          .lt("end_ts", nowIso)
+          .is("payment_request_id", null),
+        supabase
+          .from("teacher_payouts")
+          .select("*")
+          .eq("teacher_id", user.id)
+          .order("paid_at", { ascending: false }),
       ]);
 
-      const completed = completedResult.data || [];
-      const payoutData = payoutSummaryResult.data || [];
+      const ledger = ledgerResult.data || [];
+      const legacy = legacyResult.data || [];
 
-      const totalCompleted = completed.length;
-      const totalEarnings = completed.reduce((sum, apt) => sum + Number(apt.price_at_booking), 0);
+      const ledgerTeacherTotal = ledger.reduce((s, e) => s + Number(e.teacher_amount), 0);
+      const unpaidLedger = ledger.filter((e) => !e.payout_id);
+      const unpaidAmount = unpaidLedger.reduce((s, e) => s + Number(e.teacher_amount), 0);
 
-      const paidCount = payoutData.reduce((sum, p) => sum + p.appointment_count, 0);
-      const paidAmount = payoutData.reduce((sum, p) => sum + Number(p.amount), 0);
+      const legacyTotal = legacy.reduce((s, a) => s + Number(a.price_at_booking), 0);
+      const legacyTeacherAmount = legacyTotal * (1 - PLATFORM_COMMISSION_RATE);
 
       setSummary({
-        totalCompleted,
-        totalEarnings,
-        pendingCount: totalCompleted - paidCount,
-        pendingAmount: totalEarnings - paidAmount,
+        totalTransactions: ledger.length + legacy.length,
+        totalTeacherEarnings: ledgerTeacherTotal + legacyTeacherAmount,
+        pendingCount: unpaidLedger.length,
+        pendingAmount: unpaidAmount,
+        legacyCount: legacy.length,
+        legacyAmount: legacyTeacherAmount,
       });
 
       if (payoutHistoryResult.data) {
@@ -91,7 +109,6 @@ export default function TeacherEarnings() {
 
   return (
     <div className="container px-4 md:px-6 lg:px-8 py-8 md:py-12">
-      {/* Breadcrumb Navigation - Desktop only */}
       <div className="mb-4 hidden md:block">
         <Breadcrumb>
           <BreadcrumbList>
@@ -113,14 +130,7 @@ export default function TeacherEarnings() {
         </Breadcrumb>
       </div>
 
-      <h1 className="text-2xl md:text-3xl font-bold mb-4">Gelirlerim</h1>
-
-      <div className="bg-amber-50 dark:bg-amber-950/20 border-l-4 border-amber-500 rounded-r-lg p-4 mb-6 md:mb-8">
-        <p className="text-sm text-amber-800 dark:text-amber-200 flex items-start gap-2">
-          <span className="text-lg">⚠️</span>
-          <span>Geçici hesaplama: Onaylanmış ve süresi geçmiş randevular baz alınmaktadır. Ödeme sistemi gelince güncellenecek.</span>
-        </p>
-      </div>
+      <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Gelirlerim</h1>
 
       {loading ? (
         <div className="space-y-6">
@@ -152,11 +162,11 @@ export default function TeacherEarnings() {
               <CardHeader className="pb-3">
                 <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-2">
                   <Calendar className="h-4 w-4 flex-shrink-0" />
-                  <span className="truncate">Tamamlanan Randevular</span>
+                  <span className="truncate">Toplam İşlem</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl md:text-3xl font-bold">{summary.totalCompleted}</p>
+                <p className="text-2xl md:text-3xl font-bold">{summary.totalTransactions}</p>
               </CardContent>
             </Card>
 
@@ -164,11 +174,11 @@ export default function TeacherEarnings() {
               <CardHeader className="pb-3">
                 <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-2">
                   <TurkishLiraIcon className="h-4 w-4 flex-shrink-0" />
-                  <span className="truncate">Toplam Gelir</span>
+                  <span className="truncate">Toplam Kazanç</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl md:text-3xl font-bold break-words">{summary.totalEarnings.toFixed(2)} TL</p>
+                <p className="text-2xl md:text-3xl font-bold break-words">{summary.totalTeacherEarnings.toFixed(2)} TL</p>
               </CardContent>
             </Card>
 
@@ -176,7 +186,7 @@ export default function TeacherEarnings() {
               <CardHeader className="pb-3">
                 <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-2">
                   <Clock className="h-4 w-4 flex-shrink-0" />
-                  <span className="truncate">Ödenecek Randevu</span>
+                  <span className="truncate">Ödenecek İşlem</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -188,7 +198,7 @@ export default function TeacherEarnings() {
               <CardHeader className="pb-3">
                 <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-2">
                   <CreditCard className="h-4 w-4 flex-shrink-0" />
-                  <span className="truncate">Ödenecek Miktar</span>
+                  <span className="truncate">Ödenecek Tutar</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -208,7 +218,7 @@ export default function TeacherEarnings() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Ödenen Randevu Sayısı</TableHead>
+                      <TableHead>Kalem Sayısı</TableHead>
                       <TableHead>Ödeme Miktarı</TableHead>
                       <TableHead>Ödeme Tarihi</TableHead>
                     </TableRow>

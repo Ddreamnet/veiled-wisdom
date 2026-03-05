@@ -41,6 +41,9 @@ export const NotFound = lazy(() => import('../pages/NotFound'));
 export const PaymentMethodPage = lazy(() => import('../pages/Payment/PaymentMethodPage'));
 export const BankTransferScreen = lazy(() => import('../pages/Payment/BankTransferScreen'));
 
+// Admin payment page
+export const AdminPayments = lazy(() => import('../pages/admin/Payments'));
+
 // Route configuration types
 export interface RouteConfig {
   path: string;
@@ -100,6 +103,7 @@ export const adminRoutes: RouteConfig[] = [
   { path: '/admin/users', element: UsersManagement, protected: true, requiredRole: ['admin'] },
   { path: '/admin/approvals', element: Approvals, protected: true, requiredRole: ['admin'] },
   { path: '/admin/earnings', element: AdminEarnings, protected: true, requiredRole: ['admin'] },
+  { path: '/admin/payments', element: AdminPayments, protected: true, requiredRole: ['admin'] },
   { path: '/admin/teachers', element: TeachersManagement, protected: true, requiredRole: ['admin'] },
   { path: '/admin/teachers/:id', element: TeacherEdit, protected: true, requiredRole: ['admin'] },
   { path: '/admin/categories', element: CategoriesManagement, protected: true, requiredRole: ['admin'] },
