@@ -15,42 +15,30 @@ type ConversationRow = {
   active_call_started_at: string | null;
   active_call_ended_at: string | null;
   active_call_created_by: string | null;
-  // Legacy fields (written by older edge function versions like REV3)
-  video_room_name?: string | null;
-  video_room_url?: string | null;
-  video_room_created_at?: string | null;
 };
 
+const STALE_CALL_HOURS = 4;
+
 function rowToActiveCall(row: ConversationRow | null): ActiveCallInfo {
-  // Primary: new active_call_* fields (REV8+)
   if (
     row?.active_call_room_name &&
     row?.active_call_room_url &&
     row?.active_call_started_at &&
     !row?.active_call_ended_at
   ) {
+    // Stale call guard: ignore calls older than 4 hours
+    const startedAt = new Date(row.active_call_started_at).getTime();
+    const now = Date.now();
+    if (now - startedAt > STALE_CALL_HOURS * 60 * 60 * 1000) {
+      devLog('useActiveCall', 'Ignoring stale call older than 4h');
+      return null;
+    }
+
     return {
       room_name: row.active_call_room_name,
       room_url: row.active_call_room_url,
       started_at: row.active_call_started_at,
       created_by: row.active_call_created_by,
-    };
-  }
-
-  // LEGACY FALLBACK: Old edge function (REV3) only writes video_room_* fields.
-  // If active_call fields are empty but legacy fields exist, use them.
-  if (
-    row?.video_room_name &&
-    row?.video_room_url &&
-    row?.video_room_created_at &&
-    !row?.active_call_ended_at
-  ) {
-    devLog('useActiveCall', 'Using LEGACY video_room_* fallback (old edge function detected)');
-    return {
-      room_name: row.video_room_name,
-      room_url: row.video_room_url,
-      started_at: row.video_room_created_at,
-      created_by: row.active_call_created_by ?? null, // Legacy has no created_by
     };
   }
 
@@ -82,7 +70,7 @@ export function useActiveCall(conversationId: string | null) {
     try {
       const { data, error } = await supabase
         .from('conversations')
-        .select('active_call_room_name, active_call_room_url, active_call_started_at, active_call_ended_at, active_call_created_by, video_room_name, video_room_url, video_room_created_at')
+        .select('active_call_room_name, active_call_room_url, active_call_started_at, active_call_ended_at, active_call_created_by')
         .eq('id', conversationId)
         .maybeSingle();
 

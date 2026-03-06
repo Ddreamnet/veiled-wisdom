@@ -92,46 +92,6 @@ export function ChatWindow({ conversation, onBack, onMessagesRead }: ChatWindowP
 
   return (
     <div className={cn("flex-1 flex flex-col bg-background", isMobile && "h-full overflow-hidden")}>
-      {/* Active Call Banner */}
-      <AnimatePresence>
-        {activeCall && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="bg-green-500/10 border-b border-green-500/30 px-4 py-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="h-10 w-10 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
-                    <Phone className="h-5 w-5 text-green-500 animate-pulse" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-green-400 truncate">
-                      {isCallStartedByOther ? 'Aktif görüşme var' : 'Görüşmeniz devam ediyor'}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {isCallStartedByOther 
-                        ? `${conversation.other_participant.username || 'Kullanıcı'} aramada`
-                        : 'Katılmak için tıklayın'
-                      }
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={handleJoinCall}
-                  className="bg-green-500 hover:bg-green-600 text-white flex-shrink-0"
-                >
-                  <Phone className="h-4 w-4 mr-1.5" />
-                  Katıl
-                </Button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Modern Header */}
       <div 
