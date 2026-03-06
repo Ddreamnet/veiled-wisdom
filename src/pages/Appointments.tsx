@@ -22,7 +22,7 @@ export default function Appointments() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data, isLoading: dataLoading } = useAppointments(user?.id, role);
+  const { data, isLoading: dataLoading, isError, error } = useAppointments(user?.id, role);
   const pending = data?.pending || [];
   const completed = data?.completed || [];
   const reviewedAppointments = data?.reviewedIds || new Set<string>();
