@@ -250,6 +250,21 @@ export default function VideoCallPage() {
         try {
           await call.join(joinOptions);
           devLog('VideoCall', 'Successfully joined room');
+
+          // Frontend-side DB update: ensure active_call_* fields are set
+          // even if edge function is outdated and doesn't write them
+          if (intent === 'start' && conversationId) {
+            supabase.from('conversations').update({
+              active_call_room_name: roomData.room?.name || null,
+              active_call_room_url: roomData.room?.url || null,
+              active_call_started_at: new Date().toISOString(),
+              active_call_ended_at: null,
+              active_call_created_by: authUser?.id || null,
+            }).eq('id', conversationId).then(({ error: dbErr }) => {
+              if (dbErr) console.error('[VideoCall] Frontend DB update failed:', dbErr);
+              else devLog('VideoCall', 'Frontend DB update successful');
+            });
+          }
         } catch (e: any) {
           console.error('[VideoCall] Initial join failed:', e);
 
