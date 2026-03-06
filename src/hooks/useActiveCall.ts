@@ -16,44 +16,45 @@ type ConversationRow = {
   active_call_started_at: string | null;
   active_call_ended_at: string | null;
   active_call_created_by: string | null;
-  video_room_name?: string | null;
-  video_room_url?: string | null;
-  video_room_created_at?: string | null;
+  video_room_name: string | null;
+  video_room_url: string | null;
+  video_room_created_at: string | null;
 };
 
 const STALE_CALL_HOURS = 4;
 const PRESENCE_POLL_MS = 5000;
 
-function isNotStale(startedAt?: string | null): boolean {
+function isFresh(startedAt: string | null): boolean {
   if (!startedAt) return true;
   const startedMs = new Date(startedAt).getTime();
   if (Number.isNaN(startedMs)) return true;
   return Date.now() - startedMs <= STALE_CALL_HOURS * 60 * 60 * 1000;
 }
 
-function getCandidateFromRow(row: ConversationRow | null) {
+function getCandidate(row: ConversationRow | null) {
   if (!row) return null;
 
   if (
     row.active_call_room_name &&
     row.active_call_room_url &&
     !row.active_call_ended_at &&
-    isNotStale(row.active_call_started_at)
+    isFresh(row.active_call_started_at)
   ) {
     return {
       room_name: row.active_call_room_name,
       room_url: row.active_call_room_url,
       started_at: row.active_call_started_at ?? new Date().toISOString(),
-      created_by: row.active_call_created_by ?? null,
+      created_by: row.active_call_created_by,
     };
   }
 
-  if (row.video_room_name && row.video_room_url && isNotStale(row.video_room_created_at)) {
+  // Legacy fallback
+  if (row.video_room_name && row.video_room_url && isFresh(row.video_room_created_at)) {
     return {
       room_name: row.video_room_name,
       room_url: row.video_room_url,
       started_at: row.video_room_created_at ?? new Date().toISOString(),
-      created_by: row.active_call_created_by ?? null,
+      created_by: row.active_call_created_by,
     };
   }
 
@@ -65,25 +66,20 @@ export function useActiveCall(conversationId: string | null) {
   const [loading, setLoading] = useState(true);
 
   const mountedRef = useRef(true);
-  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastRowRef = useRef<ConversationRow | null>(null);
+  const rowRef = useRef<ConversationRow | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const stopPolling = useCallback(() => {
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current);
-      pollingRef.current = null;
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
     }
   }, []);
 
-  const resolveWithPresence = useCallback(
+  const resolvePresence = useCallback(
     async (row: ConversationRow | null) => {
-      if (!conversationId) {
-        setActiveCall(null);
-        return;
-      }
-
-      const candidate = getCandidateFromRow(row);
-      if (!candidate) {
+      const candidate = getCandidate(row);
+      if (!conversationId || !candidate) {
         setActiveCall(null);
         return;
       }
@@ -96,26 +92,13 @@ export function useActiveCall(conversationId: string | null) {
         if (!mountedRef.current) return;
 
         if (error) {
-          console.error('[useActiveCall] Presence function error:', error);
-          // Fallback: still show join button when DB/legacy says active
-          setActiveCall({
-            ...candidate,
-            participant_count: -1,
-          });
+          console.error('[useActiveCall] Presence error:', error);
+          setActiveCall({ ...candidate, participant_count: -1 });
           return;
         }
 
         const participantCount = Number(data?.participant_count ?? 0);
-        const live = participantCount > 0;
-
-        devLog('useActiveCall', 'Presence check:', {
-          live,
-          participantCount,
-          room: data?.room_name,
-          fn: data?.function_version,
-        });
-
-        if (live) {
+        if (participantCount > 0) {
           setActiveCall({
             room_name: data?.room_name || candidate.room_name,
             room_url: data?.room_url || candidate.room_url,
@@ -129,10 +112,7 @@ export function useActiveCall(conversationId: string | null) {
       } catch (e) {
         console.error('[useActiveCall] Presence exception:', e);
         if (!mountedRef.current) return;
-        setActiveCall({
-          ...candidate,
-          participant_count: -1,
-        });
+        setActiveCall({ ...candidate, participant_count: -1 });
       }
     },
     [conversationId],
@@ -148,72 +128,66 @@ export function useActiveCall(conversationId: string | null) {
     try {
       const { data, error } = await supabase
         .from('conversations')
-        .select(
-          'active_call_room_name, active_call_room_url, active_call_started_at, active_call_ended_at, active_call_created_by, video_room_name, video_room_url, video_room_created_at',
-        )
+        .select('active_call_room_name, active_call_room_url, active_call_started_at, active_call_ended_at, active_call_created_by, video_room_name, video_room_url, video_room_created_at')
         .eq('id', conversationId)
         .maybeSingle();
 
       if (error) {
-        console.error('[useActiveCall] Error fetching conversation:', error);
+        console.error('[useActiveCall] Fetch error:', error);
         setActiveCall(null);
         return;
       }
 
       if (!mountedRef.current) return;
       const row = (data as ConversationRow | null) ?? null;
-      lastRowRef.current = row;
-
-      await resolveWithPresence(row);
+      rowRef.current = row;
+      await resolvePresence(row);
     } catch (e) {
       console.error('[useActiveCall] Exception:', e);
       setActiveCall(null);
     } finally {
       if (mountedRef.current) setLoading(false);
     }
-  }, [conversationId, resolveWithPresence]);
+  }, [conversationId, resolvePresence]);
 
   useEffect(() => {
     mountedRef.current = true;
     setLoading(true);
     fetchActiveCall();
 
-    if (!conversationId) return;
-
     stopPolling();
-    pollingRef.current = setInterval(() => {
-      if (!mountedRef.current) return;
-      if (lastRowRef.current) {
-        resolveWithPresence(lastRowRef.current);
-      } else {
-        fetchActiveCall();
-      }
-    }, PRESENCE_POLL_MS);
+    if (conversationId) {
+      pollRef.current = setInterval(() => {
+        if (!mountedRef.current) return;
+        if (rowRef.current) {
+          resolvePresence(rowRef.current);
+        } else {
+          fetchActiveCall();
+        }
+      }, PRESENCE_POLL_MS);
+    }
 
-    const channel = supabase
-      .channel(`active-call-${conversationId}-${Date.now()}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'conversations',
-          filter: `id=eq.${conversationId}`,
-        },
-        (payload) => {
-          const row = payload.new as ConversationRow;
-          lastRowRef.current = row;
-          resolveWithPresence(row);
-        },
-      )
-      .subscribe();
+    const channel = conversationId
+      ? supabase
+          .channel(`active-call-${conversationId}-${Date.now()}`)
+          .on(
+            'postgres_changes',
+            { event: 'UPDATE', schema: 'public', table: 'conversations', filter: `id=eq.${conversationId}` },
+            (payload) => {
+              const row = payload.new as ConversationRow;
+              rowRef.current = row;
+              resolvePresence(row);
+            },
+          )
+          .subscribe((status) => devLog('useActiveCall', 'Channel:', status))
+      : null;
 
     return () => {
       mountedRef.current = false;
       stopPolling();
-      supabase.removeChannel(channel);
+      if (channel) supabase.removeChannel(channel);
     };
-  }, [conversationId, fetchActiveCall, resolveWithPresence, stopPolling]);
+  }, [conversationId, fetchActiveCall, resolvePresence, stopPolling]);
 
   return { activeCall, loading, refetch: fetchActiveCall };
 }
