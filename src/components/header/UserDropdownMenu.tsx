@@ -8,7 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { User, LogOut, Settings, BookOpen } from "lucide-react";
+import { User, LogOut, Settings, BookOpen, Calendar } from "lucide-react";
 import { TurkishLiraIcon } from "@/components/icons/TurkishLiraIcon";
 import { UserRole } from "@/lib/supabase";
 
