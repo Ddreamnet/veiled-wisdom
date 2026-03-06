@@ -117,11 +117,17 @@ export function useActiveCall(conversationId: string | null) {
         },
         (payload) => {
           const row = payload.new as ConversationRow;
+          devLog('useActiveCall', 'Realtime UPDATE received:', {
+            room: row?.active_call_room_name,
+            started: row?.active_call_started_at,
+            ended: row?.active_call_ended_at,
+            createdBy: row?.active_call_created_by,
+          });
           if (
             row?.active_call_room_name &&
             row?.active_call_room_url &&
             row?.active_call_started_at &&
-            row?.active_call_ended_at === null
+            !row?.active_call_ended_at
           ) {
             setActiveCall({
               room_name: row.active_call_room_name,
