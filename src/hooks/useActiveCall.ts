@@ -9,18 +9,20 @@ export type ActiveCallInfo = {
   created_by: string | null;
 } | null;
 
-// OPTIMIZATION: Keep-warm flag to prevent multiple warm-up requests
-let edgeFunctionWarmedUp = false;
-
 type ConversationRow = {
   active_call_room_name: string | null;
   active_call_room_url: string | null;
   active_call_started_at: string | null;
   active_call_ended_at: string | null;
   active_call_created_by: string | null;
+  // Legacy fields (written by older edge function versions like REV3)
+  video_room_name?: string | null;
+  video_room_url?: string | null;
+  video_room_created_at?: string | null;
 };
 
 function rowToActiveCall(row: ConversationRow | null): ActiveCallInfo {
+  // Primary: new active_call_* fields (REV8+)
   if (
     row?.active_call_room_name &&
     row?.active_call_room_url &&
@@ -34,6 +36,24 @@ function rowToActiveCall(row: ConversationRow | null): ActiveCallInfo {
       created_by: row.active_call_created_by,
     };
   }
+
+  // LEGACY FALLBACK: Old edge function (REV3) only writes video_room_* fields.
+  // If active_call fields are empty but legacy fields exist, use them.
+  if (
+    row?.video_room_name &&
+    row?.video_room_url &&
+    row?.video_room_created_at &&
+    !row?.active_call_ended_at
+  ) {
+    devLog('useActiveCall', 'Using LEGACY video_room_* fallback (old edge function detected)');
+    return {
+      room_name: row.video_room_name,
+      room_url: row.video_room_url,
+      started_at: row.video_room_created_at,
+      created_by: row.active_call_created_by ?? null, // Legacy has no created_by
+    };
+  }
+
   return null;
 }
 
@@ -62,7 +82,7 @@ export function useActiveCall(conversationId: string | null) {
     try {
       const { data, error } = await supabase
         .from('conversations')
-        .select('active_call_room_name, active_call_room_url, active_call_started_at, active_call_ended_at, active_call_created_by')
+        .select('active_call_room_name, active_call_room_url, active_call_started_at, active_call_ended_at, active_call_created_by, video_room_name, video_room_url, video_room_created_at')
         .eq('id', conversationId)
         .maybeSingle();
 
@@ -100,14 +120,8 @@ export function useActiveCall(conversationId: string | null) {
     setLoading(true);
     fetchActiveCall();
 
-    // OPTIMIZATION: Warm up edge function
-    if (!edgeFunctionWarmedUp && conversationId) {
-      edgeFunctionWarmedUp = true;
-      supabase.functions.invoke('create-daily-room', {
-        body: { warmup: true, conversation_id: conversationId },
-      }).catch(() => {});
-      devLog('useActiveCall', 'Edge function warm-up POST sent');
-    }
+    // REMOVED: Warmup invoke - causes unnecessary edge function calls (8x problem)
+    // The edge function will be cold-started on first real call instead.
 
     if (!conversationId) return;
 

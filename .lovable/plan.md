@@ -1,60 +1,107 @@
 
-Durumu netleştirdim: sorun frontend buton kodunda değil, canlı backend sürümü + çağrı akışındaki gereksiz invoke’larda.
+Hedefinize göre bu sefer “kesin çözüm” için yalnızca semptom değil, veri bütünlüğünü kökten kilitleyen bir plan uygulayacağım. Mevcut bulgulara göre ana problem tek bir katmanda değil; **payment_requests ↔ appointments senkronu kırılmış**.
 
-1) Kesin kök neden (kanıtlı)
-- Ağ logunda `create-daily-room` response:
-  - `function_version: create-daily-room@2026-01-29-REV3`
-- Repo kodunda edge function:
-  - `FUNCTION_VERSION = create-daily-room@2026-03-06-REV8-FORCE-DEPLOY`
-- Yani canlıda hala REV3 çalışıyor, yeni düzeltmeler deploy olmamış.
-- Aynı anda `conversations` GET sonucu:
-  - `active_call_room_name/url/started_at/created_by = null`
-- Bu yüzden `useActiveCall` null görüyor, `ChatWindow` “Konuşmaya Katıl” branch’ine hiç geçmiyor.
+1) Kesin teşhis (eldeki veriye göre)
+- Admin’de payment_request’ler `rejected` olurken, appointments tarafında hâlâ `pending` kalabilen kayıtlar var (senin verdiğin sayı: toplam 8, pending 6, cancelled 2).
+- `src/pages/admin/Payments.tsx` içinde reject/approve sırasında appointments update çağrısında:
+  - result/error kontrolü yapılmıyor,
+  - `.select()` yok, etkilenen satır sayısı doğrulanmıyor.
+- Network’te appointments PATCH `204` dönüyor; bu “başarılı güncellendi” garantisi değil (0 row update de olabilir).
+- Bu yüzden payment_requests ve appointments durumları ayrışıyor; SQL’de pending şişmesi buradan geliyor.
+- Danışan `/appointments` ekranı sadece `appointments` tablosunu okuduğu için, payment_request doğru olsa bile appointments tarafı bozuksa görünürlük bozuluyor.
 
-2) “8 kere çağrı” neden oluyor?
-Bu sayı yanıltıcı:
-- Supabase Function listesinde genelde her gerçek çağrı için:
-  - 1x `OPTIONS` (CORS preflight)
-  - 1x `POST` (asıl invoke)
-- Ekrandaki 8 kayıt büyük olasılıkla 4 gerçek POST + 4 OPTIONS.
-- Ek olarak mevcut mimaride çağrı sayısını artıran iki kaynak var:
-  - `useActiveCall` içindeki warmup (`create-daily-room` warmup POST)
-  - Kullanıcı CTA görmeyince tekrar normal video butonundan `start` denemesi
+2) Uygulanacak çözüm mimarisi (kalıcı)
+A) DB tarafını tek kaynak gerçeklik haline getir
+- `payment_requests.status` değiştiğinde bağlı `appointments.status` otomatik güncellensin (DB trigger).
+- Uygulama koduna güvenmek yerine DB’de zorunlu senkron.
 
-3) Neden hala “Katıl” görünmüyor?
-- `ChatWindow` koşulu doğru: `activeCall && activeCall.created_by !== user?.id`
-- Ama `activeCall` null kalıyor çünkü canlı edge function (REV3) aktif çağrı state’ini frontend’in beklediği alanlarda güvenilir şekilde güncellemiyor / yeni sözleşmeyi döndürmüyor.
-- Sonuç: render condition hiç true olmuyor.
+B) Veri onarımı (one-time backfill)
+- Mevcut bozuk kayıtları toplu senkronla:
+  - `payment_requests.rejected` -> `appointments.cancelled`
+  - `payment_requests.confirmed` -> `appointments.confirmed`
+  - `payment_requests.pending` -> `appointments.pending`
+- Bu adım senin “şu an pending 6 neden var?” sorununu temizler.
 
-4) Uygulama planı (kalıcı çözüm)
-A. Deploy doğrulamasını zorunlu hale getirme
-- `create-daily-room` canlıda REV8+ olduğuna kod seviyesinde guard ekle:
-  - Eğer response `function_version` beklenenden düşükse kullanıcıya “backend outdated” hatası ver.
-  - Sessiz devam etmeye izin verme (aksi halde yine gizli arıza olur).
+C) Uygulama katmanını sessiz hataya kapat
+- Admin reject/approve akışında appointments update sonucu zorunlu kontrol:
+  - error varsa throw,
+  - updated row count 0 ise uyarı + log + işlemi başarısız say.
+- Böylece bir daha “görünürde reddedildi ama appointment pending kaldı” olmayacak.
 
-B. Gereksiz invoke’ları azaltma
-- `useActiveCall` içindeki warmup invoke’u kaldır veya feature-flag ile kapat.
-- Böylece function çağrı sayısı düşer, gözlem netleşir, CORS preflight gürültüsü azalır.
+3) Uygulanacak dosya/SQL değişiklik planı
+- `src/pages/admin/Payments.tsx`
+  - `handleReject` ve `handleApprove` içinde appointments update sonucunu `select()` ile doğrulama.
+  - başarısız senkron durumunda toast + abort.
+- (Yeni migration SQL)
+  - status sync trigger function (`payment_requests` -> `appointments`)
+  - one-time data reconciliation script
 
-C. Aktif çağrı okunmasında geçiş dönemi uyumluluğu
-- `useActiveCall` fetch’inde geçici olarak legacy alanları da okuyup normalize et (REV3/REV8 uyumu).
-- Böylece deploy gecikse bile “Katıl” butonu kör kalmaz.
-- Bu uyumluluğu “temporary fallback” olarak işaretleyip deploy sonrası sadeleştireceğim.
+4) Önce çalıştırılacak kesin doğrulama SQL (teşhis)
+```sql
+-- A) Senkron bozukluk özeti
+select
+  pr.status as pr_status,
+  a.status  as appt_status,
+  count(*)  as cnt
+from public.payment_requests pr
+left join public.appointments a
+  on a.payment_request_id = pr.id
+where pr.item_type = 'appointment'
+group by pr.status, a.status
+order by pr.status, a.status;
 
-D. Realtime/polling güvence
-- Mevcut `CHANNEL_ERROR/TIMED_OUT` fallback polling korunacak.
-- Polling interval/backoff optimize edilip sadece gerekli durumda çalışacak (gereksiz GET azaltımı).
+-- B) payment_request rejected ama appointment cancelled olmayanlar
+select
+  pr.id as pr_id,
+  pr.reference_code,
+  pr.status as pr_status,
+  a.id as appt_id,
+  a.status as appt_status
+from public.payment_requests pr
+left join public.appointments a on a.payment_request_id = pr.id
+where pr.item_type = 'appointment'
+  and pr.status = 'rejected'
+  and (a.id is null or a.status <> 'cancelled')
+order by pr.created_at desc;
+```
 
-E. Gözlemlenebilirlik
-- `VideoCallPage` ve `useActiveCall` loglarına tek satır “version + call state source(active/legacy)” izleme eklenecek.
-- Sorun tekrarında 30 sn içinde hangi katmanda koptuğu net görülecek.
+5) One-time düzeltme SQL (pending 6’yı temizleyen adım)
+```sql
+begin;
 
-5) Sonrasında beklenen davranış
-- Aktif arama yok: normal video ikon.
-- Karşı taraf aramayı başlatınca (refreshsiz): otomatik yeşil “Konuşmaya Katıl”.
-- Arama bitince: otomatik normal video ikona dönüş.
-- Function çağrı sayısı: warmup kapatılırsa belirgin şekilde azalır; dashboard’daki OPTIONS kayıtları ayrıca gerçek invoke gibi sayılmayacak.
+update public.appointments a
+set status = case
+  when pr.status = 'rejected' then 'cancelled'
+  when pr.status = 'confirmed' then 'confirmed'
+  else 'pending'
+end
+from public.payment_requests pr
+where a.payment_request_id = pr.id
+  and pr.item_type = 'appointment'
+  and a.status is distinct from case
+    when pr.status = 'rejected' then 'cancelled'
+    when pr.status = 'confirmed' then 'confirmed'
+    else 'pending'
+  end;
 
-6) Neden önceki denemeler çözmedi?
-- UI tarafı doğruya getirilmişti ama canlı backend hala REV3 kaldığı için tetikleyen data hiç gelmedi.
-- Yani render düzeltildi, state kaynağı düzelmedi.
+commit;
+```
+
+6) Kalıcı DB trigger planı (tekrar bozulmaması için)
+- `payment_requests` üzerinde `AFTER UPDATE OF status` trigger:
+  - sadece `item_type='appointment'` için çalışacak,
+  - bağlı appointment status’u map’leyecek (`rejected -> cancelled`, `confirmed -> confirmed`, `pending -> pending`).
+
+7) Danışan görünürlük sorunu için kesinleştirme adımı
+- DB senkronu düzeltildikten sonra `/appointments` ekranı yeniden test:
+  - yeni ödeme oluştur,
+  - admin onaylamadan önce danışanda “Bekleyen”de görünmeli,
+  - admin reddedince status “Reddedildi” olarak kalmalı (ve artık yanlış pending sayısı olmamalı).
+- Eğer hâlâ görünmüyorsa ikinci katman patch:
+  - `useAppointments` içinde customer branch’e debug audit (query result + role + userId),
+  - role branch sapması varsa (teacher/customer) bunu ayrı net patch ile sabitleyeceğim.
+
+8) Beklenen nihai sonuç
+- SQL tarafında pending_count, admin işlemleriyle tutarlı olacak (hepsi reddedildiyse pending 0).
+- Danışan bekleyen sekmesi, admin onayı bekleyen yeni randevuları deterministik şekilde gösterecek.
+- Admin reddettiğinde appointment status’unun pending’de kalması kalıcı olarak bitecek.
