@@ -49,12 +49,20 @@ export function useActiveCall(conversationId: string | null) {
 
       const row = data as ConversationRow | null;
       
+      devLog('useActiveCall', 'Fetched call data:', {
+        room: row?.active_call_room_name,
+        started: row?.active_call_started_at,
+        ended: row?.active_call_ended_at,
+        createdBy: row?.active_call_created_by,
+      });
+
       // Check if there's an active call (started but not ended)
+      // Use falsy check instead of === null to handle undefined from Realtime payloads
       if (
         row?.active_call_room_name &&
         row?.active_call_room_url &&
         row?.active_call_started_at &&
-        row?.active_call_ended_at === null
+        !row?.active_call_ended_at
       ) {
         setActiveCall({
           room_name: row.active_call_room_name,
