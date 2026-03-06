@@ -120,14 +120,8 @@ export function useActiveCall(conversationId: string | null) {
     setLoading(true);
     fetchActiveCall();
 
-    // OPTIMIZATION: Warm up edge function
-    if (!edgeFunctionWarmedUp && conversationId) {
-      edgeFunctionWarmedUp = true;
-      supabase.functions.invoke('create-daily-room', {
-        body: { warmup: true, conversation_id: conversationId },
-      }).catch(() => {});
-      devLog('useActiveCall', 'Edge function warm-up POST sent');
-    }
+    // REMOVED: Warmup invoke - causes unnecessary edge function calls (8x problem)
+    // The edge function will be cold-started on first real call instead.
 
     if (!conversationId) return;
 
