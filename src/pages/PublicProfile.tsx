@@ -170,7 +170,7 @@ export default function PublicProfile() {
                 {/* Name & Badge */}
                 <div className="space-y-3">
                   <div className="flex flex-col lg:flex-row items-center lg:items-center gap-3">
-                    <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold font-serif text-gradient-silver">
+                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold font-serif text-gradient-silver">
                       {profile.username || "Kullanıcı"}
                     </h1>
                     {role && <Badge variant={isExpert ? "default" : "secondary"} className="text-sm px-4 py-1.5 font-medium">
