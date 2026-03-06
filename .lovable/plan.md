@@ -1,43 +1,52 @@
 
 
-# Referans Kodu Ön-Gösterim Düzeltmesi
+# Kök Neden Analizi ve Düzeltme Planı
 
-## Problem
-Kullanıcı havale yaparken açıklamaya referans kodunu yazması gerekiyor, ama kod ancak "Ödemeyi Yaptım" tıklandıktan sonra RPC tarafından üretiliyor. Tavuk-yumurta problemi.
+## Hatanın Kesin Kök Nedeni
 
-## Çözüm
-Referans kodunu **sayfa yüklendiğinde** ön-üretip ekranda göstermek, sonra bu kodu RPC'ye parametre olarak geçmek.
+**Signature mismatch.** Kullanıcı Supabase'te **Phase 2** SQL'ini çalıştırdı. Bu fonksiyonun 11 parametresi var ve `_reference_code` parametresi **yok**. Ancak frontend (BankTransferScreen line 91) `_reference_code: referenceCode` gönderiyor. PostgREST bilinmeyen parametre gördüğünde fonksiyonu bulamıyor ve `Could not find the function` hatası veriyor.
 
-### 1. Client-side referans kodu üretimi (BankTransferScreen.tsx)
-- Component mount'ta `EL-XXXXXX` formatında benzersiz kod üret (`crypto.randomUUID()` veya `Math.random` ile 6 hane hex)
-- `CopyableField label="Referans Kodu" value={referenceCode}` olarak IBAN, Alıcı, Tutar'ın altına ekle
-- Uyarı metnini güncelle: "Havale açıklamasına yukarıdaki referans kodunu yazmayı unutmayın"
+Phase 3 SQL dosyası da oluşturuldu ama iki sorun var:
+1. Phase 3, Phase 2'nin `auth.uid()` kontrolünü içermiyor
+2. Phase 3, `item_type='product'` için appointment oluşturmama kontrolünü içermiyor (her zaman appointment INSERT yapıyor)
+3. Phase 3, `payment_requests` INSERT'ine `start_ts/end_ts/duration_minutes` eklemiyor
+4. Phase 3, appointments INSERT'ine `price_at_booking` eklemiyor
 
-### 2. RPC'yi güncelle (SQL migration)
-- `create_payment_request_and_appointment` fonksiyonuna `_reference_code TEXT DEFAULT NULL` parametresi ekle
-- Eğer `_reference_code` verilmişse onu kullan, verilmemişse mevcut server-side üretimi devam etsin
-- UNIQUE constraint mevcut — çakışma durumunda hata döner (son derece düşük olasılık)
+## Düzeltme Planı
 
-### 3. RPC çağrısını güncelle (BankTransferScreen.tsx)
-- `supabase.rpc(...)` çağrısına `_reference_code: referenceCode` parametresi ekle
+### 1. Birleşik SQL migration oluştur (`phase3_reference_code.md` güncelle)
+Phase 2 + Phase 3'ü birleştiren tek bir `CREATE OR REPLACE FUNCTION`:
+- 12 parametre (Phase 2'nin 11'i + `_reference_code TEXT DEFAULT NULL`)
+- `auth.uid()` kontrolü (Phase 2'den)
+- 3 doğrulama (listing_price ↔ listing, teacher ↔ listing, bank active)
+- Client `_reference_code` varsa kullan, yoksa server-side üret (retry loop)
+- `payment_requests` INSERT'ine `start_ts/end_ts/duration_minutes` dahil
+- `IF _item_type = 'appointment'` kontrolü (sadece appointment tipinde appointment oluştur)
+- `appointments` INSERT'ine `price_at_booking` dahil
 
-### Dosya Değişiklikleri
+### 2. Frontend değişikliği YOK
+`BankTransferScreen.tsx` doğru çalışıyor — `_reference_code` göndermesi planla tutarlı.
+
+### Değişen dosya
 | Dosya | Değişiklik |
 |-------|-----------|
-| `src/pages/Payment/BankTransferScreen.tsx` | Referans kodu üretimi + CopyableField + RPC'ye parametre geçişi |
-| `supabase/migrations_manual/phase3_reference_code.md` | RPC'ye `_reference_code` parametresi ekleme SQL'i |
+| `supabase/migrations_manual/phase3_reference_code.md` | Phase 2 + Phase 3 birleşik SQL (auth check + validation + reference_code param) |
 
-### Referans Kodu Üretimi
-```text
-const generateRefCode = () => {
-  const hex = crypto.randomUUID().replace(/-/g, '').substring(0, 6).toUpperCase();
-  return `EL-${hex}`;
-};
+### Son RPC signature
+```
+_customer_id uuid, _teacher_id uuid, _listing_id uuid, _listing_price_id uuid,
+_bank_account_id uuid, _item_type text, _quantity integer, _amount numeric,
+_start_ts timestamptz DEFAULT NULL, _end_ts timestamptz DEFAULT NULL,
+_duration_minutes integer DEFAULT NULL, _reference_code text DEFAULT NULL
 ```
 
-Bu yaklaşımla:
-- Kullanıcı sayfaya geldiğinde referans kodunu hemen görür ve kopyalayabilir
-- Havale açıklamasına yazar
-- "Ödemeyi Yaptım" dediğinde aynı kod DB'ye kaydedilir
-- Admin bu kodla eşleştirme yapabilir
+### Frontend RPC payload (değişmiyor)
+```
+_customer_id, _teacher_id, _listing_id, _listing_price_id,
+_item_type, _quantity, _amount, _bank_account_id,
+_start_ts, _end_ts, _duration_minutes, _reference_code
+```
+
+### Kullanıcı aksiyonu
+SQL dosyasını güncelledikten sonra kullanıcının Supabase SQL Editor'da çalıştırması + ardından `NOTIFY pgrst, 'reload schema';` çalıştırması gerekecek.
 
