@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -35,6 +35,12 @@ export default function BankTransferScreen() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
+  // Pre-generate reference code so user can include it in bank transfer description
+  const referenceCode = useMemo(() => {
+    const hex = crypto.randomUUID().replace(/-/g, '').substring(0, 6).toUpperCase();
+    return `EL-${hex}`;
+  }, []);
+
   useEffect(() => {
     if (!flowState) {
       navigate("/", { replace: true });
@@ -65,9 +71,6 @@ export default function BankTransferScreen() {
   const isProduct = flowState.consultationType === "product";
   const totalAmount = flowState.price * flowState.quantity;
 
-  // Placeholder reference code shown before submission (actual code from server)
-  const tempRefDisplay = "Ödeme sonrası oluşturulacak";
-
   const handleConfirmPayment = async () => {
     if (!selectedBank) return;
     setSubmitting(true);
@@ -85,6 +88,7 @@ export default function BankTransferScreen() {
         _start_ts: flowState.startTs || null,
         _end_ts: flowState.endTs || null,
         _duration_minutes: flowState.consultationType === "product" ? null : flowState.durationMinutes,
+        _reference_code: referenceCode,
       });
 
       if (error) throw error;
@@ -198,10 +202,11 @@ export default function BankTransferScreen() {
                   <CopyableField label="IBAN" value={selectedBank.iban} />
                   <CopyableField label="Alıcı Adı" value={selectedBank.account_holder} />
                   <CopyableField label="Tutar" value={`${totalAmount} TL`} />
+                  <CopyableField label="Referans Kodu" value={referenceCode} />
 
                   <div className="bg-destructive/10 border-l-4 border-destructive rounded-r-lg p-4">
                     <p className="text-sm text-foreground/80">
-                      ⚠️ Havale açıklamasına referans kodunuzu yazmayı unutmayın. Referans kodu ödeme onayından sonra gösterilecektir.
+                      ⚠️ Havale açıklamasına yukarıdaki <strong>referans kodunu</strong> yazmayı unutmayın.
                     </p>
                   </div>
                 </div>
