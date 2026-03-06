@@ -1,96 +1,40 @@
 
 
-# Listing Detail Sayfa Yeniden Tasarımı
+# Randevu Görünürlük Akışı Güncellemesi
 
 ## Değişecek Dosyalar
 
 | Dosya | Değişiklik |
 |-------|-----------|
-| `ListingDetailPage.tsx` | Layout yeniden yapılandırma, takvim bug fix, card header inceltme, booking kartını sidebar'a taşıma, CTA azaltma |
-| `ListingDescriptionCard.tsx` | Devamını oku/kapat toggle, kompakt header |
-| `TeacherInfoCard.tsx` | Butonları kaldır, tıklanabilir avatar/isim, kompakt yapı |
-| `ReviewsSection.tsx` | Kompakt header, boş durum sadeleştirme |
+| `appointmentQueries.ts` | Teacher pending query'den `neq('status', 'pending')` kaldır; customer pending query'ye `cancelled` dahil et; completed query'de customer/teacher ayrımı |
+| `Appointments.tsx` | Status label'larını role bazlı güncelle; cancelled olanları customer'da "Reddedildi" olarak göster |
 
-## 1. Desktop Layout Değişikliği
+## Query Değişiklikleri
 
-Mevcut: Sol kolon = içerik + booking, Sağ sticky sidebar = açıklama + uzman kartı
+**Pending (Bekleyen) sekmesi — `end_ts >= now`:**
+- **Customer:** `pending`, `confirmed`, `cancelled` hepsi görünsün
+- **Teacher:** `pending`, `confirmed` görünsün; `cancelled` görünmesin
 
-Yeni:
-```text
-Sol Kolon (lg:col-span-2)          Sağ Kolon (lg:col-span-1, sticky)
-├── Breadcrumb                     ├── Booking / Product kartı
-├── Başlık + Görsel                
-├── Açıklama kartı                 
-├── Uzman kartı                    
-├── Yorumlar                       
-```
+Mevcut kodda satır 24'teki `.neq('status', 'cancelled')` customer için kaldırılmalı, teacher için korunmalı. Satır 28-30'daki `.neq('status', 'pending')` tamamen kaldırılmalı.
 
-Booking kartı desktop'ta sağ sticky sidebar'a taşınacak. Mobilde mevcut sıralama korunacak (başlık → görsel → açıklama → uzman → booking → yorumlar).
+**Completed (Tamamlanan) sekmesi — `end_ts < now`:**
+- Her iki tarafta da `cancelled` görünmesin (mevcut davranış korunur).
 
-## 2. Card Header İnceltme (Tüm Kartlar)
+## Status Label Değişiklikleri
 
-Tüm listing detail kartlarında:
-- `CardHeader` padding: `p-6` → `px-4 py-3` (veya `px-5 py-3`)
-- Başlık font: `text-xl md:text-2xl` → `text-base md:text-lg`
-- Icon boyutu: `h-5 w-5 md:h-6 md:w-6` → `h-4 w-4`
-- Gradient header: daha ince, `from-primary/3 to-primary/5` gibi daha hafif
-- Kartlarda `border-2` → `border`, `shadow-md/shadow-lg` → hafif shadow override
+`Appointments.tsx` satır 51-53'teki mapping role-aware olacak:
 
-## 3. Açıklama Kartı — Devamını Oku
+| Status | Customer Label | Teacher Label |
+|--------|---------------|---------------|
+| `pending` | "Ödeme Kontrol Ediliyor" | "Ödeme Kontrol Ediliyor" |
+| `confirmed` | "Onaylandı" | "Onaylandı" |
+| `cancelled` | "Reddedildi" | *(görünmez)* |
+| `completed` | "Tamamlandı" | "Tamamlandı" |
 
-- `line-clamp-4` ile ilk 4 satır gösterilecek
-- "Devamını oku" / "Daha az göster" toggle butonu
-- `useState` ile `expanded` kontrolü
+Badge variant: `cancelled` → `destructive` (mevcut, korunuyor).
 
-## 4. Uzman Kartı — Güven Kartı
+## Uygulama Detayı
 
-- "Mesaj Gönder" ve "Profili Görüntüle" butonları kaldırılacak
-- Avatar + isim alanı `Link to={/profile/${teacherId}}` ile sarılacak, hover efekti eklenecek
-- Daha kompakt: gereksiz `border-b` ve padding azaltılacak
-
-## 5. Booking Kartı İyileştirme
-
-- Uyarı kutusu: amber tonları yerine tema uyumlu `bg-primary/5 border-primary/20` tarzı rafine info box
-- İç spacing: `space-y-5 md:space-y-6` → `space-y-4`
-- Mesaj Gönder butonu: `variant="ghost"` veya `variant="outline"` ile daha küçük, ikincil CTA
-- Paket seçenekleri: `p-4` → `p-3`, daha kompakt
-- Toplam tutar: korunacak ama padding azaltılacak
-- CTA buton: korunacak
-
-## 6. Takvim Bug Fix
-
-```tsx
-const [calendarOpen, setCalendarOpen] = useState(false);
-
-<Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-  ...
-  <Calendar
-    className="p-3 pointer-events-auto"
-    onSelect={(date) => {
-      setSelectedDate(date);
-      setCalendarOpen(false);
-    }}
-  />
-</Popover>
-```
-
-## 7. Yorumlar Bölümü
-
-- Boş durum: `py-6 md:py-8` → `py-3`
-- Header kompaktlaştırma (diğer kartlarla aynı pattern)
-
-## 8. Genel Hafifletme
-
-Listing detail sayfasındaki kartlara özel override:
-- `rounded-xl` (2xl yerine)
-- Daha hafif shadow (shadow-elegant yerine `shadow-sm` veya özel)
-- Kartlar arası boşluk: `space-y-6 md:space-y-8` → `space-y-4 md:space-y-6`
-- Görsel yüksekliği mobilde: `h-64` → `h-48 sm:h-64`
-
-## 9. Mobil Optimizasyon
-
-- Görsel yüksekliği azaltma
-- `pb-24` veya safe-area padding ekleme (bottom nav overlap önleme)
-- Kartlar arası boşluk azaltma
-- Product kartındaki ikinci "Mesaj Gönder" butonunu kaldırma
+1. `appointmentQueries.ts`: Pending query'yi role bazlı filtrele — teacher için sadece `cancelled` hariç, customer için filtre yok (hepsi gelsin)
+2. `Appointments.tsx`: Label mapping'i role-aware yap, `cancelled` olan customer kartlarında "Reddedildi" göster
 
