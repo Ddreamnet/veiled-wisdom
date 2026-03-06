@@ -185,35 +185,64 @@ export function ChatWindow({ conversation, onBack, onMessagesRead }: ChatWindowP
           </div>
 
           {/* Right Section: Video Call */}
-          {activeCall && isCallStartedByOther ? (
-            <Button
-              size="sm"
-              onClick={handleJoinCall}
-              onMouseEnter={prefetchMediaPermissions}
-              onFocus={prefetchMediaPermissions}
-              className="bg-green-500 hover:bg-green-600 text-white rounded-full flex-shrink-0 gap-1.5 px-4 animate-pulse"
-            >
-              <Phone className="h-4 w-4" />
-              <span className="text-xs font-semibold">Katıl</span>
-            </Button>
-          ) : (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={activeCall ? handleJoinCall : handleStartCall}
-              onMouseEnter={prefetchMediaPermissions}
-              onFocus={prefetchMediaPermissions}
-              className={cn(
-                "rounded-full flex-shrink-0 transition-colors",
-                isMobile ? "h-10 w-10" : "h-11 w-11",
-                activeCall 
-                  ? "bg-green-500/10 hover:bg-green-500/20 text-green-500" 
-                  : "hover:bg-primary/10 hover:text-primary"
-              )}
-            >
-              <Video className="h-5 w-5" />
-            </Button>
-          )}
+          <AnimatePresence mode="wait">
+            {activeCall && isCallStartedByOther ? (
+              <motion.div
+                key="join-cta"
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.8, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+              >
+                <Button
+                  size="sm"
+                  onClick={handleJoinCall}
+                  onMouseEnter={prefetchMediaPermissions}
+                  onFocus={prefetchMediaPermissions}
+                  className="bg-green-500 hover:bg-green-600 text-white rounded-full flex-shrink-0 gap-1.5 px-4 shadow-lg shadow-green-500/25"
+                >
+                  <Phone className="h-4 w-4 animate-pulse" />
+                  <span className="text-xs font-semibold whitespace-nowrap">Konuşmaya Katıl</span>
+                </Button>
+              </motion.div>
+            ) : activeCall ? (
+              <motion.div
+                key="return-call"
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.8, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+              >
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleJoinCall}
+                  onMouseEnter={prefetchMediaPermissions}
+                  onFocus={prefetchMediaPermissions}
+                  className="rounded-full flex-shrink-0 gap-1.5 px-3 border-green-500/40 text-green-500 hover:bg-green-500/10"
+                >
+                  <Video className="h-4 w-4" />
+                  <span className="text-xs font-medium whitespace-nowrap">Aramaya Dön</span>
+                </Button>
+              </motion.div>
+            ) : (
+              <motion.div key="video-icon">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleStartCall}
+                  onMouseEnter={prefetchMediaPermissions}
+                  onFocus={prefetchMediaPermissions}
+                  className={cn(
+                    "rounded-full flex-shrink-0 transition-colors hover:bg-primary/10 hover:text-primary",
+                    isMobile ? "h-10 w-10" : "h-11 w-11",
+                  )}
+                >
+                  <Video className="h-5 w-5" />
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
