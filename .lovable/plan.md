@@ -1,52 +1,71 @@
 
 
-# Randevu Görünürlüğü ve Mobil Buton Düzeltmesi
+# Randevu Görünürlüğü Sorunu — Kök Neden Analizi
 
-## Sorun 1: Randevular Görünmüyor — Kök Neden Analizi
+## Bulgular
 
-Query mantığı (`appointmentQueries.ts`) doğru çalışıyor — `pending` statülü randevuları hem danışan hem uzman için getirmesi gerekiyor. RPC (`create_payment_request_and_appointment`) da doğru şekilde `pending` statüsünde appointment oluşturuyor.
+Kod tarafı doğru çalışıyor:
+- RPC (`create_payment_request_and_appointment`) `SECURITY DEFINER` ile `pending` statüsünde appointment oluşturuyor
+- `appointmentQueries.ts` doğru filtreleme yapıyor (`customer_id` / `teacher_id` + `end_ts >= now`)
+- Network verilerinde payment_request'lerin `start_ts` ve `end_ts` değerleri dolu → RPC'deki `IF _item_type = 'appointment' AND _start_ts IS NOT NULL` koşulu sağlanıyor
 
-**Kök neden: `appointments` tablosundaki RLS (Row Level Security) politikaları.**
+## Olası Kök Nedenler (DB Tarafı)
 
-Projede `appointments` tablosunun oluşturulması migration dosyalarında yer almıyor (önceden oluşturulmuş). Bu tabloda muhtemelen:
-- Teacher için SELECT policy var (`teacher_id = auth.uid()`)
-- Customer için SELECT policy eksik veya kısıtlı
+1. **Mevcut çakışan SELECT policy'ler**: `appointments` tablosunda önceden oluşturulmuş restrictive policy'ler olabilir. `CREATE POLICY` aynı isimde policy varsa hata verir ve sessizce atlanabilir.
 
-SECURITY DEFINER fonksiyon RLS'i bypass ederek kayıt oluşturuyor, ama client-side okuma RLS'e tabi. Customer ve teacher bu yüzden kendi randevularını göremiyorlar.
+2. **Admin UPDATE policy eksik**: Admin reddettiğinde `appointments` tablosunu güncelliyor (`PATCH .../appointments?payment_request_id=eq.X`). UPDATE policy yoksa bu güncelleme sessizce 0 satır etkiler (204 döner ama satır güncellenmez).
 
-**Çözüm — Supabase SQL Editor'da çalıştırılacak SQL:**
+## Çözüm
+
+Aşağıdaki SQL'i **Supabase SQL Editor'da** çalıştırmanız gerekiyor. Bu SQL mevcut tüm policy'leri temizleyip yeniden oluşturur:
+
 ```sql
--- Customer kendi randevularını görebilsin
+-- 1. Mevcut tüm appointments policy'lerini temizle
+DO $$
+DECLARE
+  pol RECORD;
+BEGIN
+  FOR pol IN
+    SELECT policyname FROM pg_policies WHERE tablename = 'appointments' AND schemaname = 'public'
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.appointments', pol.policyname);
+  END LOOP;
+END $$;
+
+-- 2. RLS'in aktif olduğundan emin ol
+ALTER TABLE public.appointments ENABLE ROW LEVEL SECURITY;
+
+-- 3. SELECT policy'leri
 CREATE POLICY "Customer can read own appointments"
   ON public.appointments FOR SELECT TO authenticated
   USING (customer_id = auth.uid());
 
--- Teacher kendi randevularını görebilsin
 CREATE POLICY "Teacher can read own appointments"
   ON public.appointments FOR SELECT TO authenticated
   USING (teacher_id = auth.uid());
 
--- Admin tüm randevuları görebilsin
 CREATE POLICY "Admin can read all appointments"
   ON public.appointments FOR SELECT TO authenticated
   USING (public.has_role(auth.uid(), 'admin'));
+
+-- 4. UPDATE policy (admin onay/red için gerekli)
+CREATE POLICY "Admin can update all appointments"
+  ON public.appointments FOR UPDATE TO authenticated
+  USING (public.has_role(auth.uid(), 'admin'))
+  WITH CHECK (public.has_role(auth.uid(), 'admin'));
+
+-- 5. Schema cache'i yenile
+NOTIFY pgrst, 'reload schema';
 ```
 
-Bu SQL'i kullanıcının Supabase SQL Editor'dan çalıştırması gerekecek. Eğer mevcut politikalar varsa `CREATE POLICY` hata verebilir — bu durumda önce `DROP POLICY IF EXISTS` ile mevcut politikalar kaldırılmalı.
+## Neden Önceki SQL Çalışmamış Olabilir
 
-## Sorun 2: Mobil "Ödemeyi Yaptım" Butonu Navbar ile Çakışma
+- Mevcut policy'ler `DROP POLICY IF EXISTS` ile silinmeden `CREATE POLICY` çalıştırılmışsa, aynı isimde policy hatası alınmış ve SQL durmuş olabilir
+- Ya da appointments tablosunda RLS aktif değildi ve `ENABLE ROW LEVEL SECURITY` hiç çalıştırılmamıştı (bu durumda policy'ler oluşsa bile etkisizdir)
 
-`BankTransferScreen.tsx` satır 216'da buton `fixed bottom-0` ile konumlandırılmış. Mobilde `MobileBottomNav` da aynı yerde, dolayısıyla üst üste biniyorlar.
+Yukarıdaki SQL tüm senaryoları kapsar: önce mevcut policy'leri temizler, RLS'i aktif eder, sonra doğru policy'leri oluşturur.
 
-**Çözüm:**
-- `bottom-0` yerine `bottom-[calc(80px+env(safe-area-inset-bottom,0px))]` veya Tailwind ile `bottom-20` kullanarak butonun nav bar'ın üstüne oturmasını sağla
-- Spacer yüksekliğini de buna göre ayarla (`h-24` → `h-44` veya uygun değer)
+## Kod Değişikliği
 
-### Değişecek Dosyalar
-
-| Dosya | Değişiklik |
-|-------|-----------|
-| `BankTransferScreen.tsx` | Sticky CTA'nın bottom offset'ini mobilde nav bar yüksekliğini hesaba katacak şekilde ayarla |
-
-**Not:** RLS değişikliği kod tarafında yapılamaz, kullanıcıya Supabase SQL Editor'da çalıştırması gereken SQL verilecektir.
+Kod tarafında değişiklik gerekmiyor. Sorun tamamen veritabanı RLS policy'lerinde.
 
