@@ -49,7 +49,9 @@ export default function Appointments() {
               }
             >
               {
-                { pending: 'Ödeme Kontrol Ediliyor', confirmed: 'Onaylandı', cancelled: 'İptal Edildi', completed: 'Tamamlandı' }[appointment.status as string] || appointment.status
+                appointment.status === 'cancelled' && role === 'customer'
+                  ? 'Reddedildi'
+                  : { pending: 'Ödeme Kontrol Ediliyor', confirmed: 'Onaylandı', cancelled: 'İptal Edildi', completed: 'Tamamlandı' }[appointment.status as string] || appointment.status
               }
             </Badge>
           </CardTitle>

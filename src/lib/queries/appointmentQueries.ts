@@ -21,12 +21,11 @@ export function useAppointments(userId: string | undefined, role: string | null)
         `)
         .eq(column, userId)
         .gte('end_ts', now)
-        .neq('status', 'cancelled')
         .order('start_ts', { ascending: true });
 
-      // Teacher should NOT see pending appointments (payment not yet confirmed)
+      // Teacher: cancelled görünmesin; Customer: hepsi görünsün
       if (role === 'teacher') {
-        pendingQuery = pendingQuery.neq('status', 'pending');
+        pendingQuery = pendingQuery.neq('status', 'cancelled');
       }
 
       const [pendingResult, completedResult] = await Promise.all([
