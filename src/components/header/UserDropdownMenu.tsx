@@ -8,7 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { User, LogOut, Settings, BookOpen } from "lucide-react";
+import { User, LogOut, Settings, BookOpen, Calendar } from "lucide-react";
 import { TurkishLiraIcon } from "@/components/icons/TurkishLiraIcon";
 import { UserRole } from "@/lib/supabase";
 
@@ -46,6 +46,19 @@ export function UserDropdownMenu({ avatarUrl, role, onSignOut }: UserDropdownMen
             Profil
           </Link>
         </DropdownMenuItem>
+
+        {/* Appointments - for non-admin users */}
+        {role !== "admin" && (
+          <>
+            <DropdownMenuSeparator className="bg-silver/10" />
+            <DropdownMenuItem asChild>
+              <Link to="/appointments" className="flex items-center gap-2 cursor-pointer">
+                <Calendar className="h-4 w-4" />
+                Randevularım
+              </Link>
+            </DropdownMenuItem>
+          </>
+        )}
 
         {/* Teacher-specific items */}
         {role === "teacher" && (
