@@ -218,7 +218,7 @@ export default function PublicProfile() {
                 <div className="p-2.5 bg-primary/10 rounded-xl">
                   <Briefcase className="h-6 w-6 text-primary" />
                 </div>
-                <h2 className="text-2xl sm:text-3xl font-bold font-serif">Sunulan Hizmetler</h2>
+                <h2 className="text-xl sm:text-2xl font-bold font-serif">Sunulan Hizmetler</h2>
               </div>
 
               {listings.length > 0 ? <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
