@@ -1,107 +1,71 @@
 
-Hedefinize göre bu sefer “kesin çözüm” için yalnızca semptom değil, veri bütünlüğünü kökten kilitleyen bir plan uygulayacağım. Mevcut bulgulara göre ana problem tek bir katmanda değil; **payment_requests ↔ appointments senkronu kırılmış**.
 
-1) Kesin teşhis (eldeki veriye göre)
-- Admin’de payment_request’ler `rejected` olurken, appointments tarafında hâlâ `pending` kalabilen kayıtlar var (senin verdiğin sayı: toplam 8, pending 6, cancelled 2).
-- `src/pages/admin/Payments.tsx` içinde reject/approve sırasında appointments update çağrısında:
-  - result/error kontrolü yapılmıyor,
-  - `.select()` yok, etkilenen satır sayısı doğrulanmıyor.
-- Network’te appointments PATCH `204` dönüyor; bu “başarılı güncellendi” garantisi değil (0 row update de olabilir).
-- Bu yüzden payment_requests ve appointments durumları ayrışıyor; SQL’de pending şişmesi buradan geliyor.
-- Danışan `/appointments` ekranı sadece `appointments` tablosunu okuduğu için, payment_request doğru olsa bile appointments tarafı bozuksa görünürlük bozuluyor.
+# Mobil vs Masaüstü Navigasyon Erişim Tutarsızlıkları — Analiz ve Çözüm Planı
 
-2) Uygulanacak çözüm mimarisi (kalıcı)
-A) DB tarafını tek kaynak gerçeklik haline getir
-- `payment_requests.status` değiştiğinde bağlı `appointments.status` otomatik güncellensin (DB trigger).
-- Uygulama koduna güvenmek yerine DB’de zorunlu senkron.
+## Tespit Edilen Tutarsızlıklar
 
-B) Veri onarımı (one-time backfill)
-- Mevcut bozuk kayıtları toplu senkronla:
-  - `payment_requests.rejected` -> `appointments.cancelled`
-  - `payment_requests.confirmed` -> `appointments.confirmed`
-  - `payment_requests.pending` -> `appointments.pending`
-- Bu adım senin “şu an pending 6 neden var?” sorununu temizler.
+Tüm rotalar, navigasyon noktaları ve roller karşılaştırıldığında aşağıdaki eşitsizlikler ortaya çıkıyor:
 
-C) Uygulama katmanını sessiz hataya kapat
-- Admin reject/approve akışında appointments update sonucu zorunlu kontrol:
-  - error varsa throw,
-  - updated row count 0 ise uyarı + log + işlemi başarısız say.
-- Böylece bir daha “görünürde reddedildi ama appointment pending kaldı” olmayacak.
+### 1. Danışan (Customer) Rolü
 
-3) Uygulanacak dosya/SQL değişiklik planı
-- `src/pages/admin/Payments.tsx`
-  - `handleReject` ve `handleApprove` içinde appointments update sonucunu `select()` ile doğrulama.
-  - başarısız senkron durumunda toast + abort.
-- (Yeni migration SQL)
-  - status sync trigger function (`payment_requests` -> `appointments`)
-  - one-time data reconciliation script
+| Sayfa | Mobil (Bottom Nav) | Masaüstü (Header + Dropdown) |
+|---|---|---|
+| **Randevularım** `/appointments` | ✅ Bottom nav'da "Randevular" tab'ı | ❌ **Erişim yok** — ne center nav'da ne dropdown'da |
+| **Mesajlar** `/messages` | ✅ Bottom nav'da "Mesajlar" tab'ı | ✅ Header sağ tarafta ikon |
+| **Keşfet** `/explore` | ✅ Bottom nav'da | ✅ Center nav'da |
+| **Profil** `/profile` | ✅ Bottom nav'da | ✅ Dropdown'da |
+| **Ayarlar** `/settings` | ❌ Bottom nav'da yok (Profil matchPrefixes ile eşleşir) | ✅ Dropdown'da |
 
-4) Önce çalıştırılacak kesin doğrulama SQL (teşhis)
-```sql
--- A) Senkron bozukluk özeti
-select
-  pr.status as pr_status,
-  a.status  as appt_status,
-  count(*)  as cnt
-from public.payment_requests pr
-left join public.appointments a
-  on a.payment_request_id = pr.id
-where pr.item_type = 'appointment'
-group by pr.status, a.status
-order by pr.status, a.status;
+**Kritik eksik:** Masaüstünde danışan için `/appointments` sayfasına hiçbir link yok.
 
--- B) payment_request rejected ama appointment cancelled olmayanlar
-select
-  pr.id as pr_id,
-  pr.reference_code,
-  pr.status as pr_status,
-  a.id as appt_id,
-  a.status as appt_status
-from public.payment_requests pr
-left join public.appointments a on a.payment_request_id = pr.id
-where pr.item_type = 'appointment'
-  and pr.status = 'rejected'
-  and (a.id is null or a.status <> 'cancelled')
-order by pr.created_at desc;
+### 2. Uzman (Teacher) Rolü
+
+| Sayfa | Mobil (Bottom Nav) | Masaüstü (Header + Dropdown) |
+|---|---|---|
+| **Randevularım** `/appointments` | ✅ Bottom nav'da "Randevular" tab'ı | ❌ **Erişim yok** |
+| **İlanlarım** `/teacher/my-listings` | ❌ Bottom nav'da yok (Profil prefix'i ile) | ✅ Dropdown'da |
+| **Gelirlerim** `/teacher/earnings` | ❌ Bottom nav'da yok (Profil prefix'i ile) | ✅ Dropdown'da |
+
+**Kritik eksik:** Masaüstünde uzman için de `/appointments` sayfasına link yok.
+**Ters yön:** İlanlarım ve Gelirlerim masaüstü dropdown'da var ama mobil bottom nav'da doğrudan tab olarak yok (profil üzerinden erişilebilir ama keşfedilebilirlik düşük).
+
+### 3. Admin Rolü
+
+| Sayfa | Mobil (Bottom Nav) | Masaüstü (Header + Dropdown) |
+|---|---|---|
+| **Ödemeler** `/admin/payments` | ✅ Bottom nav'da "Ödemeler" tab'ı | ✅ Center nav'da "Ödeme Onayları" |
+| **Onaylamalar** `/admin/approvals` | ❌ Tab yok (Dashboard prefix ile eşleşir) | ❌ Center nav'da yok (Dashboard içinden erişim) |
+
+Admin tarafı tutarlı görünüyor — her iki tarafta da aynı sayfalar erişilebilir.
+
+---
+
+## Çözüm Planı
+
+Ana sorun: **Masaüstünde "Randevularım" linki hiçbir yerde yok** (ne danışan ne uzman için).
+
+### Değişiklik: `UserDropdownMenu.tsx`
+
+Dropdown menüye, **tüm giriş yapmış kullanıcılar** (danışan + uzman) için "Randevularım" linki eklenecek.
+
+```
+Profil
+─────────────
+Randevularım     ← YENİ (Calendar ikonu ile)
+─────────────
+İlanlarım        (sadece teacher)
+Gelirlerim       (sadece teacher)
+─────────────
+Ayarlar
+─────────────
+Çıkış Yap
 ```
 
-5) One-time düzeltme SQL (pending 6’yı temizleyen adım)
-```sql
-begin;
+Bu değişiklik:
+- Danışan masaüstünde `/appointments` erişimini sağlar
+- Uzman masaüstünde `/appointments` erişimini sağlar
+- Mevcut mobil navigasyonla tutarlı hale gelir
+- "Navigation no duplication" kuralına uyar (masaüstünde tek bir yerde, dropdown'da)
 
-update public.appointments a
-set status = case
-  when pr.status = 'rejected' then 'cancelled'
-  when pr.status = 'confirmed' then 'confirmed'
-  else 'pending'
-end
-from public.payment_requests pr
-where a.payment_request_id = pr.id
-  and pr.item_type = 'appointment'
-  and a.status is distinct from case
-    when pr.status = 'rejected' then 'cancelled'
-    when pr.status = 'confirmed' then 'confirmed'
-    else 'pending'
-  end;
+Tek dosya değişikliği: `src/components/header/UserDropdownMenu.tsx` — "Profil" linkinin altına, separator sonrası "Randevularım" eklenir (Calendar ikonu ile, admin hariç tüm roller için).
 
-commit;
-```
-
-6) Kalıcı DB trigger planı (tekrar bozulmaması için)
-- `payment_requests` üzerinde `AFTER UPDATE OF status` trigger:
-  - sadece `item_type='appointment'` için çalışacak,
-  - bağlı appointment status’u map’leyecek (`rejected -> cancelled`, `confirmed -> confirmed`, `pending -> pending`).
-
-7) Danışan görünürlük sorunu için kesinleştirme adımı
-- DB senkronu düzeltildikten sonra `/appointments` ekranı yeniden test:
-  - yeni ödeme oluştur,
-  - admin onaylamadan önce danışanda “Bekleyen”de görünmeli,
-  - admin reddedince status “Reddedildi” olarak kalmalı (ve artık yanlış pending sayısı olmamalı).
-- Eğer hâlâ görünmüyorsa ikinci katman patch:
-  - `useAppointments` içinde customer branch’e debug audit (query result + role + userId),
-  - role branch sapması varsa (teacher/customer) bunu ayrı net patch ile sabitleyeceğim.
-
-8) Beklenen nihai sonuç
-- SQL tarafında pending_count, admin işlemleriyle tutarlı olacak (hepsi reddedildiyse pending 0).
-- Danışan bekleyen sekmesi, admin onayı bekleyen yeni randevuları deterministik şekilde gösterecek.
-- Admin reddettiğinde appointment status’unun pending’de kalması kalıcı olarak bitecek.
