@@ -1,107 +1,77 @@
 
-Hedefinize göre bu sefer “kesin çözüm” için yalnızca semptom değil, veri bütünlüğünü kökten kilitleyen bir plan uygulayacağım. Mevcut bulgulara göre ana problem tek bir katmanda değil; **payment_requests ↔ appointments senkronu kırılmış**.
+Hedefi kökten çözmek için zinciri inceledim; sorun tek katmanda değil, iki kritik kırılma noktası var.
 
-1) Kesin teşhis (eldeki veriye göre)
-- Admin’de payment_request’ler `rejected` olurken, appointments tarafında hâlâ `pending` kalabilen kayıtlar var (senin verdiğin sayı: toplam 8, pending 6, cancelled 2).
-- `src/pages/admin/Payments.tsx` içinde reject/approve sırasında appointments update çağrısında:
-  - result/error kontrolü yapılmıyor,
-  - `.select()` yok, etkilenen satır sayısı doğrulanmıyor.
-- Network’te appointments PATCH `204` dönüyor; bu “başarılı güncellendi” garantisi değil (0 row update de olabilir).
-- Bu yüzden payment_requests ve appointments durumları ayrışıyor; SQL’de pending şişmesi buradan geliyor.
-- Danışan `/appointments` ekranı sadece `appointments` tablosunu okuduğu için, payment_request doğru olsa bile appointments tarafı bozuksa görünürlük bozuluyor.
+1) Asıl kök neden (teşhis)
+- Katman 1 (DB yazımı): `supabase/functions/create-daily-room/index.ts` içinde aktif çağrı alanları (`active_call_*`) **fire-and-forget** güncelleniyor (await yok). Fonksiyon success döndükten sonra runtime işi keserse veya geç işlerse, karşı tarafın chat’i “aktif çağrı”yı zamanında/garanti şekilde göremeyebiliyor.
+- Katman 2 (realtime dayanıklılığı): `src/hooks/useActiveCall.ts` sadece realtime `UPDATE` dinliyor ama:
+  - subscribe status (`SUBSCRIBED`, `CHANNEL_ERROR`, `TIMED_OUT`, `CLOSED`) izlemiyor
+  - fallback polling/refetch yok
+  - dolayısıyla realtime koparsa state stale kalıyor (refresh’e kadar).
+- Bu kombinasyon, “karşı taraf başlattı ama buton otomatik Katıl’a dönmedi” semptomunu doğuruyor.
 
-2) Uygulanacak çözüm mimarisi (kalıcı)
-A) DB tarafını tek kaynak gerçeklik haline getir
-- `payment_requests.status` değiştiğinde bağlı `appointments.status` otomatik güncellensin (DB trigger).
-- Uygulama koduna güvenmek yerine DB’de zorunlu senkron.
+2) Akış haritası (uçtan uca)
+- `ChatWindow.tsx`:
+  - buton -> `handleStartCall()` => `/call/:conversationId`
+  - aktif çağrı varsa `handleJoinCall()` => `/call/:conversationId?intent=join&roomUrl=...`
+- `VideoCallPage.tsx`:
+  - `create-daily-room` çağırıyor (`intent=start|join`)
+- `create-daily-room`:
+  - aktif çağrı varsa reuse
+  - yoksa yeni room oluşturuyor
+  - sonra `conversations.active_call_*` set etmeye çalışıyor (şu an await’siz)
+- `useActiveCall.ts`:
+  - initial fetch + realtime `UPDATE` ile `activeCall` state üretip `ChatWindow`’a veriyor
+- `ChatWindow.tsx` render:
+  - `activeCall && activeCall.created_by !== user?.id` ise “karşı taraf başlattı” branch’i
 
-B) Veri onarımı (one-time backfill)
-- Mevcut bozuk kayıtları toplu senkronla:
-  - `payment_requests.rejected` -> `appointments.cancelled`
-  - `payment_requests.confirmed` -> `appointments.confirmed`
-  - `payment_requests.pending` -> `appointments.pending`
-- Bu adım senin “şu an pending 6 neden var?” sorununu temizler.
+3) Waiting ekranında ne oluyor?
+- İlk başlatan kullanıcı waiting’de kalsa bile aktif çağrı state’i aslında **create-daily-room sırasında** yazılmalı.
+- Ancak bu yazım şu an await’siz olduğu için “hemen ve garanti” değil; kök sorunlardan biri bu.
 
-C) Uygulama katmanını sessiz hataya kapat
-- Admin reject/approve akışında appointments update sonucu zorunlu kontrol:
-  - error varsa throw,
-  - updated row count 0 ise uyarı + log + işlemi başarısız say.
-- Böylece bir daha “görünürde reddedildi ama appointment pending kaldı” olmayacak.
+4) Neden realtime “Konuşmaya Katıl”a dönmüyordu?
+- Çünkü `useActiveCall` realtime event’e bağımlı ama realtime başarısız/bağlanmamış durumda fallback yok.
+- Üstüne DB aktif çağrı yazımı da await’siz olduğundan event tetikleme anı garanti değil.
+- Sonuç: state güncellenmeyince UI branch değişmiyor.
 
-3) Uygulanacak dosya/SQL değişiklik planı
-- `src/pages/admin/Payments.tsx`
-  - `handleReject` ve `handleApprove` içinde appointments update sonucunu `select()` ile doğrulama.
-  - başarısız senkron durumunda toast + abort.
-- (Yeni migration SQL)
-  - status sync trigger function (`payment_requests` -> `appointments`)
-  - one-time data reconciliation script
+5) Kalıcı çözüm planı (uygulanacak değişiklikler)
+A) `supabase/functions/create-daily-room/index.ts`
+- `conversations` update’ini await’li hale getir.
+- DB update başarısızsa success dönme; hata dön (`DB_UPDATE_FAILED`).
+- Gerekirse yeni oluşan Daily room’u rollback/cleanup et (en azından log + deterministik hata).
 
-4) Önce çalıştırılacak kesin doğrulama SQL (teşhis)
-```sql
--- A) Senkron bozukluk özeti
-select
-  pr.status as pr_status,
-  a.status  as appt_status,
-  count(*)  as cnt
-from public.payment_requests pr
-left join public.appointments a
-  on a.payment_request_id = pr.id
-where pr.item_type = 'appointment'
-group by pr.status, a.status
-order by pr.status, a.status;
+B) `src/hooks/useActiveCall.ts`
+- Realtime subscribe callback’i ekle:
+  - `SUBSCRIBED` -> connected=true
+  - `CHANNEL_ERROR|TIMED_OUT|CLOSED` -> connected=false + polling/refetch başlat
+- `useMessages`teki gibi güvenlik fallback:
+  - 2-3 sn içinde subscribe yoksa polling
+  - polling: `fetchActiveCall()` (ör. 2s -> 5s -> 10s max)
+- Realtime event geldiğinde polling’i durdur.
+- Conversation değişiminde channel/timer cleanup garanti et.
 
--- B) payment_request rejected ama appointment cancelled olmayanlar
-select
-  pr.id as pr_id,
-  pr.reference_code,
-  pr.status as pr_status,
-  a.id as appt_id,
-  a.status as appt_status
-from public.payment_requests pr
-left join public.appointments a on a.payment_request_id = pr.id
-where pr.item_type = 'appointment'
-  and pr.status = 'rejected'
-  and (a.id is null or a.status <> 'cancelled')
-order by pr.created_at desc;
-```
+C) `src/components/chat/ChatWindow.tsx`
+- Buton durumlarını net ayır:
+  1. aktif çağrı yok -> normal video icon
+  2. aktif çağrı + karşı taraf başlattı -> yeşil “Konuşmaya Katıl” CTA (hafif animate-in/pulse)
+  3. aktif çağrı + ben başlattım -> nötr “Aramaya Dön” veya yeşil aktif icon
+- Metni netleştir: “Katıl” yerine “Konuşmaya Katıl”.
+- Banner ile görsel çakışmayı azalt (CTA boyutu/padding kontrollü, mobilde taşmayacak).
 
-5) One-time düzeltme SQL (pending 6’yı temizleyen adım)
-```sql
-begin;
+6) Dokunulacak dosyalar
+- `supabase/functions/create-daily-room/index.ts` (kritik)
+- `src/hooks/useActiveCall.ts` (kritik)
+- `src/components/chat/ChatWindow.tsx` (UI davranışı)
 
-update public.appointments a
-set status = case
-  when pr.status = 'rejected' then 'cancelled'
-  when pr.status = 'confirmed' then 'confirmed'
-  else 'pending'
-end
-from public.payment_requests pr
-where a.payment_request_id = pr.id
-  and pr.item_type = 'appointment'
-  and a.status is distinct from case
-    when pr.status = 'rejected' then 'cancelled'
-    when pr.status = 'confirmed' then 'confirmed'
-    else 'pending'
-  end;
+7) Beklenen final davranış (3 senaryo)
+1. Aktif arama yok:
+- Sağ üstte normal video icon.
+2. Karşı taraf aramayı başlatır:
+- Ben chat içindeyken refresh olmadan otomatik state update.
+- Video icon -> animasyonlu yeşil “Konuşmaya Katıl”.
+3. Arama biter:
+- `active_call_ended_at` ile state null’a iner.
+- Buton otomatik normal video icon’a döner.
 
-commit;
-```
-
-6) Kalıcı DB trigger planı (tekrar bozulmaması için)
-- `payment_requests` üzerinde `AFTER UPDATE OF status` trigger:
-  - sadece `item_type='appointment'` için çalışacak,
-  - bağlı appointment status’u map’leyecek (`rejected -> cancelled`, `confirmed -> confirmed`, `pending -> pending`).
-
-7) Danışan görünürlük sorunu için kesinleştirme adımı
-- DB senkronu düzeltildikten sonra `/appointments` ekranı yeniden test:
-  - yeni ödeme oluştur,
-  - admin onaylamadan önce danışanda “Bekleyen”de görünmeli,
-  - admin reddedince status “Reddedildi” olarak kalmalı (ve artık yanlış pending sayısı olmamalı).
-- Eğer hâlâ görünmüyorsa ikinci katman patch:
-  - `useAppointments` içinde customer branch’e debug audit (query result + role + userId),
-  - role branch sapması varsa (teacher/customer) bunu ayrı net patch ile sabitleyeceğim.
-
-8) Beklenen nihai sonuç
-- SQL tarafında pending_count, admin işlemleriyle tutarlı olacak (hepsi reddedildiyse pending 0).
-- Danışan bekleyen sekmesi, admin onayı bekleyen yeni randevuları deterministik şekilde gösterecek.
-- Admin reddettiğinde appointment status’unun pending’de kalması kalıcı olarak bitecek.
+8) Neden önceki denemeler yetmedi?
+- Sadece render/UI tarafı güncellendi; altyapıdaki iki ana kırılma (DB write guarantee + realtime fallback) çözülmedi.
+- Bu yüzden ikon/CTA branch’i doğru olsa bile tetikleyen state güvenilir değildi.
