@@ -32,7 +32,7 @@ export default function ListingDetailPage() {
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedTime, setSelectedTime] = useState("");
   const [bookingLoading] = useState(false);
-  const [calendarOpen, setCalendarOpen] = useState(false);
+  
 
   const reviews = listing?.reviews || [];
   const averageRating = listing?.averageRating || 0;
@@ -127,7 +127,10 @@ export default function ListingDetailPage() {
   const selectedPrice = listing.prices.find(p => p.duration_minutes === selectedDuration);
 
   // Booking card component (shared between mobile inline and desktop sidebar)
-  const BookingCard = () => (
+  const BookingCard = () => {
+    const [calendarOpen, setCalendarOpen] = useState(false);
+
+    return (
     <Card className="border border-primary/15 shadow-sm rounded-xl">
       <CardHeader className="px-4 py-2.5 bg-gradient-to-r from-primary/3 to-primary/6">
         <CardTitle className="text-sm md:text-base font-semibold flex items-center gap-2">
@@ -266,6 +269,7 @@ export default function ListingDetailPage() {
       </CardContent>
     </Card>
   );
+  };
 
   // Product card component
   const ProductCard = () => (
