@@ -1,107 +1,77 @@
 
-Hedefinize göre bu sefer “kesin çözüm” için yalnızca semptom değil, veri bütünlüğünü kökten kilitleyen bir plan uygulayacağım. Mevcut bulgulara göre ana problem tek bir katmanda değil; **payment_requests ↔ appointments senkronu kırılmış**.
 
-1) Kesin teşhis (eldeki veriye göre)
-- Admin’de payment_request’ler `rejected` olurken, appointments tarafında hâlâ `pending` kalabilen kayıtlar var (senin verdiğin sayı: toplam 8, pending 6, cancelled 2).
-- `src/pages/admin/Payments.tsx` içinde reject/approve sırasında appointments update çağrısında:
-  - result/error kontrolü yapılmıyor,
-  - `.select()` yok, etkilenen satır sayısı doğrulanmıyor.
-- Network’te appointments PATCH `204` dönüyor; bu “başarılı güncellendi” garantisi değil (0 row update de olabilir).
-- Bu yüzden payment_requests ve appointments durumları ayrışıyor; SQL’de pending şişmesi buradan geliyor.
-- Danışan `/appointments` ekranı sadece `appointments` tablosunu okuduğu için, payment_request doğru olsa bile appointments tarafı bozuksa görünürlük bozuluyor.
+# Video Call Oda Durumu ve "Konuşmaya Katıl" Butonu -- Teknik Analiz
 
-2) Uygulanacak çözüm mimarisi (kalıcı)
-A) DB tarafını tek kaynak gerçeklik haline getir
-- `payment_requests.status` değiştiğinde bağlı `appointments.status` otomatik güncellensin (DB trigger).
-- Uygulama koduna güvenmek yerine DB’de zorunlu senkron.
+## A) Mevcut Video Call Akışı
 
-B) Veri onarımı (one-time backfill)
-- Mevcut bozuk kayıtları toplu senkronla:
-  - `payment_requests.rejected` -> `appointments.cancelled`
-  - `payment_requests.confirmed` -> `appointments.confirmed`
-  - `payment_requests.pending` -> `appointments.pending`
-- Bu adım senin “şu an pending 6 neden var?” sorununu temizler.
+**Video call butonu:** `src/components/chat/ChatWindow.tsx` satir 188-203. Sag ustteki `<Video />` ikon butonu.
 
-C) Uygulama katmanını sessiz hataya kapat
-- Admin reject/approve akışında appointments update sonucu zorunlu kontrol:
-  - error varsa throw,
-  - updated row count 0 ise uyarı + log + işlemi başarısız say.
-- Böylece bir daha “görünürde reddedildi ama appointment pending kaldı” olmayacak.
+**Tiklama akisi:**
+- `activeCall` varsa → `handleJoinCall()` → `/call/{conversationId}?intent=join&roomUrl=...`
+- `activeCall` yoksa → `handleStartCall()` → `/call/{conversationId}`
+- Route handler: `src/pages/VideoCall/VideoCallPage.tsx`
 
-3) Uygulanacak dosya/SQL değişiklik planı
-- `src/pages/admin/Payments.tsx`
-  - `handleReject` ve `handleApprove` içinde appointments update sonucunu `select()` ile doğrulama.
-  - başarısız senkron durumunda toast + abort.
-- (Yeni migration SQL)
-  - status sync trigger function (`payment_requests` -> `appointments`)
-  - one-time data reconciliation script
+**Altyapi:** Daily.co (WebRTC). Oda olusturma `create-daily-room` Edge Function uzerinden yapiliyor.
 
-4) Önce çalıştırılacak kesin doğrulama SQL (teşhis)
-```sql
--- A) Senkron bozukluk özeti
-select
-  pr.status as pr_status,
-  a.status  as appt_status,
-  count(*)  as cnt
-from public.payment_requests pr
-left join public.appointments a
-  on a.payment_request_id = pr.id
-where pr.item_type = 'appointment'
-group by pr.status, a.status
-order by pr.status, a.status;
+## B) Oda Durumu Su An Nasil Takip Ediliyor
 
--- B) payment_request rejected ama appointment cancelled olmayanlar
-select
-  pr.id as pr_id,
-  pr.reference_code,
-  pr.status as pr_status,
-  a.id as appt_id,
-  a.status as appt_status
-from public.payment_requests pr
-left join public.appointments a on a.payment_request_id = pr.id
-where pr.item_type = 'appointment'
-  and pr.status = 'rejected'
-  and (a.id is null or a.status <> 'cancelled')
-order by pr.created_at desc;
-```
+**DB-tabanli aktif arama takibi.** `conversations` tablosunda su kolonlar var:
 
-5) One-time düzeltme SQL (pending 6’yı temizleyen adım)
-```sql
-begin;
+| Kolon | Aciklama |
+|---|---|
+| `active_call_room_name` | Daily.co oda adi |
+| `active_call_room_url` | Daily.co oda URL'i |
+| `active_call_started_at` | Arama baslama zamani |
+| `active_call_ended_at` | Arama bitis zamani (null = aktif) |
+| `active_call_created_by` | Aramayi baslatan kullanici ID |
 
-update public.appointments a
-set status = case
-  when pr.status = 'rejected' then 'cancelled'
-  when pr.status = 'confirmed' then 'confirmed'
-  else 'pending'
-end
-from public.payment_requests pr
-where a.payment_request_id = pr.id
-  and pr.item_type = 'appointment'
-  and a.status is distinct from case
-    when pr.status = 'rejected' then 'cancelled'
-    when pr.status = 'confirmed' then 'confirmed'
-    else 'pending'
-  end;
+**Hook:** `useActiveCall(conversationId)` -- `conversations` tablosundan bu alanlari okur. **Realtime subscription** ile `postgres_changes` dinler, yani arama basladiginda/bittiginde anlik guncellenir.
 
-commit;
-```
+**Onemli:** Bu sistem "odada biri var mi" degil, "aktif bir arama oturumu var mi" sorusunu yanitliyor. Yani:
+- Kullanici A aramayi baslatinca `active_call_started_at` dolduruluyor, `created_by` set ediliyor
+- Kullanici B bunu realtime ile goruyor ve banner + yesil buton gosteriyor
+- Arama bitince `active_call_ended_at` dolduruluyor
 
-6) Kalıcı DB trigger planı (tekrar bozulmaması için)
-- `payment_requests` üzerinde `AFTER UPDATE OF status` trigger:
-  - sadece `item_type='appointment'` için çalışacak,
-  - bağlı appointment status’u map’leyecek (`rejected -> cancelled`, `confirmed -> confirmed`, `pending -> pending`).
+## C) "Odada Biri Var" Bilgisini Alabiliyor muyuz?
 
-7) Danışan görünürlük sorunu için kesinleştirme adımı
-- DB senkronu düzeltildikten sonra `/appointments` ekranı yeniden test:
-  - yeni ödeme oluştur,
-  - admin onaylamadan önce danışanda “Bekleyen”de görünmeli,
-  - admin reddedince status “Reddedildi” olarak kalmalı (ve artık yanlış pending sayısı olmamalı).
-- Eğer hâlâ görünmüyorsa ikinci katman patch:
-  - `useAppointments` içinde customer branch’e debug audit (query result + role + userId),
-  - role branch sapması varsa (teacher/customer) bunu ayrı net patch ile sabitleyeceğim.
+**EVET -- zaten aliniyor ve kullaniliyor.** `useActiveCall` hook'u tam olarak bu isi yapiyor:
 
-8) Beklenen nihai sonuç
-- SQL tarafında pending_count, admin işlemleriyle tutarlı olacak (hepsi reddedildiyse pending 0).
-- Danışan bekleyen sekmesi, admin onayı bekleyen yeni randevuları deterministik şekilde gösterecek.
-- Admin reddettiğinde appointment status’unun pending’de kalması kalıcı olarak bitecek.
+- `activeCall !== null` → odada aktif bir arama var (biri baslatti)
+- `activeCall.created_by !== user.id` → aramayi baska biri baslatti (yani odada biri var)
+- `activeCall.created_by === user.id` → kendin baslattin
+
+**ChatWindow.tsx satir 77:** `const isCallStartedByOther = activeCall && activeCall.created_by !== user?.id;`
+
+**Halihazirda mevcut UI davranisi:**
+1. Aktif arama varsa: yesil banner gosteriliyor (satir 94-132)
+2. Sag ustteki video butonu zaten kosullu renk degistiriyor: `activeCall ? "bg-green-500/10 text-green-500" : "hover:bg-primary/10"` (satir 196-199)
+3. Buton tiklama da kosullu: `activeCall ? handleJoinCall : handleStartCall` (satir 191)
+
+## D) En Dogru Implementation Yaklasimi
+
+Sistem zaten neredeyse istediginiz seyi yapiyor. Eksik olan sadece **butonun gorsel olarak "Konusmaya Katil" yazisi gostermesi**. Su an sadece ikon rengi degisiyor, metin yok.
+
+**Onerilen degisiklik (tek dosya):** `ChatWindow.tsx` satir 188-203
+
+- `activeCall && isCallStartedByOther` durumunda: Video ikon butonu yerine yesil "Katil" text butonu goster
+- `activeCall && !isCallStartedByOther` durumunda: Yesil ikon (kendin iceridesin, tekrar katil)
+- `!activeCall` durumunda: mevcut ghost video ikon butonu
+
+## E) Eksik Olan Ne?
+
+**Katilimci sayisi bilgisi eksik.** Sistem "arama aktif mi" bilir ama "kac kisi icerde" bilmez. Bunun icin:
+
+- **Daily.co REST API** ile `GET /rooms/{name}/presence` sorgulanabilir (sunucu tarafinda)
+- Veya DB'ye `active_call_participant_count` gibi bir alan eklenebilir (client join/leave'de guncellenir)
+- Ancak **mevcut senaryo icin buna gerek yok**: 1-1 sohbet sistemi, max 2 katilimci. `activeCall` varsa biri icerde demektir.
+
+**"Iki kisi de icerdeyse" durumu:** Kullanici zaten arama ekraninda olacagi icin mesajlasma ekranini gormeyecek. Bu edge case pratikte olusmaz.
+
+## F) Bu Ozellik Icin Dokunulacak Dosyalar
+
+| Dosya | Degisiklik |
+|---|---|
+| `src/components/chat/ChatWindow.tsx` | Video butonunu kosullu olarak "Katil" CTA'sina donustur |
+
+Tek dosya. `useActiveCall` hook'u ve realtime altyapisi zaten mevcut ve calisiyor. Ek hook, DB degisikligi veya edge function degisikligi gerekmiyor.
+
