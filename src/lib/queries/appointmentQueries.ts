@@ -21,7 +21,7 @@ export function useAppointments(userId: string | undefined, role: string | null)
           teacher:profiles!appointments_teacher_id_fkey(username)
         `)
         .eq(column, userId)
-        .or(`status.eq.pending,end_ts.gte.${now}`)
+        .or(`status.eq.pending,end_ts.gte."${now}"`)
         .order('start_ts', { ascending: true });
 
       // Teacher: cancelled görünmesin; Customer: hepsi görünsün
