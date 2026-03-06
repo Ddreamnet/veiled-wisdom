@@ -82,7 +82,7 @@ export function useActiveCall(conversationId: string | null) {
     try {
       const { data, error } = await supabase
         .from('conversations')
-        .select('active_call_room_name, active_call_room_url, active_call_started_at, active_call_ended_at, active_call_created_by')
+        .select('active_call_room_name, active_call_room_url, active_call_started_at, active_call_ended_at, active_call_created_by, video_room_name, video_room_url, video_room_created_at')
         .eq('id', conversationId)
         .maybeSingle();
 
