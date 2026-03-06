@@ -36,8 +36,8 @@ export function useAppointments(userId: string | undefined, role: string | null)
           .select(`
             *,
             listing:listings(title, id),
-            customer:profiles!appointments_customer_id_fkey(username),
-            teacher:profiles!appointments_teacher_id_fkey(username)
+            customer:profiles!customer_id(username),
+            teacher:profiles!teacher_id(username)
           `)
           .eq(column, userId)
           .lt('end_ts', now)
