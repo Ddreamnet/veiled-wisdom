@@ -7,6 +7,7 @@ export type ActiveCallInfo = {
   room_url: string;
   started_at: string;
   created_by: string | null;
+  participant_count: number;
 } | null;
 
 type ConversationRow = {
@@ -18,48 +19,83 @@ type ConversationRow = {
 };
 
 const STALE_CALL_HOURS = 4;
+const PRESENCE_POLL_MS = 5000; // Check presence every 5s
 
-function rowToActiveCall(row: ConversationRow | null): ActiveCallInfo {
+function isRowActive(row: ConversationRow | null): boolean {
   if (
-    row?.active_call_room_name &&
-    row?.active_call_room_url &&
-    row?.active_call_started_at &&
-    !row?.active_call_ended_at
+    !row?.active_call_room_name ||
+    !row?.active_call_room_url ||
+    !row?.active_call_started_at ||
+    row?.active_call_ended_at
   ) {
-    // Stale call guard: ignore calls older than 4 hours
-    const startedAt = new Date(row.active_call_started_at).getTime();
-    const now = Date.now();
-    if (now - startedAt > STALE_CALL_HOURS * 60 * 60 * 1000) {
-      devLog('useActiveCall', 'Ignoring stale call older than 4h');
-      return null;
-    }
-
-    return {
-      room_name: row.active_call_room_name,
-      room_url: row.active_call_room_url,
-      started_at: row.active_call_started_at,
-      created_by: row.active_call_created_by,
-    };
+    return false;
   }
-
-  return null;
+  const startedAt = new Date(row.active_call_started_at).getTime();
+  if (Date.now() - startedAt > STALE_CALL_HOURS * 60 * 60 * 1000) {
+    devLog('useActiveCall', 'Ignoring stale call older than 4h');
+    return false;
+  }
+  return true;
 }
 
 export function useActiveCall(conversationId: string | null) {
   const [activeCall, setActiveCall] = useState<ActiveCallInfo>(null);
   const [loading, setLoading] = useState(true);
   const mountedRef = useRef(true);
-  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const realtimeConnectedRef = useRef(false);
+  const presenceTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastRowRef = useRef<ConversationRow | null>(null);
 
-  const stopPolling = useCallback(() => {
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current);
-      pollingRef.current = null;
-      devLog('useActiveCall', 'Polling stopped');
+  // ── Check presence via edge function ──────────────────────────────────
+  const checkPresence = useCallback(async (row: ConversationRow) => {
+    if (!conversationId || !isRowActive(row)) {
+      setActiveCall(null);
+      return;
     }
-  }, []);
 
+    try {
+      const { data, error } = await supabase.functions.invoke('get-daily-room-presence', {
+        body: { conversation_id: conversationId },
+      });
+
+      if (!mountedRef.current) return;
+
+      if (error) {
+        console.error('[useActiveCall] Presence check failed:', error);
+        // On error, still show the call based on DB state (graceful degradation)
+        setActiveCall({
+          room_name: row.active_call_room_name!,
+          room_url: row.active_call_room_url!,
+          started_at: row.active_call_started_at!,
+          created_by: row.active_call_created_by,
+          participant_count: -1, // unknown
+        });
+        return;
+      }
+
+      const participantCount = data?.participant_count ?? 0;
+      devLog('useActiveCall', 'Presence result:', {
+        room: data?.room_name,
+        count: participantCount,
+        version: data?.function_version,
+      });
+
+      if (participantCount > 0) {
+        setActiveCall({
+          room_name: row.active_call_room_name!,
+          room_url: row.active_call_room_url!,
+          started_at: row.active_call_started_at!,
+          created_by: row.active_call_created_by,
+          participant_count: participantCount,
+        });
+      } else {
+        setActiveCall(null);
+      }
+    } catch (e) {
+      console.error('[useActiveCall] Presence exception:', e);
+    }
+  }, [conversationId]);
+
+  // ── Fetch DB row + check presence ─────────────────────────────────────
   const fetchActiveCall = useCallback(async () => {
     if (!conversationId) {
       setActiveCall(null);
@@ -83,15 +119,13 @@ export function useActiveCall(conversationId: string | null) {
       if (!mountedRef.current) return;
 
       const row = data as ConversationRow | null;
-      
-      devLog('useActiveCall', 'Fetched call data:', {
-        room: row?.active_call_room_name,
-        started: row?.active_call_started_at,
-        ended: row?.active_call_ended_at,
-        createdBy: row?.active_call_created_by,
-      });
+      lastRowRef.current = row;
 
-      setActiveCall(rowToActiveCall(row));
+      if (row && isRowActive(row)) {
+        await checkPresence(row);
+      } else {
+        setActiveCall(null);
+      }
     } catch (e) {
       console.error('[useActiveCall] Exception:', e);
       setActiveCall(null);
@@ -100,37 +134,36 @@ export function useActiveCall(conversationId: string | null) {
         setLoading(false);
       }
     }
-  }, [conversationId]);
+  }, [conversationId, checkPresence]);
+
+  // ── Start/stop presence polling ───────────────────────────────────────
+  const stopPresencePolling = useCallback(() => {
+    if (presenceTimerRef.current) {
+      clearInterval(presenceTimerRef.current);
+      presenceTimerRef.current = null;
+    }
+  }, []);
+
+  const startPresencePolling = useCallback(() => {
+    stopPresencePolling();
+    presenceTimerRef.current = setInterval(() => {
+      if (mountedRef.current && lastRowRef.current && isRowActive(lastRowRef.current)) {
+        checkPresence(lastRowRef.current);
+      }
+    }, PRESENCE_POLL_MS);
+  }, [stopPresencePolling, checkPresence]);
 
   useEffect(() => {
     mountedRef.current = true;
-    realtimeConnectedRef.current = false;
     setLoading(true);
     fetchActiveCall();
 
-    // REMOVED: Warmup invoke - causes unnecessary edge function calls (8x problem)
-    // The edge function will be cold-started on first real call instead.
-
     if (!conversationId) return;
 
-    // Start safety polling fallback after 3s if realtime hasn't connected
-    const fallbackTimer = setTimeout(() => {
-      if (!realtimeConnectedRef.current && mountedRef.current) {
-        devLog('useActiveCall', 'Realtime not connected after 3s, starting polling fallback');
-        startPolling();
-      }
-    }, 3000);
+    // Start presence polling
+    startPresencePolling();
 
-    const startPolling = () => {
-      stopPolling();
-      pollingRef.current = setInterval(() => {
-        if (mountedRef.current) {
-          devLog('useActiveCall', 'Polling fetch...');
-          fetchActiveCall();
-        }
-      }, 3000);
-    };
-
+    // Realtime: when DB row changes, re-check presence
     const channel = supabase
       .channel(`active-call-${conversationId}-${Date.now()}`)
       .on(
@@ -143,36 +176,30 @@ export function useActiveCall(conversationId: string | null) {
         },
         (payload) => {
           const row = payload.new as ConversationRow;
-          devLog('useActiveCall', 'Realtime UPDATE received:', {
+          devLog('useActiveCall', 'Realtime UPDATE:', {
             room: row?.active_call_room_name,
-            started: row?.active_call_started_at,
             ended: row?.active_call_ended_at,
-            createdBy: row?.active_call_created_by,
           });
-          setActiveCall(rowToActiveCall(row));
-          // Realtime is working, stop polling
-          stopPolling();
+          lastRowRef.current = row;
+
+          if (row && isRowActive(row)) {
+            // DB says active → verify with presence
+            checkPresence(row);
+          } else {
+            setActiveCall(null);
+          }
         }
       )
       .subscribe((status) => {
         devLog('useActiveCall', 'Channel status:', status);
-        if (status === 'SUBSCRIBED') {
-          realtimeConnectedRef.current = true;
-          stopPolling();
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-          realtimeConnectedRef.current = false;
-          devLog('useActiveCall', 'Realtime disconnected, starting polling fallback');
-          startPolling();
-        }
       });
 
     return () => {
       mountedRef.current = false;
-      clearTimeout(fallbackTimer);
-      stopPolling();
+      stopPresencePolling();
       supabase.removeChannel(channel);
     };
-  }, [conversationId, fetchActiveCall, stopPolling]);
+  }, [conversationId, fetchActiveCall, startPresencePolling, stopPresencePolling, checkPresence]);
 
   return { activeCall, loading, refetch: fetchActiveCall };
 }

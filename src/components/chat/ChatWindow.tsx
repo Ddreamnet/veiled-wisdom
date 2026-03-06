@@ -73,10 +73,8 @@ export function ChatWindow({ conversation, onBack, onMessagesRead }: ChatWindowP
   const presenceStatus = formatPresenceStatus(conversation.other_participant.last_seen);
   const isMobile = onBack !== undefined;
 
-  // Check if the active call was started by someone else (so we show "Join" banner)
-  // Legacy fallback: if created_by is null (old edge function), assume it's from the other user
-  // because the current user would be on the VideoCall page, not the chat window.
-  const isCallStartedByOther = activeCall && activeCall.created_by !== user?.id;
+  // activeCall is non-null only when participant_count > 0 (someone is in the room)
+  const hasLiveCall = !!activeCall;
 
   const handleJoinCall = () => {
     // Pass roomUrl to skip edge function call for joiner (OPTIMIZATION)
@@ -148,7 +146,7 @@ export function ChatWindow({ conversation, onBack, onMessagesRead }: ChatWindowP
 
           {/* Right Section: Video Call */}
           <AnimatePresence mode="wait">
-            {activeCall && isCallStartedByOther ? (
+            {hasLiveCall ? (
               <motion.div
                 key="join-cta"
                 initial={{ scale: 0.8, opacity: 0 }}
@@ -165,26 +163,6 @@ export function ChatWindow({ conversation, onBack, onMessagesRead }: ChatWindowP
                 >
                   <Phone className="h-4 w-4 animate-pulse" />
                   <span className="text-xs font-semibold whitespace-nowrap">Konuşmaya Katıl</span>
-                </Button>
-              </motion.div>
-            ) : activeCall ? (
-              <motion.div
-                key="return-call"
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.8, opacity: 0 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-              >
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleJoinCall}
-                  onMouseEnter={prefetchMediaPermissions}
-                  onFocus={prefetchMediaPermissions}
-                  className="rounded-full flex-shrink-0 gap-1.5 px-3 border-green-500/40 text-green-500 hover:bg-green-500/10"
-                >
-                  <Video className="h-4 w-4" />
-                  <span className="text-xs font-medium whitespace-nowrap">Aramaya Dön</span>
                 </Button>
               </motion.div>
             ) : (

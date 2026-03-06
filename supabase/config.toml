@@ -21,3 +21,6 @@ verify_jwt = false
 [functions.cleanup-ended-calls]
 verify_jwt = false
 
+[functions.get-daily-room-presence]
+verify_jwt = false
+

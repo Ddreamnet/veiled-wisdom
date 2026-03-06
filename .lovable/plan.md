@@ -1,60 +1,107 @@
 
-Sorunu baştan teşhis ettim; “Katıl”ın görünmemesinin temel nedeni şu anki mantığın **katılımcı sayısını hiç kullanmaması**.
+Hedefinize göre bu sefer “kesin çözüm” için yalnızca semptom değil, veri bütünlüğünü kökten kilitleyen bir plan uygulayacağım. Mevcut bulgulara göre ana problem tek bir katmanda değil; **payment_requests ↔ appointments senkronu kırılmış**.
 
-Kısa kök neden:
-1) `ChatWindow` butonu `participant_count > 0` ile değil, sadece `useActiveCall` içinden gelen `active_call_*` alanlarıyla karar veriyor.  
-2) `useActiveCall` şu an Daily odasındaki canlı katılımcıyı kontrol etmiyor; bu yüzden “odada biri var mı?” bilgisi UI’ya hiç yansımıyor.  
-3) `VideoCallPage` içindeki frontend DB sync sadece ilk join akışında güvenilir; retry/fallback senaryolarında aktif durum güncellemesi kaçabiliyor. Bu da karşı tarafta butonun hiç çıkmamasına yol açıyor.  
-4) Senin seçtiğin kural net: **katılımcı sayısı > 0 ise buton görünsün**. Mevcut kod bu kuralı uygulamıyor.
+1) Kesin teşhis (eldeki veriye göre)
+- Admin’de payment_request’ler `rejected` olurken, appointments tarafında hâlâ `pending` kalabilen kayıtlar var (senin verdiğin sayı: toplam 8, pending 6, cancelled 2).
+- `src/pages/admin/Payments.tsx` içinde reject/approve sırasında appointments update çağrısında:
+  - result/error kontrolü yapılmıyor,
+  - `.select()` yok, etkilenen satır sayısı doğrulanmıyor.
+- Network’te appointments PATCH `204` dönüyor; bu “başarılı güncellendi” garantisi değil (0 row update de olabilir).
+- Bu yüzden payment_requests ve appointments durumları ayrışıyor; SQL’de pending şişmesi buradan geliyor.
+- Danışan `/appointments` ekranı sadece `appointments` tablosunu okuduğu için, payment_request doğru olsa bile appointments tarafı bozuksa görünürlük bozuluyor.
 
-Uygulama planı (kesin çözüm):
-1) Yeni edge function: `get-daily-room-presence`
-- Dosya: `supabase/functions/get-daily-room-presence/index.ts`
-- Güvenlik: JWT doğrula + kullanıcının konuşma katılımcısı olduğunu kontrol et.
-- DB’den `active_call_room_name`, `active_call_ended_at` oku.
-- Aktif oda varsa Daily API `GET /rooms/:name/presence` ile anlık presence çek.
-- Dönüş:
-  - `has_live_participants: boolean`
-  - `participant_count: number`
-  - `room_name`, `function_version`
-- Oda yoksa/bitmişse `participant_count=0` döndür.
+2) Uygulanacak çözüm mimarisi (kalıcı)
+A) DB tarafını tek kaynak gerçeklik haline getir
+- `payment_requests.status` değiştiğinde bağlı `appointments.status` otomatik güncellensin (DB trigger).
+- Uygulama koduna güvenmek yerine DB’de zorunlu senkron.
 
-2) Function config ekleme
-- Dosya: `supabase/config.toml`
-- `[functions.get-daily-room-presence] verify_jwt = false`
-- Auth kontrolü function içinde yapılacak (mevcut pattern ile aynı).
+B) Veri onarımı (one-time backfill)
+- Mevcut bozuk kayıtları toplu senkronla:
+  - `payment_requests.rejected` -> `appointments.cancelled`
+  - `payment_requests.confirmed` -> `appointments.confirmed`
+  - `payment_requests.pending` -> `appointments.pending`
+- Bu adım senin “şu an pending 6 neden var?” sorununu temizler.
 
-3) `useActiveCall`’ı canlı presence odaklı hale getirme
-- Dosya: `src/hooks/useActiveCall.ts`
-- Akış:
-  - Önce `conversations.active_call_*` oku (oda var mı?).
-  - Oda varsa yeni function’dan presence çek.
-  - `activeCall` yalnızca `participant_count > 0` ise dolu dönsün; değilse `null`.
-- Realtime UPDATE geldiğinde:
-  - önce DB state güncelle,
-  - sonra presence’i yenile.
-- Polling fallback’te her turda presence de yenilenir (throttle ile).
+C) Uygulama katmanını sessiz hataya kapat
+- Admin reject/approve akışında appointments update sonucu zorunlu kontrol:
+  - error varsa throw,
+  - updated row count 0 ise uyarı + log + işlemi başarısız say.
+- Böylece bir daha “görünürde reddedildi ama appointment pending kaldı” olmayacak.
 
-4) Chat buton kararını sadeleştirme
-- Dosya: `src/components/chat/ChatWindow.tsx`
-- “Konuşmaya Katıl” görünme şartı:
-  - `activeCall !== null` (artık bu zaten `participant_count > 0` demek).
-- İkinci varyant karmaşasını kaldır:
-  - tek CTA bırak (senin istediğin şekilde).
-- Böylece “Aramaya Dön / Join” karışıklığı ve creator-id bağımlılığı kalkar.
+3) Uygulanacak dosya/SQL değişiklik planı
+- `src/pages/admin/Payments.tsx`
+  - `handleReject` ve `handleApprove` içinde appointments update sonucunu `select()` ile doğrulama.
+  - başarısız senkron durumunda toast + abort.
+- (Yeni migration SQL)
+  - status sync trigger function (`payment_requests` -> `appointments`)
+  - one-time data reconciliation script
 
-5) Start akışında DB sync’i güçlendirme
-- Dosya: `src/pages/VideoCall/VideoCallPage.tsx`
-- `active_call_*` yazımını tek helper’a al.
-- Hem normal join-success hem retry-success yolunda çalıştır.
-- Hata olursa net log + kullanıcıya kontrollü uyarı (sessiz geçme yok).
+4) Önce çalıştırılacak kesin doğrulama SQL (teşhis)
+```sql
+-- A) Senkron bozukluk özeti
+select
+  pr.status as pr_status,
+  a.status  as appt_status,
+  count(*)  as cnt
+from public.payment_requests pr
+left join public.appointments a
+  on a.payment_request_id = pr.id
+where pr.item_type = 'appointment'
+group by pr.status, a.status
+order by pr.status, a.status;
 
-6) Stabilite korumaları
-- `useActiveCall` içindeki stale guard kalacak ama son karar her zaman presence olacak.
-- Presence 0 ise buton gizlenecek; böylece eski/boş oda ghost-state tamamen bitecek.
+-- B) payment_request rejected ama appointment cancelled olmayanlar
+select
+  pr.id as pr_id,
+  pr.reference_code,
+  pr.status as pr_status,
+  a.id as appt_id,
+  a.status as appt_status
+from public.payment_requests pr
+left join public.appointments a on a.payment_request_id = pr.id
+where pr.item_type = 'appointment'
+  and pr.status = 'rejected'
+  and (a.id is null or a.status <> 'cancelled')
+order by pr.created_at desc;
+```
 
-Beklenen sonuç:
-- Karşı taraf aramadayken (odada en az 1 kişi): “Konuşmaya Katıl” görünür.
-- Oda var ama içeride kimse yok: buton görünmez.
-- Eski konuşma odaları artık “aktifmiş” gibi görünmez.
-- Senin tarif ettiğin kural birebir uygulanmış olur: `participant_count > 0`.
+5) One-time düzeltme SQL (pending 6’yı temizleyen adım)
+```sql
+begin;
+
+update public.appointments a
+set status = case
+  when pr.status = 'rejected' then 'cancelled'
+  when pr.status = 'confirmed' then 'confirmed'
+  else 'pending'
+end
+from public.payment_requests pr
+where a.payment_request_id = pr.id
+  and pr.item_type = 'appointment'
+  and a.status is distinct from case
+    when pr.status = 'rejected' then 'cancelled'
+    when pr.status = 'confirmed' then 'confirmed'
+    else 'pending'
+  end;
+
+commit;
+```
+
+6) Kalıcı DB trigger planı (tekrar bozulmaması için)
+- `payment_requests` üzerinde `AFTER UPDATE OF status` trigger:
+  - sadece `item_type='appointment'` için çalışacak,
+  - bağlı appointment status’u map’leyecek (`rejected -> cancelled`, `confirmed -> confirmed`, `pending -> pending`).
+
+7) Danışan görünürlük sorunu için kesinleştirme adımı
+- DB senkronu düzeltildikten sonra `/appointments` ekranı yeniden test:
+  - yeni ödeme oluştur,
+  - admin onaylamadan önce danışanda “Bekleyen”de görünmeli,
+  - admin reddedince status “Reddedildi” olarak kalmalı (ve artık yanlış pending sayısı olmamalı).
+- Eğer hâlâ görünmüyorsa ikinci katman patch:
+  - `useAppointments` içinde customer branch’e debug audit (query result + role + userId),
+  - role branch sapması varsa (teacher/customer) bunu ayrı net patch ile sabitleyeceğim.
+
+8) Beklenen nihai sonuç
+- SQL tarafında pending_count, admin işlemleriyle tutarlı olacak (hepsi reddedildiyse pending 0).
+- Danışan bekleyen sekmesi, admin onayı bekleyen yeni randevuları deterministik şekilde gösterecek.
+- Admin reddettiğinde appointment status’unun pending’de kalması kalıcı olarak bitecek.
