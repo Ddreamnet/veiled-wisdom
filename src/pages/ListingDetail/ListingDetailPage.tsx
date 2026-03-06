@@ -223,6 +223,10 @@ export default function ListingDetailPage() {
               <SelectContent>
                 {Array.from({ length: 24 }, (_, i) => {
                   const hour = i.toString().padStart(2, '0');
+                  const isToday = selectedDate && 
+                    selectedDate.toDateString() === new Date().toDateString();
+                  const isPastHour = isToday && i <= new Date().getHours();
+                  if (isPastHour) return null;
                   return (
                     <SelectItem key={`${hour}:00`} value={`${hour}:00`}>{hour}:00</SelectItem>
                   );

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/useToast";
@@ -28,6 +29,7 @@ export default function BankTransferScreen() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const flowState = location.state as PaymentFlowState | null;
   const [banks, setBanks] = useState<BankAccount[]>([]);
@@ -98,6 +100,7 @@ export default function BankTransferScreen() {
         description: `Referans kodunuz: ${data?.reference_code}. Ödemeniz kontrol ediliyor.`,
       });
 
+      await queryClient.invalidateQueries({ queryKey: ['appointments'] });
       navigate("/appointments", { replace: true });
     } catch (err: any) {
       console.error("Payment request error:", err);

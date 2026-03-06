@@ -44,6 +44,15 @@ export function useAppointments(userId: string | undefined, role: string | null)
           .order('start_ts', { ascending: false }),
       ]);
 
+      if (pendingResult.error) {
+        console.error('Pending appointments query error:', pendingResult.error);
+        throw pendingResult.error;
+      }
+      if (completedResult.error) {
+        console.error('Completed appointments query error:', completedResult.error);
+        throw completedResult.error;
+      }
+
       const pending = pendingResult.data || [];
       const completed = completedResult.data || [];
 
