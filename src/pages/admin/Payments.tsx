@@ -125,10 +125,18 @@ export default function AdminPayments() {
 
       // 2. Update appointment status if appointment type
       if (pr.item_type === "appointment") {
-        await supabase
+        const { data: apptUpdated, error: apptError } = await supabase
           .from("appointments")
           .update({ status: "confirmed" })
-          .eq("payment_request_id", pr.id);
+          .eq("payment_request_id", pr.id)
+          .select();
+
+        if (apptError) {
+          console.error("Appointment update error:", apptError);
+          toast({ title: "Uyarı", description: "Randevu durumu güncellenemedi: " + apptError.message, variant: "destructive" });
+        } else if (!apptUpdated || apptUpdated.length === 0) {
+          console.warn("No appointment found for payment_request_id:", pr.id);
+        }
       }
 
       // 3. Create order if product type
@@ -220,10 +228,18 @@ export default function AdminPayments() {
 
       // Cancel appointment if exists
       if (pr.item_type === "appointment") {
-        await supabase
+        const { data: apptUpdated, error: apptError } = await supabase
           .from("appointments")
           .update({ status: "cancelled" })
-          .eq("payment_request_id", pr.id);
+          .eq("payment_request_id", pr.id)
+          .select();
+
+        if (apptError) {
+          console.error("Appointment cancel error:", apptError);
+          toast({ title: "Uyarı", description: "Randevu durumu güncellenemedi: " + apptError.message, variant: "destructive" });
+        } else if (!apptUpdated || apptUpdated.length === 0) {
+          console.warn("No appointment found for payment_request_id:", pr.id);
+        }
       }
 
       // Send rejection email
