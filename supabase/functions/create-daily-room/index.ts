@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.80.0";
 
 // Bump this when changing logic so the frontend can detect outdated deployments.
-const FUNCTION_VERSION = "create-daily-room@2026-02-13-REV7-PARALLEL-AUTH";
+const FUNCTION_VERSION = "create-daily-room@2026-03-06-REV8-FORCE-DEPLOY";
 
 type CallIntent = "start" | "join";
 
