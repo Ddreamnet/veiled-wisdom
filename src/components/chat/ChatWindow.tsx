@@ -73,10 +73,8 @@ export function ChatWindow({ conversation, onBack, onMessagesRead }: ChatWindowP
   const presenceStatus = formatPresenceStatus(conversation.other_participant.last_seen);
   const isMobile = onBack !== undefined;
 
-  // Check if the active call was started by someone else (so we show "Join" banner)
-  // Legacy fallback: if created_by is null (old edge function), assume it's from the other user
-  // because the current user would be on the VideoCall page, not the chat window.
-  const isCallStartedByOther = activeCall && activeCall.created_by !== user?.id;
+  // activeCall is non-null only when participant_count > 0 (someone is in the room)
+  const hasLiveCall = !!activeCall;
 
   const handleJoinCall = () => {
     // Pass roomUrl to skip edge function call for joiner (OPTIMIZATION)
