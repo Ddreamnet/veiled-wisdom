@@ -1,52 +1,96 @@
 
 
-# Kök Neden Analizi ve Düzeltme Planı
+# Listing Detail Sayfa Yeniden Tasarımı
 
-## Hatanın Kesin Kök Nedeni
+## Değişecek Dosyalar
 
-**Signature mismatch.** Kullanıcı Supabase'te **Phase 2** SQL'ini çalıştırdı. Bu fonksiyonun 11 parametresi var ve `_reference_code` parametresi **yok**. Ancak frontend (BankTransferScreen line 91) `_reference_code: referenceCode` gönderiyor. PostgREST bilinmeyen parametre gördüğünde fonksiyonu bulamıyor ve `Could not find the function` hatası veriyor.
-
-Phase 3 SQL dosyası da oluşturuldu ama iki sorun var:
-1. Phase 3, Phase 2'nin `auth.uid()` kontrolünü içermiyor
-2. Phase 3, `item_type='product'` için appointment oluşturmama kontrolünü içermiyor (her zaman appointment INSERT yapıyor)
-3. Phase 3, `payment_requests` INSERT'ine `start_ts/end_ts/duration_minutes` eklemiyor
-4. Phase 3, appointments INSERT'ine `price_at_booking` eklemiyor
-
-## Düzeltme Planı
-
-### 1. Birleşik SQL migration oluştur (`phase3_reference_code.md` güncelle)
-Phase 2 + Phase 3'ü birleştiren tek bir `CREATE OR REPLACE FUNCTION`:
-- 12 parametre (Phase 2'nin 11'i + `_reference_code TEXT DEFAULT NULL`)
-- `auth.uid()` kontrolü (Phase 2'den)
-- 3 doğrulama (listing_price ↔ listing, teacher ↔ listing, bank active)
-- Client `_reference_code` varsa kullan, yoksa server-side üret (retry loop)
-- `payment_requests` INSERT'ine `start_ts/end_ts/duration_minutes` dahil
-- `IF _item_type = 'appointment'` kontrolü (sadece appointment tipinde appointment oluştur)
-- `appointments` INSERT'ine `price_at_booking` dahil
-
-### 2. Frontend değişikliği YOK
-`BankTransferScreen.tsx` doğru çalışıyor — `_reference_code` göndermesi planla tutarlı.
-
-### Değişen dosya
 | Dosya | Değişiklik |
 |-------|-----------|
-| `supabase/migrations_manual/phase3_reference_code.md` | Phase 2 + Phase 3 birleşik SQL (auth check + validation + reference_code param) |
+| `ListingDetailPage.tsx` | Layout yeniden yapılandırma, takvim bug fix, card header inceltme, booking kartını sidebar'a taşıma, CTA azaltma |
+| `ListingDescriptionCard.tsx` | Devamını oku/kapat toggle, kompakt header |
+| `TeacherInfoCard.tsx` | Butonları kaldır, tıklanabilir avatar/isim, kompakt yapı |
+| `ReviewsSection.tsx` | Kompakt header, boş durum sadeleştirme |
 
-### Son RPC signature
-```
-_customer_id uuid, _teacher_id uuid, _listing_id uuid, _listing_price_id uuid,
-_bank_account_id uuid, _item_type text, _quantity integer, _amount numeric,
-_start_ts timestamptz DEFAULT NULL, _end_ts timestamptz DEFAULT NULL,
-_duration_minutes integer DEFAULT NULL, _reference_code text DEFAULT NULL
+## 1. Desktop Layout Değişikliği
+
+Mevcut: Sol kolon = içerik + booking, Sağ sticky sidebar = açıklama + uzman kartı
+
+Yeni:
+```text
+Sol Kolon (lg:col-span-2)          Sağ Kolon (lg:col-span-1, sticky)
+├── Breadcrumb                     ├── Booking / Product kartı
+├── Başlık + Görsel                
+├── Açıklama kartı                 
+├── Uzman kartı                    
+├── Yorumlar                       
 ```
 
-### Frontend RPC payload (değişmiyor)
-```
-_customer_id, _teacher_id, _listing_id, _listing_price_id,
-_item_type, _quantity, _amount, _bank_account_id,
-_start_ts, _end_ts, _duration_minutes, _reference_code
+Booking kartı desktop'ta sağ sticky sidebar'a taşınacak. Mobilde mevcut sıralama korunacak (başlık → görsel → açıklama → uzman → booking → yorumlar).
+
+## 2. Card Header İnceltme (Tüm Kartlar)
+
+Tüm listing detail kartlarında:
+- `CardHeader` padding: `p-6` → `px-4 py-3` (veya `px-5 py-3`)
+- Başlık font: `text-xl md:text-2xl` → `text-base md:text-lg`
+- Icon boyutu: `h-5 w-5 md:h-6 md:w-6` → `h-4 w-4`
+- Gradient header: daha ince, `from-primary/3 to-primary/5` gibi daha hafif
+- Kartlarda `border-2` → `border`, `shadow-md/shadow-lg` → hafif shadow override
+
+## 3. Açıklama Kartı — Devamını Oku
+
+- `line-clamp-4` ile ilk 4 satır gösterilecek
+- "Devamını oku" / "Daha az göster" toggle butonu
+- `useState` ile `expanded` kontrolü
+
+## 4. Uzman Kartı — Güven Kartı
+
+- "Mesaj Gönder" ve "Profili Görüntüle" butonları kaldırılacak
+- Avatar + isim alanı `Link to={/profile/${teacherId}}` ile sarılacak, hover efekti eklenecek
+- Daha kompakt: gereksiz `border-b` ve padding azaltılacak
+
+## 5. Booking Kartı İyileştirme
+
+- Uyarı kutusu: amber tonları yerine tema uyumlu `bg-primary/5 border-primary/20` tarzı rafine info box
+- İç spacing: `space-y-5 md:space-y-6` → `space-y-4`
+- Mesaj Gönder butonu: `variant="ghost"` veya `variant="outline"` ile daha küçük, ikincil CTA
+- Paket seçenekleri: `p-4` → `p-3`, daha kompakt
+- Toplam tutar: korunacak ama padding azaltılacak
+- CTA buton: korunacak
+
+## 6. Takvim Bug Fix
+
+```tsx
+const [calendarOpen, setCalendarOpen] = useState(false);
+
+<Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+  ...
+  <Calendar
+    className="p-3 pointer-events-auto"
+    onSelect={(date) => {
+      setSelectedDate(date);
+      setCalendarOpen(false);
+    }}
+  />
+</Popover>
 ```
 
-### Kullanıcı aksiyonu
-SQL dosyasını güncelledikten sonra kullanıcının Supabase SQL Editor'da çalıştırması + ardından `NOTIFY pgrst, 'reload schema';` çalıştırması gerekecek.
+## 7. Yorumlar Bölümü
+
+- Boş durum: `py-6 md:py-8` → `py-3`
+- Header kompaktlaştırma (diğer kartlarla aynı pattern)
+
+## 8. Genel Hafifletme
+
+Listing detail sayfasındaki kartlara özel override:
+- `rounded-xl` (2xl yerine)
+- Daha hafif shadow (shadow-elegant yerine `shadow-sm` veya özel)
+- Kartlar arası boşluk: `space-y-6 md:space-y-8` → `space-y-4 md:space-y-6`
+- Görsel yüksekliği mobilde: `h-64` → `h-48 sm:h-64`
+
+## 9. Mobil Optimizasyon
+
+- Görsel yüksekliği azaltma
+- `pb-24` veya safe-area padding ekleme (bottom nav overlap önleme)
+- Kartlar arası boşluk azaltma
+- Product kartındaki ikinci "Mesaj Gönder" butonunu kaldırma
 
