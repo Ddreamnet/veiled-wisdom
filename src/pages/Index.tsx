@@ -265,8 +265,8 @@ export default function Index() {
               <img src={logoImage} alt="Leyl Logo" className="h-16 md:h-24 lg:h-28 w-auto object-contain" />
             </div>
 
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-serif font-bold text-smoky leading-tight uppercase">LEYL</h1>
-            <p className="text-2xl md:text-3xl lg:text-4xl font-serif text-gradient-silver uppercase">GİZLİ İLİMLER PLATFORMU</p>
+            <h1 className="text-3xl md:text-5xl lg:text-6xl font-serif font-bold text-smoky leading-tight uppercase">LEYL</h1>
+            <p className="text-xl md:text-2xl lg:text-3xl font-serif text-gradient-silver uppercase">GİZLİ İLİMLER PLATFORMU</p>
 
             <p className="text-base md:text-lg lg:text-xl text-silver-muted leading-relaxed max-w-3xl mx-auto">
               Antik bilgelik ve modern yaklaşımın buluştuğu platform. Uzmanlarımızla tanışın ve bilgelik yolculuğunuza
