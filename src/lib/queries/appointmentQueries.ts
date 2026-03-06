@@ -10,7 +10,8 @@ export function useAppointments(userId: string | undefined, role: string | null)
       const column = role === 'teacher' ? 'teacher_id' : 'customer_id';
       const now = new Date().toISOString();
 
-      // Build pending query
+      // Pending list: always include status='pending' (even if end_ts null/past),
+      // plus active/future appointments by end_ts
       let pendingQuery = supabase
         .from('appointments')
         .select(`
@@ -20,7 +21,7 @@ export function useAppointments(userId: string | undefined, role: string | null)
           teacher:profiles!appointments_teacher_id_fkey(username)
         `)
         .eq(column, userId)
-        .gte('end_ts', now)
+        .or(`status.eq.pending,end_ts.gte.${now}`)
         .order('start_ts', { ascending: true });
 
       // Teacher: cancelled görünmesin; Customer: hepsi görünsün
@@ -41,6 +42,7 @@ export function useAppointments(userId: string | undefined, role: string | null)
           .eq(column, userId)
           .lt('end_ts', now)
           .neq('status', 'cancelled')
+          .neq('status', 'pending')
           .order('start_ts', { ascending: false }),
       ]);
 
