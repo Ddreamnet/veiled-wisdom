@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.80.0";
 
-const FUNCTION_VERSION = "get-daily-room-presence@2026-03-06-v1";
+const FUNCTION_VERSION = "get-daily-room-presence@2026-03-06-v2-legacy-compat";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,152 +10,143 @@ const corsHeaders = {
   "X-Function-Version": FUNCTION_VERSION,
 };
 
+function json(payload: unknown, status = 200) {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    // ── Auth ──────────────────────────────────────────────────────────────
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized", function_version: FUNCTION_VERSION }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return json({ error: "Unauthorized", function_version: FUNCTION_VERSION }, 401);
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const DAILY_API_KEY = Deno.env.get("DAILY_API_KEY");
+    const dailyApiKey = Deno.env.get("DAILY_API_KEY");
 
-    if (!DAILY_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: "DAILY_API_KEY not configured", function_version: FUNCTION_VERSION }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+    if (!dailyApiKey) {
+      return json({ error: "DAILY_API_KEY not configured", function_version: FUNCTION_VERSION }, 500);
     }
 
-    // Validate JWT
     const token = authHeader.replace("Bearer ", "");
     const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
     if (claimsError || !claimsData?.claims?.sub) {
-      return new Response(
-        JSON.stringify({ error: "Invalid token", function_version: FUNCTION_VERSION }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return json({ error: "Invalid token", function_version: FUNCTION_VERSION }, 401);
     }
     const userId = claimsData.claims.sub as string;
 
-    // ── Body ─────────────────────────────────────────────────────────────
     const body = await req.json().catch(() => ({}));
-    const conversationId = body.conversation_id;
+    const conversationId = body.conversation_id as string | undefined;
     if (!conversationId) {
-      return new Response(
-        JSON.stringify({ error: "conversation_id required", function_version: FUNCTION_VERSION }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return json({ error: "conversation_id required", function_version: FUNCTION_VERSION }, 400);
     }
 
-    // ── Fetch conversation (service role) ────────────────────────────────
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const { data: conv, error: convErr } = await supabase
       .from("conversations")
-      .select("teacher_id, student_id, active_call_room_name, active_call_ended_at")
+      .select(
+        "teacher_id, student_id, active_call_room_name, active_call_room_url, active_call_started_at, active_call_ended_at, active_call_created_by, video_room_name, video_room_url, video_room_created_at",
+      )
       .eq("id", conversationId)
       .maybeSingle();
 
     if (convErr || !conv) {
-      return new Response(
-        JSON.stringify({ error: "Conversation not found", function_version: FUNCTION_VERSION }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return json({ error: "Conversation not found", function_version: FUNCTION_VERSION }, 404);
     }
 
-    // Verify participant
     if (conv.teacher_id !== userId && conv.student_id !== userId) {
-      return new Response(
-        JSON.stringify({ error: "Forbidden", function_version: FUNCTION_VERSION }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return json({ error: "Forbidden", function_version: FUNCTION_VERSION }, 403);
     }
 
-    // ── Check if there's an active call ──────────────────────────────────
-    const roomName = conv.active_call_room_name;
-    const ended = conv.active_call_ended_at;
+    // Prefer new active_call_* fields; fallback to legacy video_room_*
+    const hasActive = !!conv.active_call_room_name && !!conv.active_call_room_url && !conv.active_call_ended_at;
+    const roomName = hasActive ? conv.active_call_room_name : conv.video_room_name;
+    const roomUrl = hasActive ? conv.active_call_room_url : conv.video_room_url;
+    const startedAt = hasActive
+      ? conv.active_call_started_at
+      : conv.video_room_created_at ?? new Date().toISOString();
 
-    if (!roomName || ended) {
-      return new Response(
-        JSON.stringify({
-          has_live_participants: false,
-          participant_count: 0,
-          room_name: null,
-          function_version: FUNCTION_VERSION,
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+    if (!roomName || !roomUrl) {
+      return json({
+        has_live_participants: false,
+        participant_count: 0,
+        room_name: null,
+        room_url: null,
+        function_version: FUNCTION_VERSION,
+      });
     }
 
-    // ── Query Daily.co presence ──────────────────────────────────────────
-    const dailyRes = await fetch(
+    const presenceRes = await fetch(
       `https://api.daily.co/v1/rooms/${encodeURIComponent(roomName)}/presence`,
       {
         headers: {
-          Authorization: `Bearer ${DAILY_API_KEY}`,
+          Authorization: `Bearer ${dailyApiKey}`,
           "Content-Type": "application/json",
         },
       },
     );
 
-    const dailyText = await dailyRes.text();
+    const presenceText = await presenceRes.text();
+    let participantCount = 0;
 
-    if (!dailyRes.ok) {
-      // Room doesn't exist anymore → no participants
-      console.log("[get-daily-room-presence] Daily API error:", dailyRes.status, dailyText);
-      return new Response(
-        JSON.stringify({
-          has_live_participants: false,
-          participant_count: 0,
-          room_name: roomName,
-          function_version: FUNCTION_VERSION,
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+    if (presenceRes.ok) {
+      const parsed = JSON.parse(presenceText || "{}");
+      // Daily can return different shapes across versions; support both
+      if (typeof parsed.total_count === "number") {
+        participantCount = parsed.total_count;
+      } else if (Array.isArray(parsed.data)) {
+        participantCount = parsed.data.length;
+      } else if (Array.isArray(parsed.participants)) {
+        participantCount = parsed.participants.length;
+      }
+    } else {
+      console.log("[get-daily-room-presence] Daily presence failed", {
+        status: presenceRes.status,
+        body: presenceText,
+      });
     }
 
-    // Daily presence response: { total_count: number, data: [...] }
-    let parsed: any;
-    try {
-      parsed = JSON.parse(dailyText);
-    } catch {
-      parsed = {};
+    const hasLiveParticipants = participantCount > 0;
+
+    // Self-heal: if legacy room is live but new fields are empty, backfill active_call_*
+    if (hasLiveParticipants && !hasActive) {
+      const { error: backfillErr } = await supabase
+        .from("conversations")
+        .update({
+          active_call_room_name: roomName,
+          active_call_room_url: roomUrl,
+          active_call_started_at: startedAt,
+          active_call_ended_at: null,
+          active_call_created_by: conv.active_call_created_by ?? null,
+        })
+        .eq("id", conversationId);
+
+      if (backfillErr) {
+        console.error("[get-daily-room-presence] Backfill failed:", backfillErr);
+      }
     }
 
-    const totalCount = typeof parsed.total_count === "number" ? parsed.total_count : 0;
-
-    console.log("[get-daily-room-presence]", { roomName, totalCount });
-
-    return new Response(
-      JSON.stringify({
-        has_live_participants: totalCount > 0,
-        participant_count: totalCount,
-        room_name: roomName,
-        function_version: FUNCTION_VERSION,
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    return json({
+      has_live_participants: hasLiveParticipants,
+      participant_count: participantCount,
+      room_name: roomName,
+      room_url: roomUrl,
+      started_at: startedAt,
+      created_by: conv.active_call_created_by ?? null,
+      function_version: FUNCTION_VERSION,
+    });
   } catch (err) {
     console.error("[get-daily-room-presence] Unhandled error:", err);
-    return new Response(
-      JSON.stringify({
-        error: "Internal error",
-        function_version: FUNCTION_VERSION,
-      }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    return json({ error: "Internal error", function_version: FUNCTION_VERSION }, 500);
   }
 });
