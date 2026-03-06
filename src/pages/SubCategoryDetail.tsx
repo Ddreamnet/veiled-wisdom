@@ -48,7 +48,7 @@ export default function SubCategoryDetail() {
       ]} />
 
       <div className="mb-6 md:mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold mb-2 font-serif">{subCategory.name.toLocaleUpperCase('tr-TR')}</h1>
+        <h1 className="text-2xl md:text-3xl font-bold mb-2 font-serif">{subCategory.name.toLocaleUpperCase('tr-TR')}</h1>
         <p className="text-sm md:text-base text-muted-foreground">
           {listings.length} aktif ilan
         </p>

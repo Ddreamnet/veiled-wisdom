@@ -170,7 +170,7 @@ export default function PublicProfile() {
                 {/* Name & Badge */}
                 <div className="space-y-3">
                   <div className="flex flex-col lg:flex-row items-center lg:items-center gap-3">
-                    <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold font-serif text-gradient-silver">
+                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold font-serif text-gradient-silver">
                       {profile.username || "Kullanıcı"}
                     </h1>
                     {role && <Badge variant={isExpert ? "default" : "secondary"} className="text-sm px-4 py-1.5 font-medium">
@@ -218,7 +218,7 @@ export default function PublicProfile() {
                 <div className="p-2.5 bg-primary/10 rounded-xl">
                   <Briefcase className="h-6 w-6 text-primary" />
                 </div>
-                <h2 className="text-2xl sm:text-3xl font-bold font-serif">Sunulan Hizmetler</h2>
+                <h2 className="text-xl sm:text-2xl font-bold font-serif">Sunulan Hizmetler</h2>
               </div>
 
               {listings.length > 0 ? <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -239,7 +239,7 @@ export default function PublicProfile() {
               <div className="p-2.5 bg-primary/10 rounded-xl">
                 <Star className="h-6 w-6 text-primary fill-primary" />
               </div>
-              <h2 className="text-2xl sm:text-3xl font-bold font-serif">
+              <h2 className="text-xl sm:text-2xl font-bold font-serif">
                 {isExpert ? "Müşteri Değerlendirmeleri" : "Yorumlar"}
               </h2>
               {totalReviews > 0 && <Badge variant="outline" className="ml-2">

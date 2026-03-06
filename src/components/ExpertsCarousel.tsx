@@ -146,7 +146,7 @@ export function ExpertsCarousel() {
       {/* Section Header */}
       <div className="text-center mb-8 md:mb-12">
         <Link to="/experts" className="inline-block group">
-          <h2 className="text-3xl md:text-4xl font-serif font-bold text-gradient-silver mb-2 uppercase group-hover:text-gradient-purple transition-colors">
+          <h2 className="text-2xl md:text-3xl font-serif font-bold text-gradient-silver mb-2 uppercase group-hover:text-gradient-purple transition-colors">
             UZMANLARIMIZ
           </h2>
         </Link>
