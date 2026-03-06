@@ -20,10 +20,37 @@ type ConversationRow = {
   active_call_created_by: string | null;
 };
 
+function rowToActiveCall(row: ConversationRow | null): ActiveCallInfo {
+  if (
+    row?.active_call_room_name &&
+    row?.active_call_room_url &&
+    row?.active_call_started_at &&
+    !row?.active_call_ended_at
+  ) {
+    return {
+      room_name: row.active_call_room_name,
+      room_url: row.active_call_room_url,
+      started_at: row.active_call_started_at,
+      created_by: row.active_call_created_by,
+    };
+  }
+  return null;
+}
+
 export function useActiveCall(conversationId: string | null) {
   const [activeCall, setActiveCall] = useState<ActiveCallInfo>(null);
   const [loading, setLoading] = useState(true);
   const mountedRef = useRef(true);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const realtimeConnectedRef = useRef(false);
+
+  const stopPolling = useCallback(() => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+      devLog('useActiveCall', 'Polling stopped');
+    }
+  }, []);
 
   const fetchActiveCall = useCallback(async () => {
     if (!conversationId) {
@@ -56,23 +83,7 @@ export function useActiveCall(conversationId: string | null) {
         createdBy: row?.active_call_created_by,
       });
 
-      // Check if there's an active call (started but not ended)
-      // Use falsy check instead of === null to handle undefined from Realtime payloads
-      if (
-        row?.active_call_room_name &&
-        row?.active_call_room_url &&
-        row?.active_call_started_at &&
-        !row?.active_call_ended_at
-      ) {
-        setActiveCall({
-          room_name: row.active_call_room_name,
-          room_url: row.active_call_room_url,
-          started_at: row.active_call_started_at,
-          created_by: row.active_call_created_by,
-        });
-      } else {
-        setActiveCall(null);
-      }
+      setActiveCall(rowToActiveCall(row));
     } catch (e) {
       console.error('[useActiveCall] Exception:', e);
       setActiveCall(null);
@@ -85,28 +96,41 @@ export function useActiveCall(conversationId: string | null) {
 
   useEffect(() => {
     mountedRef.current = true;
+    realtimeConnectedRef.current = false;
     setLoading(true);
     fetchActiveCall();
 
-    // OPTIMIZATION: Warm up edge function with a REAL POST request
-    // NOTE: Include conversation_id for backward compatibility with older deployed versions
-    // that require conversation_id even for warmup pings.
+    // OPTIMIZATION: Warm up edge function
     if (!edgeFunctionWarmedUp && conversationId) {
       edgeFunctionWarmedUp = true;
-      // Real POST request with warmup flag for actual function execution
       supabase.functions.invoke('create-daily-room', {
         body: { warmup: true, conversation_id: conversationId },
-      }).catch(() => {
-        // Ignore errors - this is just a warm-up ping
-      });
+      }).catch(() => {});
       devLog('useActiveCall', 'Edge function warm-up POST sent');
     }
 
-    // Subscribe to realtime updates for this conversation
     if (!conversationId) return;
 
+    // Start safety polling fallback after 3s if realtime hasn't connected
+    const fallbackTimer = setTimeout(() => {
+      if (!realtimeConnectedRef.current && mountedRef.current) {
+        devLog('useActiveCall', 'Realtime not connected after 3s, starting polling fallback');
+        startPolling();
+      }
+    }, 3000);
+
+    const startPolling = () => {
+      stopPolling();
+      pollingRef.current = setInterval(() => {
+        if (mountedRef.current) {
+          devLog('useActiveCall', 'Polling fetch...');
+          fetchActiveCall();
+        }
+      }, 3000);
+    };
+
     const channel = supabase
-      .channel(`active-call-${conversationId}`)
+      .channel(`active-call-${conversationId}-${Date.now()}`)
       .on(
         'postgres_changes',
         {
@@ -123,30 +147,30 @@ export function useActiveCall(conversationId: string | null) {
             ended: row?.active_call_ended_at,
             createdBy: row?.active_call_created_by,
           });
-          if (
-            row?.active_call_room_name &&
-            row?.active_call_room_url &&
-            row?.active_call_started_at &&
-            !row?.active_call_ended_at
-          ) {
-            setActiveCall({
-              room_name: row.active_call_room_name,
-              room_url: row.active_call_room_url,
-              started_at: row.active_call_started_at,
-              created_by: row.active_call_created_by,
-            });
-          } else {
-            setActiveCall(null);
-          }
+          setActiveCall(rowToActiveCall(row));
+          // Realtime is working, stop polling
+          stopPolling();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        devLog('useActiveCall', 'Channel status:', status);
+        if (status === 'SUBSCRIBED') {
+          realtimeConnectedRef.current = true;
+          stopPolling();
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          realtimeConnectedRef.current = false;
+          devLog('useActiveCall', 'Realtime disconnected, starting polling fallback');
+          startPolling();
+        }
+      });
 
     return () => {
       mountedRef.current = false;
+      clearTimeout(fallbackTimer);
+      stopPolling();
       supabase.removeChannel(channel);
     };
-  }, [conversationId, fetchActiveCall]);
+  }, [conversationId, fetchActiveCall, stopPolling]);
 
   return { activeCall, loading, refetch: fetchActiveCall };
 }

@@ -413,9 +413,9 @@ serve(async (req) => {
     // ═══════════════════════════════════════════════════════════════════════
     const startedAt = new Date().toISOString();
 
-    // OPTIMIZATION: Fire-and-forget DB update - don't block response
-    // Room is already created in Daily, DB update can happen async
-    supabase
+    // CRITICAL: Await DB update so Realtime event fires before response returns.
+    // Previous fire-and-forget caused the other participant's chat to never see the active call.
+    const { error: dbUpdateError } = await supabase
       .from('conversations')
       .update({
         // New active call fields
@@ -429,10 +429,18 @@ serve(async (req) => {
         video_room_url: createdRoomUrl,
         video_room_created_at: startedAt,
       })
-      .eq('id', conversation_id)
-      .then(({ error }) => {
-        if (error) console.error('[create-daily-room] Failed to save room info to DB:', error);
-      });
+      .eq('id', conversation_id);
+
+    if (dbUpdateError) {
+      console.error('[create-daily-room] CRITICAL: DB update failed:', dbUpdateError);
+      return errorResponse({
+        code: 'DB_UPDATE_FAILED',
+        message: 'Room created but failed to save active call state',
+        details: { request_id, error: dbUpdateError.message },
+      }, 500);
+    }
+
+    console.log('[create-daily-room] Active call state saved to DB successfully');
 
     return successResponse({
       success: true,
