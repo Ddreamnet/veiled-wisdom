@@ -22,7 +22,7 @@ export default function Appointments() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data, isLoading: dataLoading } = useAppointments(user?.id, role);
+  const { data, isLoading: dataLoading, isError, error } = useAppointments(user?.id, role);
   const pending = data?.pending || [];
   const completed = data?.completed || [];
   const reviewedAppointments = data?.reviewedIds || new Set<string>();
@@ -114,7 +114,12 @@ export default function Appointments() {
 
       <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Randevularım</h1>
 
-      {dataLoading ? (
+      {isError ? (
+        <div className="text-center py-12 space-y-2">
+          <p className="text-destructive font-medium">Randevular yüklenirken bir hata oluştu.</p>
+          <p className="text-sm text-muted-foreground">{(error as Error)?.message}</p>
+        </div>
+      ) : dataLoading ? (
         <div className="space-y-4">
           <Skeleton className="h-10 w-full max-w-md" />
           <div className="space-y-4">
