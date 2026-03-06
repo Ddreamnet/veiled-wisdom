@@ -185,22 +185,35 @@ export function ChatWindow({ conversation, onBack, onMessagesRead }: ChatWindowP
           </div>
 
           {/* Right Section: Video Call */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={activeCall ? handleJoinCall : handleStartCall}
-            onMouseEnter={prefetchMediaPermissions}
-            onFocus={prefetchMediaPermissions}
-            className={cn(
-              "rounded-full flex-shrink-0 transition-colors",
-              isMobile ? "h-10 w-10" : "h-11 w-11",
-              activeCall 
-                ? "bg-green-500/10 hover:bg-green-500/20 text-green-500" 
-                : "hover:bg-primary/10 hover:text-primary"
-            )}
-          >
-            <Video className="h-5 w-5" />
-          </Button>
+          {activeCall && isCallStartedByOther ? (
+            <Button
+              size="sm"
+              onClick={handleJoinCall}
+              onMouseEnter={prefetchMediaPermissions}
+              onFocus={prefetchMediaPermissions}
+              className="bg-green-500 hover:bg-green-600 text-white rounded-full flex-shrink-0 gap-1.5 px-4 animate-pulse"
+            >
+              <Phone className="h-4 w-4" />
+              <span className="text-xs font-semibold">Katıl</span>
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={activeCall ? handleJoinCall : handleStartCall}
+              onMouseEnter={prefetchMediaPermissions}
+              onFocus={prefetchMediaPermissions}
+              className={cn(
+                "rounded-full flex-shrink-0 transition-colors",
+                isMobile ? "h-10 w-10" : "h-11 w-11",
+                activeCall 
+                  ? "bg-green-500/10 hover:bg-green-500/20 text-green-500" 
+                  : "hover:bg-primary/10 hover:text-primary"
+              )}
+            >
+              <Video className="h-5 w-5" />
+            </Button>
+          )}
         </div>
       </div>
 
