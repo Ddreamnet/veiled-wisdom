@@ -35,7 +35,7 @@ export function StaticPageLayout({
       
       <div className="flex items-center gap-3 mb-6 md:mb-8">
         {Icon && <Icon className="w-6 h-6 md:w-7 md:h-7 text-primary" />}
-        <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold">{title}</h1>
+        <h1 className="text-xl md:text-2xl lg:text-3xl font-bold">{title}</h1>
       </div>
       
       {renderCustomContent ? (

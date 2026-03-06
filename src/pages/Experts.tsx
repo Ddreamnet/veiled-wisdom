@@ -86,7 +86,7 @@ export default function Experts() {
 
         {/* Hero Section */}
         <div className="text-center mb-12 sm:mb-16 space-y-4">
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gradient-silver font-serif">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gradient-silver font-serif">
             Uzmanlarımız
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">

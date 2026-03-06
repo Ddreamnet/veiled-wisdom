@@ -239,7 +239,7 @@ export default function PublicProfile() {
               <div className="p-2.5 bg-primary/10 rounded-xl">
                 <Star className="h-6 w-6 text-primary fill-primary" />
               </div>
-              <h2 className="text-2xl sm:text-3xl font-bold font-serif">
+              <h2 className="text-xl sm:text-2xl font-bold font-serif">
                 {isExpert ? "Müşteri Değerlendirmeleri" : "Yorumlar"}
               </h2>
               {totalReviews > 0 && <Badge variant="outline" className="ml-2">
