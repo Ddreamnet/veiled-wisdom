@@ -1,7 +1,6 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Star, MessageSquare } from "lucide-react";
+import { Star, ExternalLink } from "lucide-react";
 
 import { TeacherDetails, ReviewWithProfile } from "../types";
 
@@ -18,111 +17,81 @@ export function TeacherInfoCard({
   teacherId,
   reviews,
   averageRating,
-  currentUserId,
 }: TeacherInfoCardProps) {
-  const navigate = useNavigate();
-  const canMessage = currentUserId && currentUserId !== teacherId;
-
   return (
-    <Card className="border-2 shadow-md">
-      <CardHeader className="bg-muted/30">
-        <CardTitle className="text-lg md:text-xl flex items-center gap-2">
-          <Star className="h-5 w-5 text-primary" />
+    <Card className="border border-border/40 shadow-sm rounded-xl">
+      <CardHeader className="px-4 py-2.5 bg-muted/20">
+        <CardTitle className="text-sm md:text-base font-semibold flex items-center gap-2">
+          <Star className="h-4 w-4 text-primary" />
           Uzman Hakkında
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4 md:space-y-5 p-5 md:p-6">
-        <div className="flex items-start gap-3 md:gap-4 pb-3 md:pb-4 border-b">
+      <CardContent className="p-4 space-y-3">
+        {/* Clickable avatar + name area */}
+        <Link
+          to={`/profile/${teacherId}`}
+          className="flex items-center gap-3 group hover:bg-accent/30 rounded-lg p-2 -m-2 transition-colors"
+        >
           {teacher.avatar_url ? (
             <img
               src={teacher.avatar_url}
               alt={teacher.username}
-              className="w-12 h-12 md:w-16 md:h-16 rounded-full object-cover flex-shrink-0"
+              className="w-10 h-10 md:w-12 md:h-12 rounded-full object-cover flex-shrink-0"
             />
           ) : (
-            <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-              <span className="text-xl md:text-2xl text-primary">
+            <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+              <span className="text-lg md:text-xl text-primary">
                 {teacher.username.charAt(0).toUpperCase()}
               </span>
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-base md:text-lg mb-1 truncate">
-              {teacher.username}
-            </h3>
+            <div className="flex items-center gap-1.5">
+              <h3 className="font-semibold text-sm md:text-base truncate group-hover:text-primary transition-colors">
+                {teacher.username}
+              </h3>
+              <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
             {reviews.length > 0 ? (
-              <div className="flex items-center gap-1 text-xs md:text-sm text-muted-foreground">
-                <Star className="w-3 h-3 md:w-4 md:h-4 fill-yellow-400 text-yellow-400" />
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
                 <span className="font-semibold">{averageRating.toFixed(1)}</span>
-                <span className="text-xs md:text-sm">({reviews.length} değerlendirme)</span>
+                <span>({reviews.length} değerlendirme)</span>
               </div>
             ) : (
-              <div className="text-xs md:text-sm text-muted-foreground">
-                Henüz değerlendirme yok
-              </div>
+              <p className="text-xs text-muted-foreground">Henüz değerlendirme yok</p>
             )}
           </div>
-        </div>
+        </Link>
 
-        {teacher.specialization && (
-          <div>
-            <p className="text-xs md:text-sm font-medium text-foreground mb-0.5 md:mb-1">
-              Uzmanlık Alanı
-            </p>
-            <p className="text-xs md:text-sm text-muted-foreground">
-              {teacher.specialization}
-            </p>
-          </div>
-        )}
-
-        {teacher.years_of_experience !== undefined && teacher.years_of_experience !== null && (
-          <div>
-            <p className="text-xs md:text-sm font-medium text-foreground mb-0.5 md:mb-1">
-              Deneyim
-            </p>
-            <p className="text-xs md:text-sm text-muted-foreground">
-              {teacher.years_of_experience} yıl
-            </p>
-          </div>
-        )}
-
-        {teacher.education && (
-          <div>
-            <p className="text-xs md:text-sm font-medium text-foreground mb-0.5 md:mb-1">
-              Eğitim
-            </p>
-            <p className="text-xs md:text-sm text-muted-foreground">{teacher.education}</p>
-          </div>
-        )}
-
-        {teacher.bio && (
-          <div>
-            <p className="text-xs md:text-sm font-medium text-foreground mb-0.5 md:mb-1">
-              Hakkında
-            </p>
-            <p className="text-xs md:text-sm text-muted-foreground leading-relaxed">
-              {teacher.bio}
-            </p>
-          </div>
-        )}
-
-        <div className="flex flex-col gap-2">
-          {canMessage && (
-            <Button
-              onClick={() => navigate(`/messages?userId=${teacherId}`)}
-              className="w-full"
-              variant="default"
-            >
-              <MessageSquare className="h-4 w-4 mr-2" />
-              Mesaj Gönder
-            </Button>
+        {/* Compact info rows */}
+        <div className="space-y-2 text-xs md:text-sm">
+          {teacher.specialization && (
+            <div className="flex gap-2">
+              <span className="font-medium text-foreground whitespace-nowrap">Uzmanlık:</span>
+              <span className="text-muted-foreground">{teacher.specialization}</span>
+            </div>
           )}
 
-          <Link to={`/profile/${teacherId}`}>
-            <Button variant="outline" className="w-full">
-              Profili Görüntüle
-            </Button>
-          </Link>
+          {teacher.years_of_experience !== undefined && teacher.years_of_experience !== null && (
+            <div className="flex gap-2">
+              <span className="font-medium text-foreground whitespace-nowrap">Deneyim:</span>
+              <span className="text-muted-foreground">{teacher.years_of_experience} yıl</span>
+            </div>
+          )}
+
+          {teacher.education && (
+            <div className="flex gap-2">
+              <span className="font-medium text-foreground whitespace-nowrap">Eğitim:</span>
+              <span className="text-muted-foreground">{teacher.education}</span>
+            </div>
+          )}
+
+          {teacher.bio && (
+            <p className="text-muted-foreground leading-relaxed pt-1 border-t border-border/30">
+              {teacher.bio}
+            </p>
+          )}
         </div>
       </CardContent>
     </Card>
