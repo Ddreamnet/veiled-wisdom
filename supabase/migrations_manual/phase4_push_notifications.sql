@@ -112,7 +112,7 @@ CREATE OR REPLACE FUNCTION public.notify_new_payment_request()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, extensions, private
+SET search_path = public, net, private
 AS $$
 DECLARE
   _url text;
