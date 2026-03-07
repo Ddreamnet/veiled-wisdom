@@ -148,6 +148,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_notify_new_payment_request ON public.payment_requests;
 CREATE TRIGGER trg_notify_new_payment_request
   AFTER INSERT ON public.payment_requests
   FOR EACH ROW
