@@ -24,3 +24,9 @@ verify_jwt = false
 [functions.get-daily-room-presence]
 verify_jwt = false
 
+[functions.send-push-notification]
+verify_jwt = false
+
+[functions.send-appointment-push-reminder]
+verify_jwt = false
+

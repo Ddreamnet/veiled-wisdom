@@ -70,6 +70,9 @@ function AppRoutes() {
   
   // Track user presence (heartbeat)
   usePresence();
+  
+  // Register push notifications (native only)
+  usePushNotifications();
 
   if (!loading) {
     hasRenderedRef.current = true;
