@@ -1,141 +1,107 @@
 
+Hedefinize göre bu sefer “kesin çözüm” için yalnızca semptom değil, veri bütünlüğünü kökten kilitleyen bir plan uygulayacağım. Mevcut bulgulara göre ana problem tek bir katmanda değil; **payment_requests ↔ appointments senkronu kırılmış**.
 
-# Harden Private Secrets Fallback for Push Notifications
+1) Kesin teşhis (eldeki veriye göre)
+- Admin’de payment_request’ler `rejected` olurken, appointments tarafında hâlâ `pending` kalabilen kayıtlar var (senin verdiğin sayı: toplam 8, pending 6, cancelled 2).
+- `src/pages/admin/Payments.tsx` içinde reject/approve sırasında appointments update çağrısında:
+  - result/error kontrolü yapılmıyor,
+  - `.select()` yok, etkilenen satır sayısı doğrulanmıyor.
+- Network’te appointments PATCH `204` dönüyor; bu “başarılı güncellendi” garantisi değil (0 row update de olabilir).
+- Bu yüzden payment_requests ve appointments durumları ayrışıyor; SQL’de pending şişmesi buradan geliyor.
+- Danışan `/appointments` ekranı sadece `appointments` tablosunu okuduğu için, payment_request doğru olsa bile appointments tarafı bozuksa görünürlük bozuluyor.
 
-## Overview
+2) Uygulanacak çözüm mimarisi (kalıcı)
+A) DB tarafını tek kaynak gerçeklik haline getir
+- `payment_requests.status` değiştiğinde bağlı `appointments.status` otomatik güncellensin (DB trigger).
+- Uygulama koduna güvenmek yerine DB’de zorunlu senkron.
 
-Replace all Vault references with a locked-down `private.secrets` table. The schema/table/triggers stay version-controlled in the migration file; only secret VALUES are inserted manually.
+B) Veri onarımı (one-time backfill)
+- Mevcut bozuk kayıtları toplu senkronla:
+  - `payment_requests.rejected` -> `appointments.cancelled`
+  - `payment_requests.confirmed` -> `appointments.confirmed`
+  - `payment_requests.pending` -> `appointments.pending`
+- Bu adım senin “şu an pending 6 neden var?” sorununu temizler.
 
-## Files Changed
+C) Uygulama katmanını sessiz hataya kapat
+- Admin reject/approve akışında appointments update sonucu zorunlu kontrol:
+  - error varsa throw,
+  - updated row count 0 ise uyarı + log + işlemi başarısız say.
+- Böylece bir daha “görünürde reddedildi ama appointment pending kaldı” olmayacak.
 
-### 1. `supabase/migrations_manual/phase4_push_notifications.sql` — Full rewrite
+3) Uygulanacak dosya/SQL değişiklik planı
+- `src/pages/admin/Payments.tsx`
+  - `handleReject` ve `handleApprove` içinde appointments update sonucunu `select()` ile doğrulama.
+  - başarısız senkron durumunda toast + abort.
+- (Yeni migration SQL)
+  - status sync trigger function (`payment_requests` -> `appointments`)
+  - one-time data reconciliation script
 
-**Add private schema block** after `pg_net` extension (before tables):
-
+4) Önce çalıştırılacak kesin doğrulama SQL (teşhis)
 ```sql
--- Private schema for secrets (never exposed via API)
-CREATE SCHEMA IF NOT EXISTS private;
+-- A) Senkron bozukluk özeti
+select
+  pr.status as pr_status,
+  a.status  as appt_status,
+  count(*)  as cnt
+from public.payment_requests pr
+left join public.appointments a
+  on a.payment_request_id = pr.id
+where pr.item_type = 'appointment'
+group by pr.status, a.status
+order by pr.status, a.status;
 
-CREATE TABLE IF NOT EXISTS private.secrets (
-  name text PRIMARY KEY,
-  value text NOT NULL
-);
-
-ALTER TABLE private.secrets OWNER TO postgres;
-
--- Lock down: no API roles can access
-REVOKE ALL ON SCHEMA private FROM public, anon, authenticated, service_role;
-REVOKE ALL ON ALL TABLES IN SCHEMA private FROM public, anon, authenticated, service_role;
-ALTER DEFAULT PRIVILEGES IN SCHEMA private REVOKE ALL ON TABLES FROM public, anon, authenticated, service_role;
-
--- Only postgres (trigger/cron context) can read
-GRANT USAGE ON SCHEMA private TO postgres;
-GRANT SELECT ON private.secrets TO postgres;
+-- B) payment_request rejected ama appointment cancelled olmayanlar
+select
+  pr.id as pr_id,
+  pr.reference_code,
+  pr.status as pr_status,
+  a.id as appt_id,
+  a.status as appt_status
+from public.payment_requests pr
+left join public.appointments a on a.payment_request_id = pr.id
+where pr.item_type = 'appointment'
+  and pr.status = 'rejected'
+  and (a.id is null or a.status <> 'cancelled')
+order by pr.created_at desc;
 ```
 
-**Update all 3 trigger functions** with:
-- `SECURITY DEFINER` (already present)
-- Add `SET search_path = public, extensions, private`
-- Replace `vault.decrypted_secrets` → `private.secrets` with fully qualified `private.secrets`
-- Replace `net.http_post` → `extensions.http_post` (or `net.http_post` — pg_net installs in `extensions` schema on Supabase, so use `extensions.http_post`)
-- Upgrade warning to `RAISE WARNING` with clear message including which secret is missing
-
-Example for `notify_new_message`:
+5) One-time düzeltme SQL (pending 6’yı temizleyen adım)
 ```sql
-CREATE OR REPLACE FUNCTION public.notify_new_message()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, extensions, private
-AS $$
-DECLARE
-  _url text;
-  _secret text;
-BEGIN
-  SELECT value INTO _url FROM private.secrets WHERE name = 'supabase_project_url' LIMIT 1;
-  SELECT value INTO _secret FROM private.secrets WHERE name = 'internal_trigger_secret' LIMIT 1;
+begin;
 
-  IF _url IS NULL THEN
-    RAISE WARNING 'push: private.secrets missing "supabase_project_url", skipping notification';
-    RETURN NEW;
-  END IF;
-  IF _secret IS NULL THEN
-    RAISE WARNING 'push: private.secrets missing "internal_trigger_secret", skipping notification';
-    RETURN NEW;
-  END IF;
+update public.appointments a
+set status = case
+  when pr.status = 'rejected' then 'cancelled'
+  when pr.status = 'confirmed' then 'confirmed'
+  else 'pending'
+end
+from public.payment_requests pr
+where a.payment_request_id = pr.id
+  and pr.item_type = 'appointment'
+  and a.status is distinct from case
+    when pr.status = 'rejected' then 'cancelled'
+    when pr.status = 'confirmed' then 'confirmed'
+    else 'pending'
+  end;
 
-  PERFORM extensions.http_post(
-    url    := _url || '/functions/v1/send-push-notification',
-    headers := jsonb_build_object(
-      'Content-Type', 'application/json',
-      'x-internal-trigger-secret', _secret
-    ),
-    body   := jsonb_build_object(
-      'type', 'chat_message',
-      'table', 'messages',
-      'record', row_to_json(NEW)
-    )
-  );
-  RETURN NEW;
-END;
-$$;
+commit;
 ```
 
-Same pattern for `notify_new_payment_request` and `notify_new_teacher_approval`.
+6) Kalıcı DB trigger planı (tekrar bozulmaması için)
+- `payment_requests` üzerinde `AFTER UPDATE OF status` trigger:
+  - sadece `item_type='appointment'` için çalışacak,
+  - bağlı appointment status’u map’leyecek (`rejected -> cancelled`, `confirmed -> confirmed`, `pending -> pending`).
 
-### 2. `supabase/migrations_manual/phase4_push_manual_setup.md` — Rewrite
+7) Danışan görünürlük sorunu için kesinleştirme adımı
+- DB senkronu düzeltildikten sonra `/appointments` ekranı yeniden test:
+  - yeni ödeme oluştur,
+  - admin onaylamadan önce danışanda “Bekleyen”de görünmeli,
+  - admin reddedince status “Reddedildi” olarak kalmalı (ve artık yanlış pending sayısı olmamalı).
+- Eğer hâlâ görünmüyorsa ikinci katman patch:
+  - `useAppointments` içinde customer branch’e debug audit (query result + role + userId),
+  - role branch sapması varsa (teacher/customer) bunu ayrı net patch ile sabitleyeceğim.
 
-- **Remove** Step 1 (Vault) entirely
-- **Step 1** → "Insert secrets into private.secrets" using idempotent UPSERT:
-  ```sql
-  INSERT INTO private.secrets (name, value) VALUES
-    ('supabase_project_url', 'https://egjuybvfhxazpvbeaupy.supabase.co')
-  ON CONFLICT (name) DO UPDATE SET value = EXCLUDED.value;
-
-  INSERT INTO private.secrets (name, value) VALUES
-    ('internal_trigger_secret', '<YOUR_STRONG_SECRET>')
-  ON CONFLICT (name) DO UPDATE SET value = EXCLUDED.value;
-  ```
-- **Step 2** → Edge Function secrets (unchanged: `INTERNAL_TRIGGER_SECRET`, `FCM_SERVICE_ACCOUNT_JSON`)
-- **Step 3** → pg_cron schedule, updated to read from `private.secrets`:
-  ```sql
-  SELECT cron.schedule(
-    'push-appointment-reminder',
-    '*/5 * * * *',
-    $$
-    SELECT extensions.http_post(
-      url := (SELECT value FROM private.secrets WHERE name = 'supabase_project_url' LIMIT 1)
-             || '/functions/v1/send-appointment-push-reminder',
-      headers := jsonb_build_object(
-        'Content-Type', 'application/json',
-        'x-internal-trigger-secret',
-        (SELECT value FROM private.secrets WHERE name = 'internal_trigger_secret' LIMIT 1)
-      ),
-      body := '{}'::jsonb
-    );
-    $$
-  );
-  ```
-- Steps 4-6 → iOS setup, deploy, sync (renumbered, unchanged content)
-
-### 3. `supabase/config.toml` — Verify only
-
-Confirm `private` is NOT in any `exposed_schemas` or `extra_search_path`. Current file has no such config, so no change needed. The `private` schema is inherently hidden from PostgREST since Supabase only exposes `public` by default.
-
-### 4. No other files change
-
-Edge functions, frontend hook, native config, capacitor config — all unchanged.
-
-## Security Summary
-
-| Control | Implementation |
-|---|---|
-| Schema isolation | `private` schema, not in API exposed schemas |
-| Permission lockdown | REVOKE ALL from public/anon/authenticated/service_role |
-| Default privileges | Future tables in private also locked |
-| Table ownership | `postgres` owns `private.secrets` |
-| Function privilege | SECURITY DEFINER + explicit `search_path` |
-| Qualified references | `private.secrets`, `extensions.http_post` |
-| Missing secret defense | Individual RAISE WARNING per missing secret, no HTTP call made |
-| Idempotent setup | UPSERT with ON CONFLICT |
-
+8) Beklenen nihai sonuç
+- SQL tarafında pending_count, admin işlemleriyle tutarlı olacak (hepsi reddedildiyse pending 0).
+- Danışan bekleyen sekmesi, admin onayı bekleyen yeni randevuları deterministik şekilde gösterecek.
+- Admin reddettiğinde appointment status’unun pending’de kalması kalıcı olarak bitecek.
