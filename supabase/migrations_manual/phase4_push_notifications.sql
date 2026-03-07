@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS public.push_devices (
 ALTER TABLE public.push_devices ENABLE ROW LEVEL SECURITY;
 
 -- Users can manage their own devices
+DROP POLICY IF EXISTS "Users manage own devices" ON public.push_devices;
 CREATE POLICY "Users manage own devices"
   ON public.push_devices FOR ALL
   TO authenticated
