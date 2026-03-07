@@ -193,6 +193,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_notify_new_teacher_approval ON public.teacher_approvals;
 CREATE TRIGGER trg_notify_new_teacher_approval
   AFTER INSERT ON public.teacher_approvals
   FOR EACH ROW
