@@ -86,7 +86,7 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  PERFORM extensions.http_post(
+  PERFORM net.http_post(
     url    := _url || '/functions/v1/send-push-notification',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
