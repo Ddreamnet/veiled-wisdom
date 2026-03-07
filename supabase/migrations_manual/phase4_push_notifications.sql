@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS public.push_devices (
 ALTER TABLE public.push_devices ENABLE ROW LEVEL SECURITY;
 
 -- Users can manage their own devices
+DROP POLICY IF EXISTS "Users manage own devices" ON public.push_devices;
 CREATE POLICY "Users manage own devices"
   ON public.push_devices FOR ALL
   TO authenticated
@@ -102,6 +103,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_notify_new_message ON public.messages;
 CREATE TRIGGER trg_notify_new_message
   AFTER INSERT ON public.messages
   FOR EACH ROW
@@ -146,6 +148,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_notify_new_payment_request ON public.payment_requests;
 CREATE TRIGGER trg_notify_new_payment_request
   AFTER INSERT ON public.payment_requests
   FOR EACH ROW
@@ -190,6 +193,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_notify_new_teacher_approval ON public.teacher_approvals;
 CREATE TRIGGER trg_notify_new_teacher_approval
   AFTER INSERT ON public.teacher_approvals
   FOR EACH ROW
