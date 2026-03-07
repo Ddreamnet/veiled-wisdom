@@ -10,6 +10,7 @@ import { Footer } from './components/Footer';
 import { MobileHeader, MobileBottomNav } from './components/mobile';
 import { PageLoader } from './components/PageLoader';
 import { usePresence } from './hooks/usePresence';
+import { usePushNotifications } from './hooks/usePushNotifications';
 import { useIsMobileLayout } from './hooks/useIsMobileLayout';
 import { ProtectedRoute, allRoutes, RouteConfig } from './routes';
 
@@ -69,6 +70,9 @@ function AppRoutes() {
   
   // Track user presence (heartbeat)
   usePresence();
+  
+  // Register push notifications (native only)
+  usePushNotifications();
 
   if (!loading) {
     hasRenderedRef.current = true;
