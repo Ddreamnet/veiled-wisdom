@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "350020329959",
+    "project_id": "elleyl-585ad",
+    "storage_bucket": "elleyl-585ad.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:350020329959:android:354d89b653823c18a15d42",
+        "android_client_info": {
+          "package_name": "com.elleyl.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAuWW9uSHRBSP_eFplTz27VyA5aVe0uhC4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
