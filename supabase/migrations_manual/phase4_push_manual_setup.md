@@ -2,11 +2,12 @@
 
 Run these steps **once** after applying `phase4_push_notifications.sql`.
 
-## 1. Enable Vault extension (if not already)
+## 1. Enable Vault extension (Dashboard)
 
-```sql
-CREATE EXTENSION IF NOT EXISTS vault WITH SCHEMA vault;
-```
+1. Go to **Supabase Dashboard → Database → Extensions**
+2. Search for **vault**
+3. Toggle it **ON** (schema should be `vault`)
+4. Wait for confirmation that the extension is enabled
 
 ## 2. Store secrets in Vault
 
@@ -37,8 +38,11 @@ In Supabase Dashboard → Edge Functions → Secrets, add:
 
 ## 4. Enable pg_cron and schedule appointment reminders
 
+1. Go to **Supabase Dashboard → Database → Extensions**
+2. Search for **pg_cron** — ensure it is **ON** (usually enabled by default)
+3. Run the following SQL in the SQL Editor:
+
 ```sql
-CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA extensions;
 
 SELECT cron.schedule(
   'push-appointment-reminder',
