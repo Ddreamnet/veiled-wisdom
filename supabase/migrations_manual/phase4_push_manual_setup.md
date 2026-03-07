@@ -40,7 +40,7 @@ SELECT cron.schedule(
   'push-appointment-reminder',
   '*/5 * * * *',
   $$
-  SELECT extensions.http_post(
+  SELECT net.http_post(
     url := (SELECT value FROM private.secrets WHERE name = 'supabase_project_url' LIMIT 1)
            || '/functions/v1/send-appointment-push-reminder',
     headers := jsonb_build_object(
