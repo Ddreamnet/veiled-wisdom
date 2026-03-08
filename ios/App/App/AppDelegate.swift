@@ -19,10 +19,23 @@ class AppDelegate: UIResponder, UIApplicationDelegate, MessagingDelegate {
         return true
     }
 
-    // APNS token → Firebase
+    // APNS token → Firebase → fetch FCM token
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         Messaging.messaging().apnsToken = deviceToken
-        NotificationCenter.default.post(name: .capacitorDidRegisterForRemoteNotifications, object: deviceToken)
+        NSLog("[Push] APNs token received (\(deviceToken.count) bytes)")
+
+        Messaging.messaging().token { token, error in
+            if let error = error {
+                NSLog("[Push] FCM token fetch error: \(error.localizedDescription)")
+                return
+            }
+            guard let fcmToken = token else { return }
+            NSLog("[Push] FCM token fetched: \(fcmToken.prefix(20))...")
+            NotificationCenter.default.post(
+                name: .capacitorDidRegisterForRemoteNotifications,
+                object: fcmToken
+            )
+        }
     }
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
@@ -31,7 +44,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate, MessagingDelegate {
 
     // FCM token refresh
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
-        // Capacitor PushNotifications plugin handles token via registration event
+        guard let fcmToken = fcmToken else { return }
+        NSLog("[Push] FCM token refreshed: \(fcmToken.prefix(20))...")
+        NotificationCenter.default.post(
+            name: .capacitorDidRegisterForRemoteNotifications,
+            object: fcmToken
+        )
     }
 
     func applicationWillResignActive(_ application: UIApplication) {}
