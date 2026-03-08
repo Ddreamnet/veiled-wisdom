@@ -1,140 +1,145 @@
-# Android & iOS Video Call + Image Picker Permission Fix
 
-## Kök Neden Analizi
 
-### Android
-`AndroidManifest.xml` dosyasında `CAMERA` ve `RECORD_AUDIO` izinleri eksikti. WebView'da `getUserMedia` sessizce başarısız oluyordu.
+# Site-Wide Codebase Refactoring Plan
 
-### iOS
-`Info.plist` dosyasında `NSCameraUsageDescription` ve `NSMicrophoneUsageDescription` eksikti. iOS, WKWebView'dan gelen medya isteklerini izin açıklaması olmadan engelliyor — bu da Daily.co'nun "WebRTC not supported or suppressed" hatasına neden oluyordu.
+## Priority 1: Duplicated ListingCard Component (High Impact)
 
----
+**Files:** `src/pages/Index.tsx`, `src/pages/AllListings.tsx`, `src/pages/SubCategoryDetail.tsx`
 
-## Uygulanan Değişiklikler
+**Problem:** The same listing card UI (cover image, teacher avatar, title, description, price) is copy-pasted across 3 files with identical markup. Any style change requires editing 3 places.
 
-### 1. Android Manifest İzinleri
-`android/app/src/main/AndroidManifest.xml` dosyasına eklendi:
-- `android.permission.CAMERA`
-- `android.permission.RECORD_AUDIO`
-- `android.permission.MODIFY_AUDIO_SETTINGS`
+**Proposal:** Extract a shared `src/components/ListingCard.tsx` component. Define a `ListingCardData` type to replace the `any` typing. All three pages import and use the shared component.
 
-### 2. iOS Info.plist
-`ios/App/App/Info.plist` dosyasına eklendi:
-
-| Key | Amaç |
-|---|---|
-| `NSCameraUsageDescription` | Kamera ile yeni fotoğraf çekme + görüntülü arama |
-| `NSMicrophoneUsageDescription` | Görüntülü arama sırasında ses iletimi |
-| `NSPhotoLibraryUsageDescription` | Galeriden mevcut görsel seçme (profil fotoğrafı, ilan görseli) |
-
-**Eklenmedi:** `NSPhotoLibraryAddUsageDescription` — uygulama galeriye görsel kaydetmiyor.
-
-### 3. Media Permissions Utility (`src/lib/mediaPermissions.ts`)
-- `diagnoseMedia()`: `isSecureContext`, `navigator.mediaDevices`, Permissions API kontrolü
-- `requestMediaAccess()`: `getUserMedia` ile gerçek izin isteği + diagnostic sonuç
-- `prefetchMedia()`: Sessiz ön yükleme (hover/focus)
-- `isMediaBlocked()` + `getMediaErrorMessage()`: UI için durum kontrolü
-
-### 4. VideoCallPage Permission Gate
-- `initializeCall()` içinde `Daily.createCallObject()` öncesinde `requestMediaAccess()` çağrılıyor
-- İzin reddedilmişse veya WebRTC desteklenmiyorsa Daily nesnesi oluşturulmuyor
-- Özel hata UI'ı: "İzin Gerekli" başlığı + Settings ikonu
-
-### 5. ChatWindow Prefetch
-- `prefetchMediaPermissions` artık paylaşılan `prefetchMedia()` fonksiyonunu kullanıyor
+**Risk:** Low. Pure presentational extraction. Visual output unchanged.
 
 ---
 
-## Image Picker / Photo Access Bölümü
+## Priority 2: Pervasive `any` Types (High Impact, Incremental)
 
-### Mevcut Akış
-Tüm görsel yükleme (`AvatarUpload`, `ImageUpload`, `CategoryImageUpload`) standart HTML `<input type="file" accept="image/*">` kullanıyor. Capacitor Camera eklentisi projede yok.
+**Files:** 36 files with 380+ occurrences of `: any`
 
-### Yaklaşım
-Mevcut `<input type="file" accept="image/*">` akışı korunuyor — en dar ve güvenli izin modeli:
-- iOS'ta sistem Photo Picker tetiklenir (limited photo access destekli)
-- Android'de sistem Intent picker tetiklenir (ACTION_GET_CONTENT)
+**Key offenders:**
+- `src/lib/queries/appointmentQueries.ts` — appointment rows, profile maps typed as `any[]`
+- `src/pages/PublicProfile.tsx` — `listing: any`, `review: any` throughout
+- `src/pages/Index.tsx` — `ListingCard({ listing }: { listing: any })`
+- `src/pages/admin/Payments.tsx`, `Users.tsx` — error catches, data rows
+- `src/App.tsx` — `renderRoute(route, user: any)`
 
-### iOS İzin Ayrımı
-- `NSCameraUsageDescription`: Kamera ile yeni fotoğraf çekme seçeneği için
-- `NSPhotoLibraryUsageDescription`: Galeriden mevcut görsel seçme akışı için
-- `NSPhotoLibraryAddUsageDescription`: Sadece galeriye geri kayıt varsa gerekli; şu an **eklenmeyecek**
+**Proposal:** Define proper interfaces in `src/types/database.ts` (or colocated type files) for enriched query return types (e.g., `ListingWithProfile`, `AppointmentWithRelations`, `ReviewWithProfile`). Replace `any` incrementally, starting with the most-used query hooks.
 
-### iOS Davranış Notu
-- iOS'ta `NSPhotoLibraryUsageDescription` eklenmesi, native kapsayıcı içinde fotoğraf seçme akışında uyumluluk ve net izin açıklaması açısından güvenli bir adımdır
-- Ancak WKWebView fotoğraf ve dosya yüklemeyi, uygulamanın tüm fotoğraf kitaplığına tam erişimi olmadan da destekleyebilir; bu key'in eksikliği her durumda aynı şekilde davranmak zorunda değildir
-- Gerçek davranış cihaz üzerinde test edilerek doğrulanmalı
-
-### Android İzin Notu
-- Sistem picker / `ACTION_GET_CONTENT` / Photo Picker akışı kullanıldığı sürece `READ_MEDIA_IMAGES` veya geniş storage izni eklenmeyecek
-- Sadece ileride custom gallery tarama veya doğrudan medya kütüphanesi erişimi yapılırsa yeniden değerlendirilecek
-
-### Platform Picker Davranışı
-Kamera seçeneğinin görünmesi tamamen `<input>` davranışı ve platform picker sunumuna bağlıdır; her cihazda birebir aynı UI ile görünmeyebilir.
-
-Hedef:
-- Kullanıcı galeriden mevcut görsel seçebilsin
-- Mümkünse yeni fotoğraf da çekebilsin
+**Risk:** Low per file. No runtime change. Improves IDE autocomplete and catches bugs at compile time.
 
 ---
 
-## Değişen Dosyalar
+## Priority 3: `Index.tsx` is Too Large (~400 lines, 5 sections)
 
-| Dosya | Değişiklik |
-|---|---|
-| `android/app/src/main/AndroidManifest.xml` | CAMERA, RECORD_AUDIO, MODIFY_AUDIO_SETTINGS izinleri eklendi |
-| `ios/App/App/Info.plist` | NSCameraUsageDescription, NSMicrophoneUsageDescription, NSPhotoLibraryUsageDescription eklendi |
-| `src/lib/mediaPermissions.ts` | **Yeni** — izin kontrolü + getUserMedia diagnostic utility |
-| `src/pages/VideoCall/VideoCallPage.tsx` | Permission gate + izin reddedildiğinde özel hata UI |
-| `src/components/chat/ChatWindow.tsx` | Paylaşılan prefetchMedia kullanımı |
-| `.lovable/plan.md` | Güncel plan |
+**File:** `src/pages/Index.tsx` (404 lines)
+
+**Problem:** Contains hero section, categories carousel, listings preview, curiosities grid, and experts carousel all in one file with inline sub-components (`ListingCard`, `ListingsSlider`, `CategoriesCarousel`). Complex parallax/scroll logic mixed with UI.
+
+**Proposal:** 
+- Extract `CategoriesCarousel` → `src/components/home/CategoriesCarousel.tsx`
+- Extract `ListingsPreview` → `src/components/home/ListingsPreview.tsx`  
+- Extract `CuriositiesSection` → `src/components/home/CuriositiesSection.tsx`
+- Extract `HeroSection` → `src/components/home/HeroSection.tsx` (includes parallax refs)
+- `Index.tsx` becomes a thin composition of these sections (~30 lines)
+
+**Risk:** Low. Each section is already self-contained with clear data boundaries.
 
 ---
 
-## Manuel Adımlar (Gerekli)
+## Priority 4: `PublicProfile.tsx` Monolith (290 lines)
 
-```bash
-npx cap sync android
-npx cap sync ios
+**File:** `src/pages/PublicProfile.tsx`
+
+**Problem:** Single file with 3 inline components (`ListingCard`, `StatBadge`, page body), heavy JSX nesting, and `any` types throughout. Similar pattern to other pages that were already modularized (Profile, ListingDetail).
+
+**Proposal:** Convert to folder structure following the existing pattern:
+```text
+src/pages/PublicProfile/
+  index.tsx           (re-export)
+  PublicProfilePage.tsx (main logic)
+  components/
+    ProfileHero.tsx
+    ListingCard.tsx   (or use shared component from Priority 1)
+    ReviewsGrid.tsx
 ```
-Ardından her iki platformda clean build yapılmalı.
+
+**Risk:** Low. Follows established project pattern.
 
 ---
 
-## Test Matrisi
+## Priority 5: Admin Pages Use Raw `useEffect`+`useState` Instead of React Query
 
-### iOS — Video Call
-| Senaryo | Doğrulanacak |
-|---|---|
-| İlk kurulum → arama başlat | İzin diyaloğu Türkçe açıklama ile çıkıyor mu |
-| İzin ver → arama | Kamera + mikrofon aktif |
-| İzin reddet | "İzin Gerekli" hata ekranı |
+**Files:** `src/pages/admin/Dashboard.tsx` (361 lines), `Users.tsx` (653 lines), `Payments.tsx` (497 lines), `Categories.tsx` (591 lines)
 
-### iOS — Image Picker
-| Senaryo | Doğrulanacak |
-|---|---|
-| Profil fotoğrafı → galeriden seç | Görsel yükleniyor mu |
-| Profil fotoğrafı → kameradan çek | Fotoğraf çekilip yükleniyor mu |
-| İlan görseli → galeriden seç | Görsel yükleniyor mu |
-| İlan görseli → kameradan çek | Fotoğraf çekilip yükleniyor mu |
-| İlk kurulum | İzin diyaloğu Türkçe açıklama ile çıkıyor mu |
-| İzin daha önce reddedilmiş | Picker nasıl davranıyor |
+**Problem:** These pages manually manage loading/error state with `useState` + `useEffect` + raw Supabase calls, while the rest of the app uses React Query hooks. This means no automatic caching, no stale-while-revalidate, and inconsistent error handling patterns.
 
-### Android — Video Call
-| Senaryo | Doğrulanacak |
-|---|---|
-| İlk kurulum → arama başlat | Runtime permission diyaloğu çıkıyor mu |
-| İzin ver → arama | Kamera + mikrofon aktif |
-| İzin reddet | "İzin Gerekli" hata ekranı |
+**Proposal:** Migrate each admin page's data fetching to dedicated React Query hooks under `src/lib/queries/adminQueries.ts`. This brings caching, automatic refetch, and consistent loading/error patterns. Can be done one page at a time.
 
-### Android — Image Picker
-| Senaryo | Doğrulanacak |
-|---|---|
-| Profil fotoğrafı → galeriden seç | Görsel yükleniyor mu |
-| Profil fotoğrafı → kameradan çek | Fotoğraf çekilip yükleniyor mu |
-| İlan görseli → galeriden seç | Görsel yükleniyor mu |
-| İlan görseli → kameradan çek | Fotoğraf çekilip yükleniyor mu |
-| Storage izni kontrolü | Ek storage izni istenmeden akış çalışıyor mu |
+**Risk:** Medium-low. Behavior changes slightly (cached data, background refetches). Test each page after migration.
 
-### Generic File Picker Notu
-İleride belge/dosya yükleme gerekirse `accept` attribute değiştirilerek sistem document picker tetiklenebilir. Geniş depolama izni hiçbir senaryoda eklenmemeli.
+---
+
+## Priority 6: `Appointments.tsx` Uses Custom Breadcrumb Instead of UnifiedBreadcrumb
+
+**File:** `src/pages/Appointments.tsx`
+
+**Problem:** Manually constructs breadcrumb using raw `Breadcrumb` primitives (lines 99-113) instead of using the `UnifiedBreadcrumb` component that every other page uses. Inconsistent with the project standard documented in memory.
+
+**Proposal:** Replace with `<UnifiedBreadcrumb customItems={[{ label: 'Randevularım' }]} />`.
+
+**Risk:** Trivial. One-line change.
+
+---
+
+## Priority 7: `Settings.tsx` Notification Toggles Are Non-Functional
+
+**File:** `src/pages/Settings.tsx`
+
+**Problem:** Notification preference switches (lines 34-36) use local `useState` with no persistence. Toggling them does nothing. This is dead UI that misleads users.
+
+**Proposal:** Either connect to a Supabase `user_preferences` table, or clearly mark the section as "Coming Soon" with disabled switches. Recommend the latter as a quick fix.
+
+**Risk:** Low. UX improvement, no breakage.
+
+---
+
+## Priority 8: Listing Query Data-Enrichment Logic Duplicated
+
+**File:** `src/lib/queries/listingQueries.ts`
+
+**Problem:** The profile-map + price-map enrichment pattern (fetch listings → batch fetch profiles → batch fetch prices → merge) is duplicated between `useSubCategoryListings` (lines 39-70) and `useAllListings` (lines 95-127) — nearly identical code.
+
+**Proposal:** Extract a shared `enrichListingsWithProfiles(listingsRows)` helper function. Both hooks call it.
+
+**Risk:** Low. Pure data transformation extraction.
+
+---
+
+## Priority 9: `useMessages.ts` Polling Has Stale Closure
+
+**File:** `src/hooks/useMessages.ts`
+
+**Problem:** `startPolling` callback (line 35) captures `messages` in its closure but `messages` is a dependency. The `lastTimestamp` reference on line 50-52 uses the `messages` array from when `startPolling` was created, which may be stale. This could cause missed messages or duplicate fetches.
+
+**Proposal:** Use a `messagesRef` to always access the latest messages array inside the polling callback, or move `lastTimestamp` tracking to a separate ref.
+
+**Risk:** Medium. This is a subtle bug fix. Requires careful testing of the realtime fallback polling path.
+
+---
+
+## Implementation Order
+
+| Phase | Items | Estimated Effort |
+|-------|-------|-----------------|
+| 1 | Priority 6 (breadcrumb fix), Priority 7 (settings placeholder) | Trivial |
+| 2 | Priority 1 (shared ListingCard), Priority 8 (listing enrichment helper) | Small |
+| 3 | Priority 3 (Index.tsx decomposition) | Medium |
+| 4 | Priority 4 (PublicProfile modularization) | Medium |
+| 5 | Priority 2 (type safety — incremental, across multiple PRs) | Ongoing |
+| 6 | Priority 5 (admin React Query migration — one page per iteration) | Medium per page |
+| 7 | Priority 9 (useMessages stale closure fix) | Small but requires testing |
+
+Each phase is independently deployable. No phase depends on another. UI and functionality remain unchanged throughout.
+
