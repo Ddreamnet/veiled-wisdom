@@ -3,17 +3,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Home } from 'lucide-react';
 import { ReviewDialog } from '@/components/ReviewDialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
+import { UnifiedBreadcrumb } from '@/components/UnifiedBreadcrumb';
 import { useAppointments } from '@/lib/queries';
 import { useQueryClient } from '@tanstack/react-query';
 
