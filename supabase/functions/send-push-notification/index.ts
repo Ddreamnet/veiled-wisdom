@@ -407,6 +407,8 @@ async function handleTeacherApproval(
     if (!devices?.length) continue;
 
     for (const device of devices) {
+      const isIos = device.platform === "ios";
+
       const message: FcmMessage = {
         token: device.fcm_token,
         notification: {
@@ -417,16 +419,21 @@ async function handleTeacherApproval(
           type: "admin_approval",
           approvalId,
         },
-        android: {
-          notification: {
-            channel_id: "admin",
-          },
-        },
-        apns: {
-          payload: {
-            aps: { sound: "default" },
-          },
-        },
+        ...(isIos
+          ? {
+              apns: {
+                payload: {
+                  aps: { sound: "default" },
+                },
+              },
+            }
+          : {
+              android: {
+                notification: {
+                  channel_id: "admin",
+                },
+              },
+            }),
       };
 
       const result = await sendFcmMessage(sa, message);
