@@ -209,15 +209,15 @@ async function handleChatMessage(
       .select("*", { count: "exact", head: true })
       .eq("conversation_id", conversationId)
       .neq("sender_id", recipientId)
-      .eq("is_read", false);
+      .eq("read", false);
 
     const unread = unreadCount || 1;
     const preview =
-      content.length > 60 ? content.substring(0, 57) + "..." : content;
+      messageText.length > 80 ? messageText.substring(0, 77) + "..." : messageText;
     const body =
       unread > 1
-        ? `${senderName}: ${unread} yeni mesaj • Son: ${preview}`
-        : `${senderName}: ${preview}`;
+        ? `${unread} yeni mesaj • Son: ${preview}`
+        : preview;
 
     // Get recipient devices
     const { data: devices } = await supabase
