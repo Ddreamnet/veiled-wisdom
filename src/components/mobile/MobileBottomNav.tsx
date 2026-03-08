@@ -306,13 +306,22 @@ const MobileBottomNavComponent = () => {
                 )}
               >
                 {/* Icon - sabit boyut */}
-                <div className="relative flex-shrink-0 flex items-center justify-center w-5 h-5">
+                <div className="relative flex-shrink-0 flex items-center justify-center w-5 h-5 overflow-visible">
                   <Icon
                     className={cn(
                       "h-5 w-5 transition-colors duration-200",
                       active ? "text-primary" : "text-silver-muted",
                     )}
                   />
+                  {/* Badge - icon wrapper içinde, pasif durumda */}
+                  {!active && typeof item.badge === "number" && item.badge > 0 && (
+                    <Badge
+                      variant="destructive"
+                      className="absolute -top-2 -right-3 h-4 min-w-4 flex items-center justify-center p-0 px-1 text-[10px]"
+                    >
+                      {item.badge > 99 ? "99+" : item.badge}
+                    </Badge>
+                  )}
                 </div>
                 {/* Label - overflow korumalı */}
                 <span
