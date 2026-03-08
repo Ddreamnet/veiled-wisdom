@@ -1,107 +1,140 @@
+# Android & iOS Video Call + Image Picker Permission Fix
 
-Hedefinize göre bu sefer “kesin çözüm” için yalnızca semptom değil, veri bütünlüğünü kökten kilitleyen bir plan uygulayacağım. Mevcut bulgulara göre ana problem tek bir katmanda değil; **payment_requests ↔ appointments senkronu kırılmış**.
+## Kök Neden Analizi
 
-1) Kesin teşhis (eldeki veriye göre)
-- Admin’de payment_request’ler `rejected` olurken, appointments tarafında hâlâ `pending` kalabilen kayıtlar var (senin verdiğin sayı: toplam 8, pending 6, cancelled 2).
-- `src/pages/admin/Payments.tsx` içinde reject/approve sırasında appointments update çağrısında:
-  - result/error kontrolü yapılmıyor,
-  - `.select()` yok, etkilenen satır sayısı doğrulanmıyor.
-- Network’te appointments PATCH `204` dönüyor; bu “başarılı güncellendi” garantisi değil (0 row update de olabilir).
-- Bu yüzden payment_requests ve appointments durumları ayrışıyor; SQL’de pending şişmesi buradan geliyor.
-- Danışan `/appointments` ekranı sadece `appointments` tablosunu okuduğu için, payment_request doğru olsa bile appointments tarafı bozuksa görünürlük bozuluyor.
+### Android
+`AndroidManifest.xml` dosyasında `CAMERA` ve `RECORD_AUDIO` izinleri eksikti. WebView'da `getUserMedia` sessizce başarısız oluyordu.
 
-2) Uygulanacak çözüm mimarisi (kalıcı)
-A) DB tarafını tek kaynak gerçeklik haline getir
-- `payment_requests.status` değiştiğinde bağlı `appointments.status` otomatik güncellensin (DB trigger).
-- Uygulama koduna güvenmek yerine DB’de zorunlu senkron.
+### iOS
+`Info.plist` dosyasında `NSCameraUsageDescription` ve `NSMicrophoneUsageDescription` eksikti. iOS, WKWebView'dan gelen medya isteklerini izin açıklaması olmadan engelliyor — bu da Daily.co'nun "WebRTC not supported or suppressed" hatasına neden oluyordu.
 
-B) Veri onarımı (one-time backfill)
-- Mevcut bozuk kayıtları toplu senkronla:
-  - `payment_requests.rejected` -> `appointments.cancelled`
-  - `payment_requests.confirmed` -> `appointments.confirmed`
-  - `payment_requests.pending` -> `appointments.pending`
-- Bu adım senin “şu an pending 6 neden var?” sorununu temizler.
+---
 
-C) Uygulama katmanını sessiz hataya kapat
-- Admin reject/approve akışında appointments update sonucu zorunlu kontrol:
-  - error varsa throw,
-  - updated row count 0 ise uyarı + log + işlemi başarısız say.
-- Böylece bir daha “görünürde reddedildi ama appointment pending kaldı” olmayacak.
+## Uygulanan Değişiklikler
 
-3) Uygulanacak dosya/SQL değişiklik planı
-- `src/pages/admin/Payments.tsx`
-  - `handleReject` ve `handleApprove` içinde appointments update sonucunu `select()` ile doğrulama.
-  - başarısız senkron durumunda toast + abort.
-- (Yeni migration SQL)
-  - status sync trigger function (`payment_requests` -> `appointments`)
-  - one-time data reconciliation script
+### 1. Android Manifest İzinleri
+`android/app/src/main/AndroidManifest.xml` dosyasına eklendi:
+- `android.permission.CAMERA`
+- `android.permission.RECORD_AUDIO`
+- `android.permission.MODIFY_AUDIO_SETTINGS`
 
-4) Önce çalıştırılacak kesin doğrulama SQL (teşhis)
-```sql
--- A) Senkron bozukluk özeti
-select
-  pr.status as pr_status,
-  a.status  as appt_status,
-  count(*)  as cnt
-from public.payment_requests pr
-left join public.appointments a
-  on a.payment_request_id = pr.id
-where pr.item_type = 'appointment'
-group by pr.status, a.status
-order by pr.status, a.status;
+### 2. iOS Info.plist
+`ios/App/App/Info.plist` dosyasına eklendi:
 
--- B) payment_request rejected ama appointment cancelled olmayanlar
-select
-  pr.id as pr_id,
-  pr.reference_code,
-  pr.status as pr_status,
-  a.id as appt_id,
-  a.status as appt_status
-from public.payment_requests pr
-left join public.appointments a on a.payment_request_id = pr.id
-where pr.item_type = 'appointment'
-  and pr.status = 'rejected'
-  and (a.id is null or a.status <> 'cancelled')
-order by pr.created_at desc;
+| Key | Amaç |
+|---|---|
+| `NSCameraUsageDescription` | Kamera ile yeni fotoğraf çekme + görüntülü arama |
+| `NSMicrophoneUsageDescription` | Görüntülü arama sırasında ses iletimi |
+| `NSPhotoLibraryUsageDescription` | Galeriden mevcut görsel seçme (profil fotoğrafı, ilan görseli) |
+
+**Eklenmedi:** `NSPhotoLibraryAddUsageDescription` — uygulama galeriye görsel kaydetmiyor.
+
+### 3. Media Permissions Utility (`src/lib/mediaPermissions.ts`)
+- `diagnoseMedia()`: `isSecureContext`, `navigator.mediaDevices`, Permissions API kontrolü
+- `requestMediaAccess()`: `getUserMedia` ile gerçek izin isteği + diagnostic sonuç
+- `prefetchMedia()`: Sessiz ön yükleme (hover/focus)
+- `isMediaBlocked()` + `getMediaErrorMessage()`: UI için durum kontrolü
+
+### 4. VideoCallPage Permission Gate
+- `initializeCall()` içinde `Daily.createCallObject()` öncesinde `requestMediaAccess()` çağrılıyor
+- İzin reddedilmişse veya WebRTC desteklenmiyorsa Daily nesnesi oluşturulmuyor
+- Özel hata UI'ı: "İzin Gerekli" başlığı + Settings ikonu
+
+### 5. ChatWindow Prefetch
+- `prefetchMediaPermissions` artık paylaşılan `prefetchMedia()` fonksiyonunu kullanıyor
+
+---
+
+## Image Picker / Photo Access Bölümü
+
+### Mevcut Akış
+Tüm görsel yükleme (`AvatarUpload`, `ImageUpload`, `CategoryImageUpload`) standart HTML `<input type="file" accept="image/*">` kullanıyor. Capacitor Camera eklentisi projede yok.
+
+### Yaklaşım
+Mevcut `<input type="file" accept="image/*">` akışı korunuyor — en dar ve güvenli izin modeli:
+- iOS'ta sistem Photo Picker tetiklenir (limited photo access destekli)
+- Android'de sistem Intent picker tetiklenir (ACTION_GET_CONTENT)
+
+### iOS İzin Ayrımı
+- `NSCameraUsageDescription`: Kamera ile yeni fotoğraf çekme seçeneği için
+- `NSPhotoLibraryUsageDescription`: Galeriden mevcut görsel seçme akışı için
+- `NSPhotoLibraryAddUsageDescription`: Sadece galeriye geri kayıt varsa gerekli; şu an **eklenmeyecek**
+
+### iOS Davranış Notu
+- iOS'ta `NSPhotoLibraryUsageDescription` eklenmesi, native kapsayıcı içinde fotoğraf seçme akışında uyumluluk ve net izin açıklaması açısından güvenli bir adımdır
+- Ancak WKWebView fotoğraf ve dosya yüklemeyi, uygulamanın tüm fotoğraf kitaplığına tam erişimi olmadan da destekleyebilir; bu key'in eksikliği her durumda aynı şekilde davranmak zorunda değildir
+- Gerçek davranış cihaz üzerinde test edilerek doğrulanmalı
+
+### Android İzin Notu
+- Sistem picker / `ACTION_GET_CONTENT` / Photo Picker akışı kullanıldığı sürece `READ_MEDIA_IMAGES` veya geniş storage izni eklenmeyecek
+- Sadece ileride custom gallery tarama veya doğrudan medya kütüphanesi erişimi yapılırsa yeniden değerlendirilecek
+
+### Platform Picker Davranışı
+Kamera seçeneğinin görünmesi tamamen `<input>` davranışı ve platform picker sunumuna bağlıdır; her cihazda birebir aynı UI ile görünmeyebilir.
+
+Hedef:
+- Kullanıcı galeriden mevcut görsel seçebilsin
+- Mümkünse yeni fotoğraf da çekebilsin
+
+---
+
+## Değişen Dosyalar
+
+| Dosya | Değişiklik |
+|---|---|
+| `android/app/src/main/AndroidManifest.xml` | CAMERA, RECORD_AUDIO, MODIFY_AUDIO_SETTINGS izinleri eklendi |
+| `ios/App/App/Info.plist` | NSCameraUsageDescription, NSMicrophoneUsageDescription, NSPhotoLibraryUsageDescription eklendi |
+| `src/lib/mediaPermissions.ts` | **Yeni** — izin kontrolü + getUserMedia diagnostic utility |
+| `src/pages/VideoCall/VideoCallPage.tsx` | Permission gate + izin reddedildiğinde özel hata UI |
+| `src/components/chat/ChatWindow.tsx` | Paylaşılan prefetchMedia kullanımı |
+| `.lovable/plan.md` | Güncel plan |
+
+---
+
+## Manuel Adımlar (Gerekli)
+
+```bash
+npx cap sync android
+npx cap sync ios
 ```
+Ardından her iki platformda clean build yapılmalı.
 
-5) One-time düzeltme SQL (pending 6’yı temizleyen adım)
-```sql
-begin;
+---
 
-update public.appointments a
-set status = case
-  when pr.status = 'rejected' then 'cancelled'
-  when pr.status = 'confirmed' then 'confirmed'
-  else 'pending'
-end
-from public.payment_requests pr
-where a.payment_request_id = pr.id
-  and pr.item_type = 'appointment'
-  and a.status is distinct from case
-    when pr.status = 'rejected' then 'cancelled'
-    when pr.status = 'confirmed' then 'confirmed'
-    else 'pending'
-  end;
+## Test Matrisi
 
-commit;
-```
+### iOS — Video Call
+| Senaryo | Doğrulanacak |
+|---|---|
+| İlk kurulum → arama başlat | İzin diyaloğu Türkçe açıklama ile çıkıyor mu |
+| İzin ver → arama | Kamera + mikrofon aktif |
+| İzin reddet | "İzin Gerekli" hata ekranı |
 
-6) Kalıcı DB trigger planı (tekrar bozulmaması için)
-- `payment_requests` üzerinde `AFTER UPDATE OF status` trigger:
-  - sadece `item_type='appointment'` için çalışacak,
-  - bağlı appointment status’u map’leyecek (`rejected -> cancelled`, `confirmed -> confirmed`, `pending -> pending`).
+### iOS — Image Picker
+| Senaryo | Doğrulanacak |
+|---|---|
+| Profil fotoğrafı → galeriden seç | Görsel yükleniyor mu |
+| Profil fotoğrafı → kameradan çek | Fotoğraf çekilip yükleniyor mu |
+| İlan görseli → galeriden seç | Görsel yükleniyor mu |
+| İlan görseli → kameradan çek | Fotoğraf çekilip yükleniyor mu |
+| İlk kurulum | İzin diyaloğu Türkçe açıklama ile çıkıyor mu |
+| İzin daha önce reddedilmiş | Picker nasıl davranıyor |
 
-7) Danışan görünürlük sorunu için kesinleştirme adımı
-- DB senkronu düzeltildikten sonra `/appointments` ekranı yeniden test:
-  - yeni ödeme oluştur,
-  - admin onaylamadan önce danışanda “Bekleyen”de görünmeli,
-  - admin reddedince status “Reddedildi” olarak kalmalı (ve artık yanlış pending sayısı olmamalı).
-- Eğer hâlâ görünmüyorsa ikinci katman patch:
-  - `useAppointments` içinde customer branch’e debug audit (query result + role + userId),
-  - role branch sapması varsa (teacher/customer) bunu ayrı net patch ile sabitleyeceğim.
+### Android — Video Call
+| Senaryo | Doğrulanacak |
+|---|---|
+| İlk kurulum → arama başlat | Runtime permission diyaloğu çıkıyor mu |
+| İzin ver → arama | Kamera + mikrofon aktif |
+| İzin reddet | "İzin Gerekli" hata ekranı |
 
-8) Beklenen nihai sonuç
-- SQL tarafında pending_count, admin işlemleriyle tutarlı olacak (hepsi reddedildiyse pending 0).
-- Danışan bekleyen sekmesi, admin onayı bekleyen yeni randevuları deterministik şekilde gösterecek.
-- Admin reddettiğinde appointment status’unun pending’de kalması kalıcı olarak bitecek.
+### Android — Image Picker
+| Senaryo | Doğrulanacak |
+|---|---|
+| Profil fotoğrafı → galeriden seç | Görsel yükleniyor mu |
+| Profil fotoğrafı → kameradan çek | Fotoğraf çekilip yükleniyor mu |
+| İlan görseli → galeriden seç | Görsel yükleniyor mu |
+| İlan görseli → kameradan çek | Fotoğraf çekilip yükleniyor mu |
+| Storage izni kontrolü | Ek storage izni istenmeden akış çalışıyor mu |
+
+### Generic File Picker Notu
+İleride belge/dosya yükleme gerekirse `accept` attribute değiştirilerek sistem document picker tetiklenebilir. Geniş depolama izni hiçbir senaryoda eklenmemeli.
