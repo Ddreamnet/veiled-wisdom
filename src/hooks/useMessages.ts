@@ -32,6 +32,10 @@ export function useMessages(conversationId: string | null) {
     }
   }, []);
 
+  // Keep a ref to always access latest messages inside polling closure
+  const messagesRef = useRef<Message[]>([]);
+  messagesRef.current = messages;
+
   const startPolling = useCallback((convId: string) => {
     if (!isActiveRef.current) return;
     stopPolling();
@@ -46,9 +50,10 @@ export function useMessages(conversationId: string | null) {
       }
 
       try {
-        // Son mesajın timestamp'ini al
-        const lastTimestamp = messages.length > 0
-          ? messages[messages.length - 1].created_at
+        // Son mesajın timestamp'ini al — ref üzerinden güncel değere eriş
+        const currentMessages = messagesRef.current;
+        const lastTimestamp = currentMessages.length > 0
+          ? currentMessages[currentMessages.length - 1].created_at
           : '1970-01-01T00:00:00Z';
 
         const { data } = await supabase
@@ -81,7 +86,7 @@ export function useMessages(conversationId: string | null) {
     };
 
     pollTimerRef.current = setTimeout(poll, pollIntervalRef.current);
-  }, [messages, stopPolling]);
+  }, [stopPolling]);
 
   useEffect(() => {
     if (!conversationId || !user) {

@@ -1,5 +1,49 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import type { ListingWithProfile } from '@/types/database';
+
+/**
+ * Shared enrichment helper: takes raw listing rows and batch-fetches
+ * teacher profiles + minimum prices, returning ListingWithProfile[].
+ */
+async function enrichListingsWithProfiles(
+  listingsRows: Array<{ id: string; teacher_id: string; [key: string]: any }>
+): Promise<ListingWithProfile[]> {
+  if (listingsRows.length === 0) return [];
+
+  const teacherIds = [...new Set(listingsRows.map(l => l.teacher_id).filter(Boolean))] as string[];
+  const listingIds = listingsRows.map(l => l.id);
+
+  const [profilesResult, pricesResult] = await Promise.all([
+    teacherIds.length > 0
+      ? supabase.from('profiles').select('id, username, avatar_url').in('id', teacherIds)
+      : Promise.resolve({ data: [] }),
+    listingIds.length > 0
+      ? supabase.from('listing_prices').select('listing_id, price').in('listing_id', listingIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const profilesMap: Record<string, { username: string; avatar_url: string | null }> = {};
+  (profilesResult.data || []).forEach(p => {
+    profilesMap[p.id] = { username: p.username, avatar_url: p.avatar_url };
+  });
+
+  const pricesMap: Record<string, number> = {};
+  (pricesResult.data || []).forEach(p => {
+    if (!pricesMap[p.listing_id] || p.price < pricesMap[p.listing_id]) {
+      pricesMap[p.listing_id] = p.price;
+    }
+  });
+
+  return listingsRows.map(l => ({
+    ...l,
+    profiles: {
+      username: profilesMap[l.teacher_id]?.username ?? 'Öğretmen',
+      avatar_url: profilesMap[l.teacher_id]?.avatar_url ?? null,
+    },
+    minPrice: pricesMap[l.id] ?? undefined,
+  })) as ListingWithProfile[];
+}
 
 export function useSubCategoryListings(slug: string | undefined, subslug: string | undefined) {
   return useQuery({
@@ -23,7 +67,7 @@ export function useSubCategoryListings(slug: string | undefined, subslug: string
         .eq('parent_id', mainCat.id)
         .single();
 
-      if (!subCat) return { mainCategory: mainCat, subCategory: null, listings: [] };
+      if (!subCat) return { mainCategory: mainCat, subCategory: null, listings: [] as ListingWithProfile[] };
 
       const { data: listingsRows } = await supabase
         .from('listings')
@@ -32,42 +76,7 @@ export function useSubCategoryListings(slug: string | undefined, subslug: string
         .eq('is_active', true)
         .order('created_at', { ascending: false });
 
-      if (!listingsRows || listingsRows.length === 0) {
-        return { mainCategory: mainCat, subCategory: subCat, listings: [] };
-      }
-
-      const teacherIds = [...new Set(listingsRows.map(l => l.teacher_id).filter(Boolean))] as string[];
-      const listingIds = listingsRows.map(l => l.id);
-
-      const [profilesResult, pricesResult] = await Promise.all([
-        teacherIds.length > 0
-          ? supabase.from('profiles').select('id, username, avatar_url').in('id', teacherIds)
-          : Promise.resolve({ data: [] }),
-        listingIds.length > 0
-          ? supabase.from('listing_prices').select('listing_id, price').in('listing_id', listingIds)
-          : Promise.resolve({ data: [] }),
-      ]);
-
-      const profilesMap: Record<string, { username: string; avatar_url: string | null }> = {};
-      (profilesResult.data || []).forEach(p => {
-        profilesMap[p.id] = { username: p.username, avatar_url: p.avatar_url };
-      });
-
-      const pricesMap: Record<string, number> = {};
-      (pricesResult.data || []).forEach(p => {
-        if (!pricesMap[p.listing_id] || p.price < pricesMap[p.listing_id]) {
-          pricesMap[p.listing_id] = p.price;
-        }
-      });
-
-      const listings = listingsRows.map(l => ({
-        ...l,
-        profiles: {
-          username: profilesMap[l.teacher_id]?.username ?? 'Öğretmen',
-          avatar_url: profilesMap[l.teacher_id]?.avatar_url ?? null,
-        },
-        minPrice: pricesMap[l.id] ?? undefined,
-      }));
+      const listings = await enrichListingsWithProfiles(listingsRows || []);
 
       return { mainCategory: mainCat, subCategory: subCat, listings };
     },
@@ -90,40 +99,7 @@ export function useAllListings(limit?: number) {
 
       const { data: listingsRows } = await query;
 
-      if (!listingsRows || listingsRows.length === 0) return [];
-
-      const teacherIds = [...new Set(listingsRows.map(l => l.teacher_id).filter(Boolean))] as string[];
-      const listingIds = listingsRows.map(l => l.id);
-
-      const [profilesResult, pricesResult] = await Promise.all([
-        teacherIds.length > 0
-          ? supabase.from('profiles').select('id, username, avatar_url').in('id', teacherIds)
-          : Promise.resolve({ data: [] }),
-        listingIds.length > 0
-          ? supabase.from('listing_prices').select('listing_id, price').in('listing_id', listingIds)
-          : Promise.resolve({ data: [] }),
-      ]);
-
-      const profilesMap: Record<string, { username: string; avatar_url: string | null }> = {};
-      (profilesResult.data || []).forEach(p => {
-        profilesMap[p.id] = { username: p.username, avatar_url: p.avatar_url };
-      });
-
-      const pricesMap: Record<string, number> = {};
-      (pricesResult.data || []).forEach(p => {
-        if (!pricesMap[p.listing_id] || p.price < pricesMap[p.listing_id]) {
-          pricesMap[p.listing_id] = p.price;
-        }
-      });
-
-      return listingsRows.map(l => ({
-        ...l,
-        profiles: {
-          username: profilesMap[l.teacher_id]?.username ?? 'Öğretmen',
-          avatar_url: profilesMap[l.teacher_id]?.avatar_url ?? null,
-        },
-        minPrice: pricesMap[l.id] ?? undefined,
-      }));
+      return enrichListingsWithProfiles(listingsRows || []);
     },
     staleTime: 5 * 60 * 1000,
   });

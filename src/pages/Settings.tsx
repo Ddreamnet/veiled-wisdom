@@ -30,10 +30,6 @@ const Settings = () => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  // Notification preferences (placeholder state)
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [messageNotifications, setMessageNotifications] = useState(true);
-  const [appointmentReminders, setAppointmentReminders] = useState(true);
 
   const handlePasswordChange = async () => {
     if (newPassword !== confirmPassword) {
@@ -201,7 +197,7 @@ const Settings = () => {
               <CardDescription className="text-xs">Hangi bildirimleri almak istediğinizi seçin</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between opacity-60">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
                     <Mail className="h-4 w-4 text-muted-foreground" />
@@ -211,15 +207,12 @@ const Settings = () => {
                     Önemli güncellemeler için e-posta alın
                   </p>
                 </div>
-                <Switch
-                  checked={emailNotifications}
-                  onCheckedChange={setEmailNotifications}
-                />
+                <Switch checked disabled />
               </div>
               
               <Separator />
               
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between opacity-60">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
                     <MessageSquare className="h-4 w-4 text-muted-foreground" />
@@ -229,15 +222,12 @@ const Settings = () => {
                     Yeni mesaj geldiğinde bildirim alın
                   </p>
                 </div>
-                <Switch
-                  checked={messageNotifications}
-                  onCheckedChange={setMessageNotifications}
-                />
+                <Switch checked disabled />
               </div>
               
               <Separator />
               
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between opacity-60">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
                     <Bell className="h-4 w-4 text-muted-foreground" />
@@ -247,11 +237,12 @@ const Settings = () => {
                     Yaklaşan randevularınız için hatırlatma alın
                   </p>
                 </div>
-                <Switch
-                  checked={appointmentReminders}
-                  onCheckedChange={setAppointmentReminders}
-                />
+                <Switch checked disabled />
               </div>
+
+              <p className="text-xs text-center text-muted-foreground pt-2">
+                🚧 Bildirim tercihleri yakında aktif olacaktır.
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
