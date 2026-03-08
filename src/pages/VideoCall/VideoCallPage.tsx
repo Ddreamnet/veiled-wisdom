@@ -10,13 +10,14 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { DailyProvider } from '@daily-co/daily-react';
 import Daily, { DailyCall } from '@daily-co/daily-js';
 import { motion } from 'framer-motion';
-import { Phone, PhoneOff } from 'lucide-react';
+import { Phone, PhoneOff, Settings } from 'lucide-react';
 import { useSetAtom } from 'jotai';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/useToast';
 import { devLog } from '@/lib/debug';
 import { isChatOpenAtom } from '@/atoms/chatAtoms';
+import { requestMediaAccess, isMediaBlocked, getMediaErrorMessage } from '@/lib/mediaPermissions';
 
 // Types
 import type { CallIntent, CreateDailyRoomResponse } from './types';
@@ -64,6 +65,7 @@ export default function VideoCallPage() {
   const [callObject, setCallObject] = useState<DailyCall | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [permissionDenied, setPermissionDenied] = useState(false);
 
   const callObjectRef = useRef<DailyCall | null>(null);
   const currentRoomUrlRef = useRef<string | null>(null);
@@ -177,7 +179,22 @@ export default function VideoCallPage() {
 
         const initStart = performance.now();
 
-        // OPTIMIZATION 1: Create CallObject IMMEDIATELY (before room fetch)
+        // ═══ PERMISSION GATE: Check media access BEFORE creating Daily call object ═══
+        devLog('VideoCall', 'Running media permission gate...');
+        const mediaDiag = await requestMediaAccess();
+        devLog('VideoCall', 'Media diagnostics:', mediaDiag);
+
+        if (isMediaBlocked(mediaDiag)) {
+          const errorMsg = getMediaErrorMessage(mediaDiag);
+          devLog('VideoCall', 'Media blocked — aborting call init:', errorMsg);
+          if (!isMounted) return;
+          setPermissionDenied(true);
+          setError(errorMsg);
+          setIsLoading(false);
+          return;
+        }
+
+        // OPTIMIZATION 1: Create CallObject IMMEDIATELY (after permission check)
         const call = Daily.createCallObject({ allowMultipleCallInstances: true });
         callObjectRef.current = call;
         setCallObject(call);
@@ -371,16 +388,22 @@ export default function VideoCallPage() {
 
   if (error) {
     return (
-      <div className="fixed inset-0 z-40 bg-gradient-to-br from-background via-purple-950/20 to-background flex items-center justify-center p-4 overflow-hidden">
+      <div className="fixed inset-0 z-40 bg-gradient-to-br from-background via-primary/5 to-background flex items-center justify-center p-4 overflow-hidden">
         <motion.div 
           initial={{ opacity: 0, y: 20 }} 
           animate={{ opacity: 1, y: 0 }} 
           className="text-center space-y-4 max-w-sm"
         >
           <div className="h-16 w-16 rounded-full bg-destructive/20 flex items-center justify-center mx-auto">
-            <PhoneOff className="h-8 w-8 text-destructive" />
+            {permissionDenied ? (
+              <Settings className="h-8 w-8 text-destructive" />
+            ) : (
+              <PhoneOff className="h-8 w-8 text-destructive" />
+            )}
           </div>
-          <p className="text-lg font-semibold">Görüşmeye bağlanılamadı</p>
+          <p className="text-lg font-semibold">
+            {permissionDenied ? 'İzin Gerekli' : 'Görüşmeye bağlanılamadı'}
+          </p>
           <p className="text-sm text-muted-foreground">{error}</p>
           <div className="flex items-center justify-center gap-3 pt-2">
             <Button variant="outline" onClick={() => navigate('/messages')}>Mesajlara Dön</Button>

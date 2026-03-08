@@ -1,81 +1,140 @@
+# Android & iOS Video Call + Image Picker Permission Fix
 
+## Kök Neden Analizi
 
-# Güncellenmiş Plan: Image Picker / Photo Access İzinleri
+### Android
+`AndroidManifest.xml` dosyasında `CAMERA` ve `RECORD_AUDIO` izinleri eksikti. WebView'da `getUserMedia` sessizce başarısız oluyordu.
 
-Mevcut video call izin planına ek bölüm. Aşağıdaki değişiklikler önceki plana entegre edilecek.
+### iOS
+`Info.plist` dosyasında `NSCameraUsageDescription` ve `NSMicrophoneUsageDescription` eksikti. iOS, WKWebView'dan gelen medya isteklerini izin açıklaması olmadan engelliyor — bu da Daily.co'nun "WebRTC not supported or suppressed" hatasına neden oluyordu.
 
 ---
 
-## iOS Değişiklikleri
+## Uygulanan Değişiklikler
 
-### Info.plist Key'leri
+### 1. Android Manifest İzinleri
+`android/app/src/main/AndroidManifest.xml` dosyasına eklendi:
+- `android.permission.CAMERA`
+- `android.permission.RECORD_AUDIO`
+- `android.permission.MODIFY_AUDIO_SETTINGS`
 
-| Key | Amaç | Durum |
-|---|---|---|
-| `NSCameraUsageDescription` | Kamera ile yeni fotoğraf çekme seçeneği için gerekli (video call + picker kamera seçeneği) | Eklenecek (video call planında zaten var) |
-| `NSPhotoLibraryUsageDescription` | Galeriden mevcut görsel seçme akışı için eklenir | Eklenecek |
-| `NSPhotoLibraryAddUsageDescription` | Sadece galeriye geri kayıt varsa gerekli; uygulama galeri yazma yapmıyor | **Eklenmeyecek** |
+### 2. iOS Info.plist
+`ios/App/App/Info.plist` dosyasına eklendi:
 
-### iOS Davranış Notu (Yumuşatılmış)
+| Key | Amaç |
+|---|---|
+| `NSCameraUsageDescription` | Kamera ile yeni fotoğraf çekme + görüntülü arama |
+| `NSMicrophoneUsageDescription` | Görüntülü arama sırasında ses iletimi |
+| `NSPhotoLibraryUsageDescription` | Galeriden mevcut görsel seçme (profil fotoğrafı, ilan görseli) |
 
-- Mevcut HTML `<input type="file" accept="image/*">` akışı korunacak
-- iOS'ta `NSPhotoLibraryUsageDescription` eklenmesi, özellikle native kapsayıcı (Capacitor WKWebView) içinde fotoğraf seçme akışında uyumluluk ve net izin açıklaması açısından güvenli bir adımdır
-- Ancak WKWebView fotoğraf ve dosya yüklemeyi, uygulamanın tüm fotoğraf kitaplığına tam erişimi olmadan da destekleyebilir; bu yüzden bu key'in eksikliği her durumda aynı şekilde davranmak zorunda değildir
+**Eklenmedi:** `NSPhotoLibraryAddUsageDescription` — uygulama galeriye görsel kaydetmiyor.
+
+### 3. Media Permissions Utility (`src/lib/mediaPermissions.ts`)
+- `diagnoseMedia()`: `isSecureContext`, `navigator.mediaDevices`, Permissions API kontrolü
+- `requestMediaAccess()`: `getUserMedia` ile gerçek izin isteği + diagnostic sonuç
+- `prefetchMedia()`: Sessiz ön yükleme (hover/focus)
+- `isMediaBlocked()` + `getMediaErrorMessage()`: UI için durum kontrolü
+
+### 4. VideoCallPage Permission Gate
+- `initializeCall()` içinde `Daily.createCallObject()` öncesinde `requestMediaAccess()` çağrılıyor
+- İzin reddedilmişse veya WebRTC desteklenmiyorsa Daily nesnesi oluşturulmuyor
+- Özel hata UI'ı: "İzin Gerekli" başlığı + Settings ikonu
+
+### 5. ChatWindow Prefetch
+- `prefetchMediaPermissions` artık paylaşılan `prefetchMedia()` fonksiyonunu kullanıyor
+
+---
+
+## Image Picker / Photo Access Bölümü
+
+### Mevcut Akış
+Tüm görsel yükleme (`AvatarUpload`, `ImageUpload`, `CategoryImageUpload`) standart HTML `<input type="file" accept="image/*">` kullanıyor. Capacitor Camera eklentisi projede yok.
+
+### Yaklaşım
+Mevcut `<input type="file" accept="image/*">` akışı korunuyor — en dar ve güvenli izin modeli:
+- iOS'ta sistem Photo Picker tetiklenir (limited photo access destekli)
+- Android'de sistem Intent picker tetiklenir (ACTION_GET_CONTENT)
+
+### iOS İzin Ayrımı
+- `NSCameraUsageDescription`: Kamera ile yeni fotoğraf çekme seçeneği için
+- `NSPhotoLibraryUsageDescription`: Galeriden mevcut görsel seçme akışı için
+- `NSPhotoLibraryAddUsageDescription`: Sadece galeriye geri kayıt varsa gerekli; şu an **eklenmeyecek**
+
+### iOS Davranış Notu
+- iOS'ta `NSPhotoLibraryUsageDescription` eklenmesi, native kapsayıcı içinde fotoğraf seçme akışında uyumluluk ve net izin açıklaması açısından güvenli bir adımdır
+- Ancak WKWebView fotoğraf ve dosya yüklemeyi, uygulamanın tüm fotoğraf kitaplığına tam erişimi olmadan da destekleyebilir; bu key'in eksikliği her durumda aynı şekilde davranmak zorunda değildir
 - Gerçek davranış cihaz üzerinde test edilerek doğrulanmalı
 
----
-
-## Android Değişiklikleri
-
-**Ek manifest izni eklenmeyecek.**
-
+### Android İzin Notu
 - Sistem picker / `ACTION_GET_CONTENT` / Photo Picker akışı kullanıldığı sürece `READ_MEDIA_IMAGES` veya geniş storage izni eklenmeyecek
 - Sadece ileride custom gallery tarama veya doğrudan medya kütüphanesi erişimi yapılırsa yeniden değerlendirilecek
-- Video call planındaki `CAMERA` izni, picker'daki kamera seçeneği için de yeterli
+
+### Platform Picker Davranışı
+Kamera seçeneğinin görünmesi tamamen `<input>` davranışı ve platform picker sunumuna bağlıdır; her cihazda birebir aynı UI ile görünmeyebilir.
+
+Hedef:
+- Kullanıcı galeriden mevcut görsel seçebilsin
+- Mümkünse yeni fotoğraf da çekebilsin
 
 ---
 
-## Platform Picker Davranışı Notu
+## Değişen Dosyalar
 
-Kamera seçeneğinin görünmesi tamamen mevcut `<input>` davranışı ve platform picker sunumuna bağlıdır; bu seçenek her cihazda birebir aynı UI ile görünmeyebilir.
+| Dosya | Değişiklik |
+|---|---|
+| `android/app/src/main/AndroidManifest.xml` | CAMERA, RECORD_AUDIO, MODIFY_AUDIO_SETTINGS izinleri eklendi |
+| `ios/App/App/Info.plist` | NSCameraUsageDescription, NSMicrophoneUsageDescription, NSPhotoLibraryUsageDescription eklendi |
+| `src/lib/mediaPermissions.ts` | **Yeni** — izin kontrolü + getUserMedia diagnostic utility |
+| `src/pages/VideoCall/VideoCallPage.tsx` | Permission gate + izin reddedildiğinde özel hata UI |
+| `src/components/chat/ChatWindow.tsx` | Paylaşılan prefetchMedia kullanımı |
+| `.lovable/plan.md` | Güncel plan |
 
-Hedeflenen davranış:
-- Kullanıcı galeriden mevcut görsel seçebilsin
-- Mümkünse yeni fotoğraf da çekebilsin (platform picker'ın sunduğu kamera seçeneği ile)
+---
+
+## Manuel Adımlar (Gerekli)
+
+```bash
+npx cap sync android
+npx cap sync ios
+```
+Ardından her iki platformda clean build yapılmalı.
 
 ---
 
 ## Test Matrisi
 
-### iOS
-
-| Senaryo | Akış | Doğrulanacak |
-|---|---|---|
-| Profil fotoğrafı → galeriden seç | Avatar Yükle → picker → galeri | Görsel yükleniyor mu |
-| Profil fotoğrafı → kameradan çek | Avatar Yükle → picker → kamera | Fotoğraf çekilip yükleniyor mu |
-| İlan görseli → galeriden seç | Görsel Yükle → picker → galeri | Görsel yükleniyor mu |
-| İlan görseli → kameradan çek | Görsel Yükle → picker → kamera | Fotoğraf çekilip yükleniyor mu |
-| İlk kurulum | App yeni yüklenmiş, hiç izin verilmemiş | İzin diyaloğu Türkçe açıklama ile çıkıyor mu |
-| İzin daha önce reddedilmiş | Kullanıcı izni reddetmiş durumda | Picker nasıl davranıyor, hata mesajı var mı |
-
-### Android
-
-| Senaryo | Akış | Doğrulanacak |
-|---|---|---|
-| Profil fotoğrafı → galeriden seç | Avatar Yükle → picker → galeri | Görsel yükleniyor mu |
-| Profil fotoğrafı → kameradan çek | Avatar Yükle → picker → kamera | Fotoğraf çekilip yükleniyor mu |
-| İlan görseli → galeriden seç | Görsel Yükle → picker → galeri | Görsel yükleniyor mu |
-| İlan görseli → kameradan çek | Görsel Yükle → picker → kamera | Fotoğraf çekilip yükleniyor mu |
-| Storage izni kontrolü | Tüm akışlar | Ek storage izni istenmeden akış çalışıyor mu |
-
----
-
-## Değişecek Dosyalar
-
-| Dosya | Değişiklik |
+### iOS — Video Call
+| Senaryo | Doğrulanacak |
 |---|---|
-| `ios/App/App/Info.plist` | `NSPhotoLibraryUsageDescription` ekle |
-| `.lovable/plan.md` | Bu bölümü ekle |
+| İlk kurulum → arama başlat | İzin diyaloğu Türkçe açıklama ile çıkıyor mu |
+| İzin ver → arama | Kamera + mikrofon aktif |
+| İzin reddet | "İzin Gerekli" hata ekranı |
 
-`NSCameraUsageDescription` ve Android `CAMERA` izni video call planında zaten kapsanıyor. Bu plan sadece `NSPhotoLibraryUsageDescription` ekler.
+### iOS — Image Picker
+| Senaryo | Doğrulanacak |
+|---|---|
+| Profil fotoğrafı → galeriden seç | Görsel yükleniyor mu |
+| Profil fotoğrafı → kameradan çek | Fotoğraf çekilip yükleniyor mu |
+| İlan görseli → galeriden seç | Görsel yükleniyor mu |
+| İlan görseli → kameradan çek | Fotoğraf çekilip yükleniyor mu |
+| İlk kurulum | İzin diyaloğu Türkçe açıklama ile çıkıyor mu |
+| İzin daha önce reddedilmiş | Picker nasıl davranıyor |
 
+### Android — Video Call
+| Senaryo | Doğrulanacak |
+|---|---|
+| İlk kurulum → arama başlat | Runtime permission diyaloğu çıkıyor mu |
+| İzin ver → arama | Kamera + mikrofon aktif |
+| İzin reddet | "İzin Gerekli" hata ekranı |
+
+### Android — Image Picker
+| Senaryo | Doğrulanacak |
+|---|---|
+| Profil fotoğrafı → galeriden seç | Görsel yükleniyor mu |
+| Profil fotoğrafı → kameradan çek | Fotoğraf çekilip yükleniyor mu |
+| İlan görseli → galeriden seç | Görsel yükleniyor mu |
+| İlan görseli → kameradan çek | Fotoğraf çekilip yükleniyor mu |
+| Storage izni kontrolü | Ek storage izni istenmeden akış çalışıyor mu |
+
+### Generic File Picker Notu
+İleride belge/dosya yükleme gerekirse `accept` attribute değiştirilerek sistem document picker tetiklenebilir. Geniş depolama izni hiçbir senaryoda eklenmemeli.
