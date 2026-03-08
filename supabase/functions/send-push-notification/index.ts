@@ -261,7 +261,10 @@ async function handleChatMessage(
               android: {
                 notification: {
                   tag: androidTag,
-                  channel_id: "messages",
+                  channel_id: "messages_v2",
+                  sound: "default",
+                  icon: "ic_notification",
+                  notification_count: unread,
                   click_action: "FLUTTER_NOTIFICATION_CLICK",
                 },
                 collapse_key: androidTag,
