@@ -1,4 +1,5 @@
 import { useCallback, useRef, useEffect } from 'react';
+import { prefetchMedia } from '@/lib/mediaPermissions';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
