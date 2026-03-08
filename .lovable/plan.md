@@ -1,140 +1,159 @@
-# Android & iOS Video Call + Image Picker Permission Fix
 
-## Kök Neden Analizi
 
-### Android
-`AndroidManifest.xml` dosyasında `CAMERA` ve `RECORD_AUDIO` izinleri eksikti. WebView'da `getUserMedia` sessizce başarısız oluyordu.
+# Mobil Video Call UI — Nihai Plan (v3.1)
 
-### iOS
-`Info.plist` dosyasında `NSCameraUsageDescription` ve `NSMicrophoneUsageDescription` eksikti. iOS, WKWebView'dan gelen medya isteklerini izin açıklaması olmadan engelliyor — bu da Daily.co'nun "WebRTC not supported or suppressed" hatasına neden oluyordu.
-
----
-
-## Uygulanan Değişiklikler
-
-### 1. Android Manifest İzinleri
-`android/app/src/main/AndroidManifest.xml` dosyasına eklendi:
-- `android.permission.CAMERA`
-- `android.permission.RECORD_AUDIO`
-- `android.permission.MODIFY_AUDIO_SETTINGS`
-
-### 2. iOS Info.plist
-`ios/App/App/Info.plist` dosyasına eklendi:
-
-| Key | Amaç |
-|---|---|
-| `NSCameraUsageDescription` | Kamera ile yeni fotoğraf çekme + görüntülü arama |
-| `NSMicrophoneUsageDescription` | Görüntülü arama sırasında ses iletimi |
-| `NSPhotoLibraryUsageDescription` | Galeriden mevcut görsel seçme (profil fotoğrafı, ilan görseli) |
-
-**Eklenmedi:** `NSPhotoLibraryAddUsageDescription` — uygulama galeriye görsel kaydetmiyor.
-
-### 3. Media Permissions Utility (`src/lib/mediaPermissions.ts`)
-- `diagnoseMedia()`: `isSecureContext`, `navigator.mediaDevices`, Permissions API kontrolü
-- `requestMediaAccess()`: `getUserMedia` ile gerçek izin isteği + diagnostic sonuç
-- `prefetchMedia()`: Sessiz ön yükleme (hover/focus)
-- `isMediaBlocked()` + `getMediaErrorMessage()`: UI için durum kontrolü
-
-### 4. VideoCallPage Permission Gate
-- `initializeCall()` içinde `Daily.createCallObject()` öncesinde `requestMediaAccess()` çağrılıyor
-- İzin reddedilmişse veya WebRTC desteklenmiyorsa Daily nesnesi oluşturulmuyor
-- Özel hata UI'ı: "İzin Gerekli" başlığı + Settings ikonu
-
-### 5. ChatWindow Prefetch
-- `prefetchMediaPermissions` artık paylaşılan `prefetchMedia()` fonksiyonunu kullanıyor
-
----
-
-## Image Picker / Photo Access Bölümü
-
-### Mevcut Akış
-Tüm görsel yükleme (`AvatarUpload`, `ImageUpload`, `CategoryImageUpload`) standart HTML `<input type="file" accept="image/*">` kullanıyor. Capacitor Camera eklentisi projede yok.
-
-### Yaklaşım
-Mevcut `<input type="file" accept="image/*">` akışı korunuyor — en dar ve güvenli izin modeli:
-- iOS'ta sistem Photo Picker tetiklenir (limited photo access destekli)
-- Android'de sistem Intent picker tetiklenir (ACTION_GET_CONTENT)
-
-### iOS İzin Ayrımı
-- `NSCameraUsageDescription`: Kamera ile yeni fotoğraf çekme seçeneği için
-- `NSPhotoLibraryUsageDescription`: Galeriden mevcut görsel seçme akışı için
-- `NSPhotoLibraryAddUsageDescription`: Sadece galeriye geri kayıt varsa gerekli; şu an **eklenmeyecek**
-
-### iOS Davranış Notu
-- iOS'ta `NSPhotoLibraryUsageDescription` eklenmesi, native kapsayıcı içinde fotoğraf seçme akışında uyumluluk ve net izin açıklaması açısından güvenli bir adımdır
-- Ancak WKWebView fotoğraf ve dosya yüklemeyi, uygulamanın tüm fotoğraf kitaplığına tam erişimi olmadan da destekleyebilir; bu key'in eksikliği her durumda aynı şekilde davranmak zorunda değildir
-- Gerçek davranış cihaz üzerinde test edilerek doğrulanmalı
-
-### Android İzin Notu
-- Sistem picker / `ACTION_GET_CONTENT` / Photo Picker akışı kullanıldığı sürece `READ_MEDIA_IMAGES` veya geniş storage izni eklenmeyecek
-- Sadece ileride custom gallery tarama veya doğrudan medya kütüphanesi erişimi yapılırsa yeniden değerlendirilecek
-
-### Platform Picker Davranışı
-Kamera seçeneğinin görünmesi tamamen `<input>` davranışı ve platform picker sunumuna bağlıdır; her cihazda birebir aynı UI ile görünmeyebilir.
-
-Hedef:
-- Kullanıcı galeriden mevcut görsel seçebilsin
-- Mümkünse yeni fotoğraf da çekebilsin
-
----
-
-## Değişen Dosyalar
+## Değişecek Dosyalar
 
 | Dosya | Değişiklik |
 |---|---|
-| `android/app/src/main/AndroidManifest.xml` | CAMERA, RECORD_AUDIO, MODIFY_AUDIO_SETTINGS izinleri eklendi |
-| `ios/App/App/Info.plist` | NSCameraUsageDescription, NSMicrophoneUsageDescription, NSPhotoLibraryUsageDescription eklendi |
-| `src/lib/mediaPermissions.ts` | **Yeni** — izin kontrolü + getUserMedia diagnostic utility |
-| `src/pages/VideoCall/VideoCallPage.tsx` | Permission gate + izin reddedildiğinde özel hata UI |
-| `src/components/chat/ChatWindow.tsx` | Paylaşılan prefetchMedia kullanımı |
-| `.lovable/plan.md` | Güncel plan |
+| `constants.ts` | Yeni sabitler |
+| `DraggablePiP.tsx` | Portre PiP + pointer-based tap/drag ayrımı |
+| `WaitingRoom.tsx` | Portre self-preview (CSS-based responsive) |
 
 ---
 
-## Manuel Adımlar (Gerekli)
+## 1. constants.ts — Yeni Sabitler
 
-```bash
-npx cap sync android
-npx cap sync ios
+```ts
+export const MOBILE_SELF_VIEW_ASPECT = 3 / 4;
+
+// PiP gesture
+export const PIP_DRAG_THRESHOLD = 25;       // px — ana kriter
+export const MAX_TAP_DURATION_MS = 400;     // ikincil güvenlik — uzun basma koruması
+export const POST_DRAG_IGNORE_MS = 100;     // test ile 150-200'e ayarlanabilir
+
+// PiP size limits (mobile)
+export const PIP_MIN_WIDTH = 90;
+export const PIP_MAX_WIDTH = 140;
+export const PIP_WIDTH_PERCENT = 0.28;
 ```
-Ardından her iki platformda clean build yapılmalı.
 
 ---
 
-## Test Matrisi
+## 2. DraggablePiP — Pointer-Based Gesture Sistemi
 
-### iOS — Video Call
-| Senaryo | Doğrulanacak |
+### Tap vs Drag Karar Mantığı
+
+```text
+pointerdown → activePointerId kaydet, startPos kaydet, hasDragged=false, startTime kaydet
+pointermove → sadece aynı pointerId ise işle; delta > PIP_DRAG_THRESHOLD → hasDragged=true
+pointerup   → sadece aynı pointerId ise işle
+              hasDragged===false AND duration<=MAX_TAP_DURATION_MS AND (now-lastDragEnd>POST_DRAG_IGNORE_MS)
+              → onClick?.()
+pointercancel / lostpointercapture → tüm ref'leri resetle
+```
+
+**Uzun basma senaryosu:** `duration > MAX_TAP_DURATION_MS` → switch tetiklenmez. Test planındaki "uzun basıp bırakma ama sürüklememe → switch yok" ile tutarlı.
+
+**Pointer type:** `onPointerDown/Move/Up/Cancel` tüm pointer type'ları (touch, mouse, pen) kapsar. Ayrıştırma gerekmez — aynı mantık hepsinde çalışır.
+
+**Aktif pointer ID takibi:**
+- `activePointerIdRef = useRef<number | null>(null)`
+- `onPointerDown` → `activePointerIdRef.current = event.pointerId`
+- Diğer event'lerde `event.pointerId !== activePointerIdRef.current` ise ignore
+- Çoklu dokunma / ikinci parmak state'i bozmaz
+
+### Framer Motion Drag ile Birlikte Çalışma
+
+- `onDragStart` → `isDraggingRef = true`
+- `onDragEnd` → `isDraggingRef = false`, `lastDragEndRef = Date.now()`, snap to corner
+- **`onDragEnd` içinden `onClick` çağrısı tamamen kaldırılacak** — tap tetikleme yalnızca `onPointerUp`'tan
+- `handleDragEnd`'deki mevcut `totalMovement < DRAG_THRESHOLD → onClick?.()` bloğu silinecek
+
+**Event propagation doğrulaması (doğrulama maddesi):**
+- Framer Motion `drag` ve custom pointer event'leri aynı `motion.div` üzerinde birlikte çalışabilir
+- PiP içindeki child elemanlar pointer event'i yutmamalı — gerekirse children wrapper'a `pointer-events: none` eklenecek
+- Pratikte doğrulanacak
+
+### PiP Portre Boyut
+
+```ts
+const rawWidth = Math.round(containerWidth * PIP_WIDTH_PERCENT);
+const width = Math.max(PIP_MIN_WIDTH, Math.min(PIP_MAX_WIDTH, rawWidth));
+const height = Math.round(width / MOBILE_SELF_VIEW_ASPECT); // 3/4 → height = width * 4/3
+```
+
+390px → 109×145px, 320px → 90×120px, 430px → 120×160px
+
+### Corner Snap + Safe Area (doğrulama maddesi)
+
+- Üst köşelerde notch/status bar çakışması → `SAFE_PADDING.top` yeterliliği doğrulanacak
+- Alt köşelerde call controls çakışması → `bottomOffset` prop kontrolü doğrulanacak
+- Landscape orientation → resize listener mevcut, bounds yeniden hesaplanıyor — doğrulanacak
+
+### Badge/Overlay Uyumu
+
+Portre PiP daha dar (~90-140px). "Siz" badge `text-[10px]`, mic-off `h-2.5 w-2.5`, kamera-off avatar `h-10 w-10` — pratikte doğrulanacak.
+
+---
+
+## 3. WaitingRoom — Portre Preview (CSS-Based Responsive)
+
+**Değişiklik:** `useIsMobile` hook kullanılmayacak. Oran tamamen CSS ile yönetilecek.
+
+`MOBILE_SELF_VIEW_ASPECT` sabiti `3 / 4 = 0.75`. Bunu Tailwind responsive class'ları ile uygulayacağız:
+
+```tsx
+// aspect-video kaldırılacak, yerine:
+className="relative aspect-[3/4] md:aspect-video max-w-[280px] md:max-w-lg mx-auto bg-card rounded-2xl ..."
+```
+
+**Tek kaynak garantisi:** `aspect-[3/4]` değeri `MOBILE_SELF_VIEW_ASPECT` sabitinden türetilmiş bir Tailwind class'ıdır. Bu oran değişirse hem bu class hem DraggablePiP'teki sabit birlikte güncellenmelidir — bu trade-off kabul edilebilir çünkü:
+- Oran nadiren değişecek bir tasarım kararı
+- CSS-first yaklaşım hydration shift riskini tamamen ortadan kaldırıyor
+- JS sabiti yalnızca DraggablePiP'te (zaten JS ile boyut hesaplayan) kullanılacak
+
+**Kamera kapalı placeholder:** `absolute inset-0 flex items-center justify-center` — portre kutuda da düzgün ortalanır, ek değişiklik gerekmez.
+
+---
+
+## 4. Switch Davranışı — Açık Kurallar
+
+| Durum | Tap davranışı |
 |---|---|
-| İlk kurulum → arama başlat | İzin diyaloğu Türkçe açıklama ile çıkıyor mu |
-| İzin ver → arama | Kamera + mikrofon aktif |
-| İzin reddet | "İzin Gerekli" hata ekranı |
+| Remote participant var, videosu açık | Switch çalışır |
+| Remote participant var, videosu kapalı | **Switch çalışır** — remote tile placeholder (avatar) gösterir |
+| Remote yok (waiting room) | PiP gösterilmiyor, switch yok |
 
-### iOS — Image Picker
-| Senaryo | Doğrulanacak |
+**State:** `isVideoSwapped` tek `useState(false)` boolean — yalnızca `handlePiPClick` toggle eder, drag ile yarışan başka logic yok.
+
+---
+
+## 5. POST_DRAG_IGNORE_MS Doğrulama
+
+- Başlangıç değeri 100ms
+- Test sırasında drag sonrası yanlışlıkla switch tetiklenirse 150-200ms'e çıkarılacak
+- Farklı cihazlarda doğrulanacak
+
+---
+
+## 6. Test Planı
+
+| Senaryo | Beklenen |
 |---|---|
-| Profil fotoğrafı → galeriden seç | Görsel yükleniyor mu |
-| Profil fotoğrafı → kameradan çek | Fotoğraf çekilip yükleniyor mu |
-| İlan görseli → galeriden seç | Görsel yükleniyor mu |
-| İlan görseli → kameradan çek | Fotoğraf çekilip yükleniyor mu |
-| İlk kurulum | İzin diyaloğu Türkçe açıklama ile çıkıyor mu |
-| İzin daha önce reddedilmiş | Picker nasıl davranıyor |
+| Tek kısa tap (< 25px, < 400ms) | Switch |
+| Hafif parmak kayması (< 25px) | Switch |
+| Uzun basıp bırakma, sürüklememe (> 400ms) | Switch yok |
+| Gerçek sürükleme (> 25px) | Sadece taşıma |
+| Sürükle bırak sonrası hemen tekrar tap | İlk tap ignore (POST_DRAG_IGNORE), ikincisi çalışır |
+| Çift dokunma (double tap) | İki switch tetiklenir (geri döner) — kabul edilebilir |
+| Çok hızlı art arda iki tap | İki switch — state tutarlı |
+| Multi-touch / ikinci parmak | İkinci parmak ignore (activePointerId kontrolü) |
+| Drag sonrası hemen tap | POST_DRAG_IGNORE koruması |
+| Orientation değişimi | Bounds yeniden hesaplanır, PiP clamp edilir |
+| Remote video kapalıyken switch | Çalışır, placeholder görünür |
+| Masaüstü | Değişiklik yok |
+| Bekleme ekranı kamera açık | Portre preview |
+| Bekleme ekranı kamera kapalı | Placeholder ortalı |
+| Event propagation — badge/overlay tap | Switch tetiklenir |
+| POST_DRAG_IGNORE_MS yeterliliği | Farklı cihazlarda test edilecek |
+| WaitingRoom ilk render | CSS-based — layout shift yok |
 
-### Android — Video Call
-| Senaryo | Doğrulanacak |
-|---|---|
-| İlk kurulum → arama başlat | Runtime permission diyaloğu çıkıyor mu |
-| İzin ver → arama | Kamera + mikrofon aktif |
-| İzin reddet | "İzin Gerekli" hata ekranı |
+---
 
-### Android — Image Picker
-| Senaryo | Doğrulanacak |
-|---|---|
-| Profil fotoğrafı → galeriden seç | Görsel yükleniyor mu |
-| Profil fotoğrafı → kameradan çek | Fotoğraf çekilip yükleniyor mu |
-| İlan görseli → galeriden seç | Görsel yükleniyor mu |
-| İlan görseli → kameradan çek | Fotoğraf çekilip yükleniyor mu |
-| Storage izni kontrolü | Ek storage izni istenmeden akış çalışıyor mu |
+## 7. Uygulama Sırası
 
-### Generic File Picker Notu
-İleride belge/dosya yükleme gerekirse `accept` attribute değiştirilerek sistem document picker tetiklenebilir. Geniş depolama izni hiçbir senaryoda eklenmemeli.
+1. `constants.ts` → tüm yeni sabitler
+2. `DraggablePiP.tsx` → portre boyut + pointer-based gesture + post-drag guard
+3. `WaitingRoom.tsx` → CSS responsive portre preview (`aspect-[3/4] md:aspect-video`)
+
