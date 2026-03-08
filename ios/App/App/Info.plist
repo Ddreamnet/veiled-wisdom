@@ -47,5 +47,11 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Görüntülü arama yapabilmek için kamera erişimi gereklidir.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Görüntülü arama sırasında ses iletimi için mikrofon erişimi gereklidir.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Profil fotoğrafı ve ilan görseli seçebilmek için fotoğraf kitaplığı erişimi gereklidir.</string>
 </dict>
 </plist>
