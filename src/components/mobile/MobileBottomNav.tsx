@@ -1,4 +1,5 @@
 import { memo, useState, useRef, useEffect, useLayoutEffect, useMemo } from "react";
+import { BOTTOM_NAV_HEIGHT } from "@/lib/constants";
 import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAtomValue } from "jotai";

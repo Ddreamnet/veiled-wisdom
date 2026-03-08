@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { bottomNavPaddingStyle } from "@/lib/constants";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
