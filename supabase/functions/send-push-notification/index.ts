@@ -228,9 +228,12 @@ async function handleChatMessage(
 
     if (!devices?.length) continue;
 
-    const collapseKey = `chat_${conversationId}_${recipientId}`;
+    const androidTag = `chat_${conversationId}`;
+    const iosCollapseId = `c_${shortId(conversationId)}`;
 
     for (const device of devices) {
+      const isIos = device.platform === "ios";
+
       const message: FcmMessage = {
         token: device.fcm_token,
         notification: { title: senderName, body },
@@ -239,26 +242,31 @@ async function handleChatMessage(
           conversationId,
           senderId,
         },
-        android: {
-          notification: {
-            tag: collapseKey,
-            channel_id: "messages",
-            click_action: "FLUTTER_NOTIFICATION_CLICK",
-          },
-          collapse_key: collapseKey,
-        },
-        apns: {
-          headers: {
-            "apns-collapse-id": collapseKey,
-          },
-          payload: {
-            aps: {
-              "thread-id": `chat_${conversationId}`,
-              badge: unread,
-              sound: "default",
-            },
-          },
-        },
+        ...(isIos
+          ? {
+              apns: {
+                headers: {
+                  "apns-collapse-id": iosCollapseId,
+                },
+                payload: {
+                  aps: {
+                    "thread-id": iosCollapseId,
+                    badge: unread,
+                    sound: "default",
+                  },
+                },
+              },
+            }
+          : {
+              android: {
+                notification: {
+                  tag: androidTag,
+                  channel_id: "messages",
+                  click_action: "FLUTTER_NOTIFICATION_CLICK",
+                },
+                collapse_key: androidTag,
+              },
+            }),
       };
 
       const result = await sendFcmMessage(sa, message);
