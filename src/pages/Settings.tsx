@@ -30,10 +30,6 @@ const Settings = () => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  // Notification preferences (placeholder state)
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [messageNotifications, setMessageNotifications] = useState(true);
-  const [appointmentReminders, setAppointmentReminders] = useState(true);
 
   const handlePasswordChange = async () => {
     if (newPassword !== confirmPassword) {
