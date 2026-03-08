@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { bottomNavPaddingStyle } from "@/lib/constants";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,7 +53,7 @@ export function MobileProfile({
   const [showMobileEdit, setShowMobileEdit] = useState(false);
 
   return (
-    <div className="container py-6 px-4 pb-24">
+    <div className="container py-6 px-4" style={{ paddingBottom: bottomNavPaddingStyle }}>
       <div className="max-w-lg mx-auto space-y-6">
         {/* Profile Header */}
         <div className="relative flex flex-col items-center text-center space-y-4">
