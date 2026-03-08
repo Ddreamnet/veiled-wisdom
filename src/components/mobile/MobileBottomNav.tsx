@@ -252,10 +252,12 @@ const MobileBottomNavComponent = () => {
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 md:hidden"
-      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
       {/* Full-width bottom bar - docked to bottom */}
-      <div className="bg-background-elevated/95 backdrop-blur-xl border-t border-border/50 shadow-[0_-4px_30px_rgba(0,0,0,0.3)]">
+      <div
+        className="bg-background-elevated/95 backdrop-blur-xl border-t border-border/50 shadow-[0_-4px_30px_rgba(0,0,0,0.3)]"
+        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+      >
         <div
           ref={containerRef}
           className="relative flex items-center justify-around px-3"

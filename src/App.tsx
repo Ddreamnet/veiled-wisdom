@@ -57,10 +57,8 @@ function renderRoute(route: RouteConfig, user: any) {
 
 import { NotFound } from './routes/routeConfig';
 
-// Conditional MobileHeader — hidden on /messages
+// MobileHeader rendered on all pages (safe area managed centrally)
 function MobileHeaderWrapper() {
-  const location = useLocation();
-  if (location.pathname.startsWith('/messages')) return null;
   return <MobileHeader />;
 }
 
