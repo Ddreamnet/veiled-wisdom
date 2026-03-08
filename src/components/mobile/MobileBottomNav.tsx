@@ -297,7 +297,7 @@ const MobileBottomNavComponent = () => {
                 onMouseUp={() => setPressedItem(null)}
                 onMouseLeave={() => setPressedItem(null)}
                 className={cn(
-                  "relative z-10 flex items-center justify-center transition-[padding,gap,width,opacity,transform] duration-200 ease-out overflow-hidden",
+                  "relative z-10 flex items-center justify-center transition-[padding,gap,width,opacity,transform] duration-200 ease-out",
                   "min-h-[44px] rounded-full",
                   active 
                     ? "flex-row px-3 py-2 gap-1.5 min-w-[100px] max-w-[120px]" 
