@@ -1,4 +1,5 @@
 import { memo, ReactNode } from "react";
+import { bottomNavPaddingStyle } from "@/lib/constants";
 import { MobileHeader } from "./MobileHeader";
 import { MobileBottomNav } from "./MobileBottomNav";
 
