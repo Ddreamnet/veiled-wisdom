@@ -1,137 +1,107 @@
 
+Hedefinize göre bu sefer “kesin çözüm” için yalnızca semptom değil, veri bütünlüğünü kökten kilitleyen bir plan uygulayacağım. Mevcut bulgulara göre ana problem tek bir katmanda değil; **payment_requests ↔ appointments senkronu kırılmış**.
 
-# Revize Edilmiş Mobil UI/UX Çözüm Planı
+1) Kesin teşhis (eldeki veriye göre)
+- Admin’de payment_request’ler `rejected` olurken, appointments tarafında hâlâ `pending` kalabilen kayıtlar var (senin verdiğin sayı: toplam 8, pending 6, cancelled 2).
+- `src/pages/admin/Payments.tsx` içinde reject/approve sırasında appointments update çağrısında:
+  - result/error kontrolü yapılmıyor,
+  - `.select()` yok, etkilenen satır sayısı doğrulanmıyor.
+- Network’te appointments PATCH `204` dönüyor; bu “başarılı güncellendi” garantisi değil (0 row update de olabilir).
+- Bu yüzden payment_requests ve appointments durumları ayrışıyor; SQL’de pending şişmesi buradan geliyor.
+- Danışan `/appointments` ekranı sadece `appointments` tablosunu okuduğu için, payment_request doğru olsa bile appointments tarafı bozuksa görünürlük bozuluyor.
 
----
+2) Uygulanacak çözüm mimarisi (kalıcı)
+A) DB tarafını tek kaynak gerçeklik haline getir
+- `payment_requests.status` değiştiğinde bağlı `appointments.status` otomatik güncellensin (DB trigger).
+- Uygulama koduna güvenmek yerine DB’de zorunlu senkron.
 
-## 1. Mesaj Rozeti Kesiliyor
+B) Veri onarımı (one-time backfill)
+- Mevcut bozuk kayıtları toplu senkronla:
+  - `payment_requests.rejected` -> `appointments.cancelled`
+  - `payment_requests.confirmed` -> `appointments.confirmed`
+  - `payment_requests.pending` -> `appointments.pending`
+- Bu adım senin “şu an pending 6 neden var?” sorununu temizler.
 
-### Doğrulama
-Badge pasif durumda `absolute -top-0.5 -right-0.5` ile konumlanıyor (satır 335). Parent zinciri:
-- **Link** (satır 300): `overflow-hidden` — **kesilmenin doğrudan nedeni**
-- **div.relative** (satır 309): icon wrapper, `w-5 h-5` — badge bu div'in dışına taşıyor ama Link kesiyor
-- **containerRef div** (satır 261): `overflow` yok, sorun değil
-- **nav** (satır 253): `overflow` yok, sorun değil
+C) Uygulama katmanını sessiz hataya kapat
+- Admin reject/approve akışında appointments update sonucu zorunlu kontrol:
+  - error varsa throw,
+  - updated row count 0 ise uyarı + log + işlemi başarısız say.
+- Böylece bir daha “görünürde reddedildi ama appointment pending kaldı” olmayacak.
 
-Tek kök neden: Link üzerindeki `overflow-hidden` (satır 300).
+3) Uygulanacak dosya/SQL değişiklik planı
+- `src/pages/admin/Payments.tsx`
+  - `handleReject` ve `handleApprove` içinde appointments update sonucunu `select()` ile doğrulama.
+  - başarısız senkron durumunda toast + abort.
+- (Yeni migration SQL)
+  - status sync trigger function (`payment_requests` -> `appointments`)
+  - one-time data reconciliation script
 
-### Çözüm
-1. Link'ten `overflow-hidden` kaldır
-2. Icon wrapper div'i (satır 309) `relative` olarak koru (zaten öyle), badge'i bu div'in child'ı olarak konumlandır
-3. Badge konumlandırmasını icon wrapper'a taşı: `absolute -top-2 -left-3` (icon'un sol üst köşesi)
-4. Label text taşma koruması zaten mevcut (`text-ellipsis` + `max-w-[60px]` + span'deki `overflow-hidden`)
+4) Önce çalıştırılacak kesin doğrulama SQL (teşhis)
+```sql
+-- A) Senkron bozukluk özeti
+select
+  pr.status as pr_status,
+  a.status  as appt_status,
+  count(*)  as cnt
+from public.payment_requests pr
+left join public.appointments a
+  on a.payment_request_id = pr.id
+where pr.item_type = 'appointment'
+group by pr.status, a.status
+order by pr.status, a.status;
 
-### Etkilenen dosya
-`src/components/mobile/MobileBottomNav.tsx` — satır 300, 309, 330-339
+-- B) payment_request rejected ama appointment cancelled olmayanlar
+select
+  pr.id as pr_id,
+  pr.reference_code,
+  pr.status as pr_status,
+  a.id as appt_id,
+  a.status as appt_status
+from public.payment_requests pr
+left join public.appointments a on a.payment_request_id = pr.id
+where pr.item_type = 'appointment'
+  and pr.status = 'rejected'
+  and (a.id is null or a.status <> 'cancelled')
+order by pr.created_at desc;
+```
 
-### Regresyon riski
-Label overflow: span'deki `overflow-hidden text-ellipsis` yeterli koruma sağlıyor. Link'ten kaldırılması soruna yol açmaz.
+5) One-time düzeltme SQL (pending 6’yı temizleyen adım)
+```sql
+begin;
 
----
+update public.appointments a
+set status = case
+  when pr.status = 'rejected' then 'cancelled'
+  when pr.status = 'confirmed' then 'confirmed'
+  else 'pending'
+end
+from public.payment_requests pr
+where a.payment_request_id = pr.id
+  and pr.item_type = 'appointment'
+  and a.status is distinct from case
+    when pr.status = 'rejected' then 'cancelled'
+    when pr.status = 'confirmed' then 'confirmed'
+    else 'pending'
+  end;
 
-## 2. Swipe-Back Navigasyon
+commit;
+```
 
-### iOS — Analiz ve Karar
+6) Kalıcı DB trigger planı (tekrar bozulmaması için)
+- `payment_requests` üzerinde `AFTER UPDATE OF status` trigger:
+  - sadece `item_type='appointment'` için çalışacak,
+  - bağlı appointment status’u map’leyecek (`rejected -> cancelled`, `confirmed -> confirmed`, `pending -> pending`).
 
-`allowsBackForwardNavigationGestures: true` WKWebView'ın **browser history** tabanlı native gesture'ını aktifleştirir. Bu, SPA'daki `react-router-dom` history stack'i ile birebir eşleşir çünkü Capacitor WebView'da her `navigate()` çağrısı browser history'ye de push eder.
+7) Danışan görünürlük sorunu için kesinleştirme adımı
+- DB senkronu düzeltildikten sonra `/appointments` ekranı yeniden test:
+  - yeni ödeme oluştur,
+  - admin onaylamadan önce danışanda “Bekleyen”de görünmeli,
+  - admin reddedince status “Reddedildi” olarak kalmalı (ve artık yanlış pending sayısı olmamalı).
+- Eğer hâlâ görünmüyorsa ikinci katman patch:
+  - `useAppointments` içinde customer branch’e debug audit (query result + role + userId),
+  - role branch sapması varsa (teacher/customer) bunu ayrı net patch ile sabitleyeceğim.
 
-**Ancak riskler var:**
-- Tab değiştirme (ör. Keşfet → Mesajlar → swipe-back) kullanıcıyı Keşfet'e geri götürür — bu beklenebilir ama tab-based app'lerde kafa karıştırıcı olabilir
-- Root tab'da (ör. Ana Sayfa) swipe-back yapınca tamamen boş sayfa veya "about:blank" gösterilebilir (history başlangıcı)
-- Programmatik `navigate(path, { replace: true })` kullanan yerlerde gesture beklenmedik yere götürebilir
-
-**Karar:** iOS için de Android ile aynı kontrollü JS hook'unu kullan. Bu sayede:
-- Root tab sayfalarında devre dışı
-- Sol kenardan (0-30px) başlayan swipe koşulu
-- Yatay scroll alanları hariç tutulur
-- Her iki platformda tutarlı davranış
-
-### Android + iOS — Birleşik Çözüm
-
-Yeni hook: `src/hooks/useSwipeBack.ts`
-- `touchstart`: `clientX < 30` ise swipe izlemeye başla
-- `touchmove`: delta-X > 80px ve delta-Y < 50px ise swipe olarak işaretle
-- `touchend`: swipe tamamlandıysa `navigate(-1)`, yoksa iptal
-- **Devre dışı koşullar:**
-  - Root tab paths: `/`, `/explore`, `/messages`, `/appointments`, `/profile`, `/admin/*`
-  - Touch target veya ancestor'ı `overflow-x: auto/scroll` veya `scrollWidth > clientWidth` ise
-  - Chat overlay açıkken (`isChatOpenAtom`)
-
-Entegrasyon: `src/App.tsx` — mobil shell içinde `useSwipeBack()` çağır.
-
-`capacitor.config.ts`'e `allowsBackForwardNavigationGestures` **eklenmeyecek** — kontrollü JS çözümü tercih edildi.
-
-### Regresyon riski
-Carousel/slider çakışması: Sol kenar koşulu (30px) ve scrollable ancestor kontrolü ile minimize edilir. Ek olarak, swipe sırasında visual feedback (opsiyonel, v2'de) yoksa kullanıcı ne olduğunu anlayamayabilir — şimdilik `navigate(-1)` yeterli.
-
----
-
-## 3. iOS Notch / Safe Area
-
-### Doğrulama
-- `index.html` satır 5: `viewport-fit=cover` **yok** → `env(safe-area-inset-top)` her zaman `0` döner
-- `MobileHeader` satır 106: `paddingTop: env(safe-area-inset-top)` kullanıyor ama değer 0
-- `App.tsx` satır 99: Mobil shell `h-[100dvh]` div — safe area top padding yok
-
-### Safe area hangi seviyede uygulanmalı?
-**Header container'da** (MobileHeader). Nedeni:
-- Shell div (`App.tsx` satır 99) `h-[100dvh]` flex container — burada padding eklemek tüm viewport yükseklik hesabını bozar
-- Header zaten `sticky top-0` ile sabitlenmiş ve `paddingTop: env(safe-area-inset-top)` kodu mevcut
-- `viewport-fit=cover` eklendikten sonra bu padding değeri otomatik olarak doğru notch yüksekliğini alacak
-
-### Çifte boşluk riski
-Header'da `h-14` sabit yükseklik var. `paddingTop` eklenince içerik sıkışır çünkü 56px içinde hem padding hem content sığmaya çalışır. Çözüm: `h-14` → `min-h-14` yapılacak, header yüksekliği safe area kadar artacak.
-
-### Değişiklikler
-1. `index.html` satır 5: `viewport-fit=cover` ekle
-2. `MobileHeader.tsx` satır 103: `h-14` → `min-h-14`
-3. `App.tsx`: değişiklik yok (shell seviyesinde padding eklenmeyecek)
-
-### Video call header (satır 45-46)
-Zaten `paddingTop: env(safe-area-inset-top)` kullanıyor ve sabit yükseklik yok — otomatik çalışacak.
-
-### Regresyon riski
-- Android'de `env(safe-area-inset-top)` genellikle 0 → değişiklik yok
-- Bottom nav zaten `env(safe-area-inset-bottom)` kullanıyor (satır 255) → `viewport-fit=cover` ile artık gerçek değeri alacak, bu pozitif etki
-- Web'de safe area 0 → değişiklik yok
-
----
-
-## 4. iOS Chat Input Zoom
-
-### Doğrulama
-`MessageInput.tsx` satır 243: `text-sm` = 14px. iOS WKWebView 16px'ten küçük input/textarea'lara focus olunduğunda otomatik zoom yapar.
-
-### Diğer focus alanları kontrolü
-- MessageInput textarea: **`text-sm` (14px) — SORUNLU**
-- RecordedPreview: input yok, sadece butonlar — sorun yok
-- ChatWindow: input yok — sorun yok
-- ConversationList: search input varsa kontrol gerekir
-
-### Keyboard layout kayması
-`MessageInput` zaten `paddingBottom: max(12px, env(safe-area-inset-bottom))` kullanıyor (satır 225). Mobile chat overlay `fixed inset-0` (Messages.tsx satır 123). iOS keyboard açılınca `100dvh` zaten küçülür — bu yapı keyboard'a doğru adapte olur. Ayrı bir layout kayması sorunu yok; zoom'u engellemek yeterli.
-
-### Çözüm
-`MessageInput.tsx` satır 243: `text-sm` → `text-base` (16px)
-
-### Regresyon riski
-Metin biraz daha büyük görünecek, ama chat input için 16px standart ve daha okunabilir. Placeholder da aynı boyutta olacak.
-
----
-
-## Uygulama Sırası
-
-1. **iOS Notch** — `index.html` + `MobileHeader.tsx` (temel, diğer safe area'ların çalışmasını sağlar)
-2. **Chat Zoom** — `MessageInput.tsx` (tek satır)
-3. **Badge** — `MobileBottomNav.tsx` (overflow + badge konumlandırma)
-4. **Swipe-back** — yeni `useSwipeBack.ts` + `App.tsx` entegrasyonu
-
-### Değişecek dosyalar
-- `index.html` — viewport-fit=cover
-- `src/components/mobile/MobileHeader.tsx` — min-h-14
-- `src/components/chat/MessageInput.tsx` — text-base
-- `src/components/mobile/MobileBottomNav.tsx` — overflow fix + badge repositioning
-- `capacitor.config.ts` — değişiklik yok
-- Yeni: `src/hooks/useSwipeBack.ts`
-- `src/App.tsx` — useSwipeBack hook entegrasyonu
-
+8) Beklenen nihai sonuç
+- SQL tarafında pending_count, admin işlemleriyle tutarlı olacak (hepsi reddedildiyse pending 0).
+- Danışan bekleyen sekmesi, admin onayı bekleyen yeni randevuları deterministik şekilde gösterecek.
+- Admin reddettiğinde appointment status’unun pending’de kalması kalıcı olarak bitecek.

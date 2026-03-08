@@ -297,7 +297,7 @@ const MobileBottomNavComponent = () => {
                 onMouseUp={() => setPressedItem(null)}
                 onMouseLeave={() => setPressedItem(null)}
                 className={cn(
-                  "relative z-10 flex items-center justify-center transition-[padding,gap,width,opacity,transform] duration-200 ease-out overflow-hidden",
+                  "relative z-10 flex items-center justify-center transition-[padding,gap,width,opacity,transform] duration-200 ease-out",
                   "min-h-[44px] rounded-full",
                   active 
                     ? "flex-row px-3 py-2 gap-1.5 min-w-[100px] max-w-[120px]" 
@@ -306,13 +306,22 @@ const MobileBottomNavComponent = () => {
                 )}
               >
                 {/* Icon - sabit boyut */}
-                <div className="relative flex-shrink-0 flex items-center justify-center w-5 h-5">
+                <div className="relative flex-shrink-0 flex items-center justify-center w-5 h-5 overflow-visible">
                   <Icon
                     className={cn(
                       "h-5 w-5 transition-colors duration-200",
                       active ? "text-primary" : "text-silver-muted",
                     )}
                   />
+                  {/* Badge - icon wrapper içinde, pasif durumda */}
+                  {!active && typeof item.badge === "number" && item.badge > 0 && (
+                    <Badge
+                      variant="destructive"
+                      className="absolute -top-2 -right-3 h-4 min-w-4 flex items-center justify-center p-0 px-1 text-[10px]"
+                    >
+                      {item.badge > 99 ? "99+" : item.badge}
+                    </Badge>
+                  )}
                 </div>
                 {/* Label - overflow korumalı */}
                 <span
@@ -326,14 +335,11 @@ const MobileBottomNavComponent = () => {
                   {item.label}
                 </span>
 
-                {/* Badge for unread messages */}
-                {typeof item.badge === "number" && item.badge > 0 && (
+                {/* Badge - aktif durumda label yanında */}
+                {active && typeof item.badge === "number" && item.badge > 0 && (
                   <Badge
                     variant="destructive"
-                    className={cn(
-                      "h-4 min-w-4 flex items-center justify-center p-0 px-1 text-[10px]",
-                      active ? "ml-1" : "absolute -top-0.5 -right-0.5",
-                    )}
+                    className="ml-1 h-4 min-w-4 flex items-center justify-center p-0 px-1 text-[10px]"
                   >
                     {item.badge > 99 ? "99+" : item.badge}
                   </Badge>
