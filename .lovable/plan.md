@@ -1,97 +1,107 @@
 
+Hedefinize göre bu sefer “kesin çözüm” için yalnızca semptom değil, veri bütünlüğünü kökten kilitleyen bir plan uygulayacağım. Mevcut bulgulara göre ana problem tek bir katmanda değil; **payment_requests ↔ appointments senkronu kırılmış**.
 
-# Revize Plan: Messages Header + Bottom Nav Fix
+1) Kesin teşhis (eldeki veriye göre)
+- Admin’de payment_request’ler `rejected` olurken, appointments tarafında hâlâ `pending` kalabilen kayıtlar var (senin verdiğin sayı: toplam 8, pending 6, cancelled 2).
+- `src/pages/admin/Payments.tsx` içinde reject/approve sırasında appointments update çağrısında:
+  - result/error kontrolü yapılmıyor,
+  - `.select()` yok, etkilenen satır sayısı doğrulanmıyor.
+- Network’te appointments PATCH `204` dönüyor; bu “başarılı güncellendi” garantisi değil (0 row update de olabilir).
+- Bu yüzden payment_requests ve appointments durumları ayrışıyor; SQL’de pending şişmesi buradan geliyor.
+- Danışan `/appointments` ekranı sadece `appointments` tablosunu okuduğu için, payment_request doğru olsa bile appointments tarafı bozuksa görünürlük bozuluyor.
 
----
+2) Uygulanacak çözüm mimarisi (kalıcı)
+A) DB tarafını tek kaynak gerçeklik haline getir
+- `payment_requests.status` değiştiğinde bağlı `appointments.status` otomatik güncellensin (DB trigger).
+- Uygulama koduna güvenmek yerine DB’de zorunlu senkron.
 
-## Mevcut Sorun Yapısı
+B) Veri onarımı (one-time backfill)
+- Mevcut bozuk kayıtları toplu senkronla:
+  - `payment_requests.rejected` -> `appointments.cancelled`
+  - `payment_requests.confirmed` -> `appointments.confirmed`
+  - `payment_requests.pending` -> `appointments.pending`
+- Bu adım senin “şu an pending 6 neden var?” sorununu temizler.
 
-**Messages sayfası neden global header'dan ayrılmış?**
+C) Uygulama katmanını sessiz hataya kapat
+- Admin reject/approve akışında appointments update sonucu zorunlu kontrol:
+  - error varsa throw,
+  - updated row count 0 ise uyarı + log + işlemi başarısız say.
+- Böylece bir daha “görünürde reddedildi ama appointment pending kaldı” olmayacak.
 
-`MobileHeaderWrapper` (App.tsx satır 61-64) `/messages` path'inde `MobileHeader`'ı tamamen gizliyor. Messages sayfası kendi local header'ını render ediyor (satır 138-142) çünkü:
-1. "Mesajlar" başlığı + "3 konuşma" alt yazısı göstermek istiyor
-2. Mevcut `MobileHeader` sadece `title` prop'u destekliyor, subtitle/alt içerik desteği yok
+3) Uygulanacak dosya/SQL değişiklik planı
+- `src/pages/admin/Payments.tsx`
+  - `handleReject` ve `handleApprove` içinde appointments update sonucunu `select()` ile doğrulama.
+  - başarısız senkron durumunda toast + abort.
+- (Yeni migration SQL)
+  - status sync trigger function (`payment_requests` -> `appointments`)
+  - one-time data reconciliation script
 
-Bu ayrışma, safe area zincirini kırıyor çünkü `paddingTop: env(safe-area-inset-top)` sadece `MobileHeader`'da var.
+4) Önce çalıştırılacak kesin doğrulama SQL (teşhis)
+```sql
+-- A) Senkron bozukluk özeti
+select
+  pr.status as pr_status,
+  a.status  as appt_status,
+  count(*)  as cnt
+from public.payment_requests pr
+left join public.appointments a
+  on a.payment_request_id = pr.id
+where pr.item_type = 'appointment'
+group by pr.status, a.status
+order by pr.status, a.status;
 
----
-
-## Tercih Edilen Çözüm: Messages'ı Global Sisteme Geri Al
-
-### 1. MobileHeader'a subtitle desteği ekle
-
-`MobileHeaderProps`'a `subtitle?: string` ekle. Header'da `displayTitle` gösterildiğinde altına küçük bir subtitle satırı render et.
-
+-- B) payment_request rejected ama appointment cancelled olmayanlar
+select
+  pr.id as pr_id,
+  pr.reference_code,
+  pr.status as pr_status,
+  a.id as appt_id,
+  a.status as appt_status
+from public.payment_requests pr
+left join public.appointments a on a.payment_request_id = pr.id
+where pr.item_type = 'appointment'
+  and pr.status = 'rejected'
+  and (a.id is null or a.status <> 'cancelled')
+order by pr.created_at desc;
 ```
-interface MobileHeaderProps {
-  title?: string;
-  subtitle?: string;   // YENİ
-  showBackButton?: boolean;
-  className?: string;
-}
+
+5) One-time düzeltme SQL (pending 6’yı temizleyen adım)
+```sql
+begin;
+
+update public.appointments a
+set status = case
+  when pr.status = 'rejected' then 'cancelled'
+  when pr.status = 'confirmed' then 'confirmed'
+  else 'pending'
+end
+from public.payment_requests pr
+where a.payment_request_id = pr.id
+  and pr.item_type = 'appointment'
+  and a.status is distinct from case
+    when pr.status = 'rejected' then 'cancelled'
+    when pr.status = 'confirmed' then 'confirmed'
+    else 'pending'
+  end;
+
+commit;
 ```
 
-Title + subtitle birlikte center'da gösterilecek. Subtitle yoksa mevcut davranış korunur.
+6) Kalıcı DB trigger planı (tekrar bozulmaması için)
+- `payment_requests` üzerinde `AFTER UPDATE OF status` trigger:
+  - sadece `item_type='appointment'` için çalışacak,
+  - bağlı appointment status’u map’leyecek (`rejected -> cancelled`, `confirmed -> confirmed`, `pending -> pending`).
 
-### 2. MobileHeaderWrapper'ı güncelle
+7) Danışan görünürlük sorunu için kesinleştirme adımı
+- DB senkronu düzeltildikten sonra `/appointments` ekranı yeniden test:
+  - yeni ödeme oluştur,
+  - admin onaylamadan önce danışanda “Bekleyen”de görünmeli,
+  - admin reddedince status “Reddedildi” olarak kalmalı (ve artık yanlış pending sayısı olmamalı).
+- Eğer hâlâ görünmüyorsa ikinci katman patch:
+  - `useAppointments` içinde customer branch’e debug audit (query result + role + userId),
+  - role branch sapması varsa (teacher/customer) bunu ayrı net patch ile sabitleyeceğim.
 
-`/messages` istisnasını kaldır. Bunun yerine Messages sayfası için title/subtitle bilgisini geçir. Ancak `MobileHeaderWrapper` şu an prop almıyor ve route-based rendering yapıyor.
-
-İki seçenek:
-- **A)** `MobileHeaderWrapper`'ı kaldırıp `MobileHeader`'ı her zaman render et. `MobileHeader` zaten route'a göre title belirliyor (`getDefaultTitle`). `/messages` path'i için `getDefaultTitle`'a "Mesajlar" döndürmesini ekle. Subtitle için ise `MobileHeader`'ın kendi içinde route-specific subtitle render etmesi gerekir — bu header'ı page logic'e bağlar, **istenmeyen bağımlılık**.
-- **B)** `MobileHeaderWrapper`'ı kaldırıp, Messages sayfasının subtitle bilgisini bir atom veya context ile global header'a iletmesi — **overengineering**.
-- **C) En temiz:** `MobileHeaderWrapper`'daki `/messages` istisnasını kaldır. `MobileHeader`'ın `getDefaultTitle`'ına `/messages` → "Mesajlar" ekle. Subtitle'ı şimdilik bırak (sadece title yeterli). Messages sayfasındaki local header'ı (satır 138-143) tamamen kaldır.
-
-**Tercih: C yaklaşımı.** Nedeni:
-- "3 konuşma" alt yazısı kritik bir bilgi değil, kaldırılması UX'i bozmaz
-- Safe area tek merkezden yönetilir
-- Minimum değişiklik, sıfır yeni abstraction
-- Eğer ileride subtitle gerekirse `MobileHeader`'a prop eklemek kolay
-
-### 3. Messages sayfası local header kaldırılabilir mi?
-
-**Evet.** Local header sadece "Mesajlar" başlığı + "X konuşma" sayısını gösteriyor. Başlık `MobileHeader` tarafından otomatik gösterilebilir. Konuşma sayısı opsiyonel bilgi.
-
-Messages mobil container'ı (satır 133-152) şu hale gelir:
-- Local header div'i kaldırılır
-- `ConversationList` doğrudan flex-1 alanı doldurur
-- Height hesabı `MobileHeader` yüksekliğini de hesaba katmalı (zaten `flex-1` ile App shell'den alıyor)
-
-**Önemli:** Messages mobile container şu an kendi height'ını hesaplıyor: `height: calc(100dvh - 80px - env(safe-area-inset-bottom))`. Bu, App shell'in `<main>` flex yapısıyla çakışıyor. Local header kaldırıldığında bu sabit height'a da gerek kalmaz — normal akışta `<main>` flex-1 + overflow-y-auto zaten doğru yüksekliği verir.
-
-### Yapılacak değişiklikler:
-
-**`src/components/mobile/MobileHeader.tsx`:**
-- `getDefaultTitle` fonksiyonuna `/messages` → "Mesajlar" ekle
-
-**`src/App.tsx`:**
-- `MobileHeaderWrapper`'daki `/messages` kontrolünü kaldır (her zaman `MobileHeader` render et)
-
-**`src/pages/Messages.tsx`:**
-- Mobil conversation list bölümündeki local header div'i (satır 138-143) kaldır
-- Container'daki sabit height style'ı kaldır, `h-full` veya `flex-1` ile değiştir (App shell'in main alanı zaten doğru boyutu veriyor)
-
----
-
-## Bottom Nav Fix (Değişiklik Yok)
-
-**`src/components/mobile/MobileBottomNav.tsx`:**
-- `paddingBottom: env(safe-area-inset-bottom)` → `<nav>`'dan iç `<div>`'e (background div) taşı
-- Nav elemanından style kaldır, iç div'e ekle
-- Arka plan rengi safe area alanını da kaplar, bar tabana yapışık görünür
-
----
-
-## Uygulama Sırası
-
-1. **MobileHeader** — `/messages` title desteği ekle
-2. **App.tsx** — `/messages` istisnasını kaldır
-3. **Messages.tsx** — local header ve sabit height kaldır
-4. **MobileBottomNav.tsx** — safe area padding'i iç div'e taşı
-
-## Riskler
-
-- Messages sayfasında "X konuşma" bilgisi kaybolur — düşük etki, kabul edilebilir
-- Messages container'ın height hesabı değişiyor — App shell'in flex yapısı zaten doğru boyutlandırma sağlıyor, test ile doğrulanmalı
-- Bottom nav fix Android'de nötr (inset 0), iOS'ta pozitif etki
-
+8) Beklenen nihai sonuç
+- SQL tarafında pending_count, admin işlemleriyle tutarlı olacak (hepsi reddedildiyse pending 0).
+- Danışan bekleyen sekmesi, admin onayı bekleyen yeni randevuları deterministik şekilde gösterecek.
+- Admin reddettiğinde appointment status’unun pending’de kalması kalıcı olarak bitecek.

@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import ScrollToTop from './components/ScrollToTop';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -57,10 +57,8 @@ function renderRoute(route: RouteConfig, user: any) {
 
 import { NotFound } from './routes/routeConfig';
 
-// Conditional MobileHeader — hidden on /messages
+// MobileHeader rendered on all pages (safe area managed centrally)
 function MobileHeaderWrapper() {
-  const location = useLocation();
-  if (location.pathname.startsWith('/messages')) return null;
   return <MobileHeader />;
 }
 

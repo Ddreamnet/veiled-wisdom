@@ -76,7 +76,8 @@ const MobileHeaderComponent = ({ title, showBackButton, className }: MobileHeade
   const getDefaultTitle = (): string | undefined => {
     const path = location.pathname;
     
-    // Don't show title for root tabs - they're self-explanatory
+    // Root tabs: most are self-explanatory, but some need a title
+    if (path === '/messages') return 'Mesajlar';
     if (isRootTab) return undefined;
     
     // Detail pages get titles
