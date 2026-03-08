@@ -86,23 +86,7 @@ export default function Appointments() {
 
   return (
     <div className="container px-4 md:px-6 lg:px-8 py-8 md:py-12">
-      {/* Breadcrumb Navigation - Desktop only */}
-      <div className="mb-4 hidden md:block">
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/" className="flex items-center gap-1">
-                <Home className="h-4 w-4" />
-                Ana Sayfa
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Randevularım</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </div>
+      <UnifiedBreadcrumb customItems={[{ label: 'Randevularım' }]} />
 
       <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Randevularım</h1>
 

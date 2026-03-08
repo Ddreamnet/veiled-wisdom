@@ -45,6 +45,25 @@ export type ListingPrice = {
   price: number;
 };
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// ENRICHED / JOINED TYPES
+// Used by query hooks and components that work with enriched data
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** Profile summary embedded in listing cards */
+export type ListingProfileSummary = {
+  username: string;
+  avatar_url: string | null;
+};
+
+/** Listing enriched with teacher profile and minimum price — used in listing grids/cards */
+export type ListingWithProfile = Listing & {
+  profiles: ListingProfileSummary;
+  minPrice?: number;
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+
 export type Appointment = {
   id: string;
   listing_id: string;

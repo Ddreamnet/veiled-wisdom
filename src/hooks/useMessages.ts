@@ -86,7 +86,7 @@ export function useMessages(conversationId: string | null) {
     };
 
     pollTimerRef.current = setTimeout(poll, pollIntervalRef.current);
-  }, [messages, stopPolling]);
+  }, [stopPolling]);
 
   useEffect(() => {
     if (!conversationId || !user) {
