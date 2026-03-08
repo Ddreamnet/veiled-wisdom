@@ -54,7 +54,7 @@ export function WaitingRoom({
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.3 }}
-          className="relative aspect-video bg-card rounded-2xl overflow-hidden border border-border shadow-2xl"
+          className="relative aspect-[3/4] md:aspect-video max-w-[280px] md:max-w-lg mx-auto bg-card rounded-2xl overflow-hidden border border-border shadow-2xl"
         >
           {isCameraOn && localParticipant?.videoTrack ? (
             <video
