@@ -172,7 +172,7 @@ async function handleChatMessage(
 ) {
   const senderId = record.sender_id as string;
   const conversationId = record.conversation_id as string;
-  const content = (record.content as string) || "";
+  const messageText = (record.body as string) || (record.content as string) || "";
 
   // Get conversation participants (excluding sender)
   const { data: participants } = await supabase
