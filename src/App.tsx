@@ -102,7 +102,7 @@ function AppRoutes() {
         <MobileHeaderWrapper />
         <main 
           className="flex-1 overflow-y-auto overflow-x-hidden"
-          style={{ paddingBottom: "calc(80px + env(safe-area-inset-bottom, 0px))" }}
+          style={{ paddingBottom: bottomNavPaddingStyle }}
         >
           {content}
         </main>

@@ -20,10 +20,9 @@ const MobileLayoutComponent = ({
     <div className="md:hidden min-h-screen flex flex-col">
       <MobileHeader title={headerTitle} showBackButton={showBackButton} />
       
-      {/* Main content with bottom padding to avoid nav overlap */}
       <main 
-        className="flex-1 pb-24"
-        style={{ paddingBottom: "calc(80px + env(safe-area-inset-bottom, 0px))" }}
+        className="flex-1"
+        style={{ paddingBottom: bottomNavPaddingStyle }}
       >
         {children}
       </main>
