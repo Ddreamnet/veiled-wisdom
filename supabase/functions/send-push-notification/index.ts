@@ -6,6 +6,11 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-internal-trigger-secret",
 };
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function shortId(uuid: string): string {
+  return uuid.replace(/-/g, "");
+}
+
 // ── FCM v1 Auth ──────────────────────────────────────────────────────────────
 interface ServiceAccount {
   project_id: string;
