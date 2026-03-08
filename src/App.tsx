@@ -74,6 +74,9 @@ function AppRoutes() {
   
   // Register push notifications (native only)
   usePushNotifications();
+  
+  // Swipe-back gesture for mobile (both iOS and Android)
+  useSwipeBack();
 
   if (!loading) {
     hasRenderedRef.current = true;
