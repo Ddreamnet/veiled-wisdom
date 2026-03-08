@@ -65,6 +65,7 @@ export default function VideoCallPage() {
   const [callObject, setCallObject] = useState<DailyCall | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [permissionDenied, setPermissionDenied] = useState(false);
 
   const callObjectRef = useRef<DailyCall | null>(null);
   const currentRoomUrlRef = useRef<string | null>(null);
