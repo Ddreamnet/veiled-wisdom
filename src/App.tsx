@@ -12,6 +12,7 @@ import { PageLoader } from './components/PageLoader';
 import { usePresence } from './hooks/usePresence';
 import { usePushNotifications } from './hooks/usePushNotifications';
 import { useIsMobileLayout } from './hooks/useIsMobileLayout';
+import { useSwipeBack } from './hooks/useSwipeBack';
 import { ProtectedRoute, allRoutes, RouteConfig } from './routes';
 
 import { useRef } from 'react';
