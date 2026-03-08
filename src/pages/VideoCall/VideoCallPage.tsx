@@ -10,13 +10,14 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { DailyProvider } from '@daily-co/daily-react';
 import Daily, { DailyCall } from '@daily-co/daily-js';
 import { motion } from 'framer-motion';
-import { Phone, PhoneOff } from 'lucide-react';
+import { Phone, PhoneOff, Settings } from 'lucide-react';
 import { useSetAtom } from 'jotai';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/useToast';
 import { devLog } from '@/lib/debug';
 import { isChatOpenAtom } from '@/atoms/chatAtoms';
+import { requestMediaAccess, isMediaBlocked, getMediaErrorMessage } from '@/lib/mediaPermissions';
 
 // Types
 import type { CallIntent, CreateDailyRoomResponse } from './types';
