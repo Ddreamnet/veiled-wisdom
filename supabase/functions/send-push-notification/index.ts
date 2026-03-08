@@ -172,7 +172,7 @@ async function handleChatMessage(
 ) {
   const senderId = record.sender_id as string;
   const conversationId = record.conversation_id as string;
-  const content = (record.content as string) || "";
+  const messageText = (record.body as string) || (record.content as string) || "";
 
   // Get conversation participants (excluding sender)
   const { data: participants } = await supabase
@@ -209,15 +209,15 @@ async function handleChatMessage(
       .select("*", { count: "exact", head: true })
       .eq("conversation_id", conversationId)
       .neq("sender_id", recipientId)
-      .eq("is_read", false);
+      .eq("read", false);
 
     const unread = unreadCount || 1;
     const preview =
-      content.length > 60 ? content.substring(0, 57) + "..." : content;
+      messageText.length > 80 ? messageText.substring(0, 77) + "..." : messageText;
     const body =
       unread > 1
-        ? `${senderName}: ${unread} yeni mesaj • Son: ${preview}`
-        : `${senderName}: ${preview}`;
+        ? `${unread} yeni mesaj • Son: ${preview}`
+        : preview;
 
     // Get recipient devices
     const { data: devices } = await supabase
@@ -261,7 +261,10 @@ async function handleChatMessage(
               android: {
                 notification: {
                   tag: androidTag,
-                  channel_id: "messages",
+                  channel_id: "messages_v2",
+                  sound: "default",
+                  icon: "ic_notification",
+                  notification_count: unread,
                   click_action: "FLUTTER_NOTIFICATION_CLICK",
                 },
                 collapse_key: androidTag,

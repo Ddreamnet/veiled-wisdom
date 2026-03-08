@@ -88,24 +88,27 @@ export function usePushNotifications() {
         if (platform === 'android') {
           try {
             await (PushNotifications as any).createChannel?.({
-              id: 'messages',
+              id: 'messages_v2',
               name: 'Mesajlar',
-              importance: 4, // HIGH
-              sound: 'default',
+              importance: 5, // MAX
+              vibration: true,
+            });
+            await (PushNotifications as any).createChannel?.({
+              id: 'messages',
+              name: 'Mesajlar (Eski)',
+              importance: 4,
               vibration: true,
             });
             await (PushNotifications as any).createChannel?.({
               id: 'appointments',
               name: 'Randevular',
               importance: 4,
-              sound: 'default',
               vibration: true,
             });
             await (PushNotifications as any).createChannel?.({
               id: 'admin',
               name: 'Yönetim',
-              importance: 3, // DEFAULT
-              sound: 'default',
+              importance: 3,
             });
           } catch {
             // createChannel may not be available on all versions
