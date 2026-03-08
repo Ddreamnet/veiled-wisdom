@@ -1,107 +1,53 @@
 
-Hedefinize göre bu sefer “kesin çözüm” için yalnızca semptom değil, veri bütünlüğünü kökten kilitleyen bir plan uygulayacağım. Mevcut bulgulara göre ana problem tek bir katmanda değil; **payment_requests ↔ appointments senkronu kırılmış**.
 
-1) Kesin teşhis (eldeki veriye göre)
-- Admin’de payment_request’ler `rejected` olurken, appointments tarafında hâlâ `pending` kalabilen kayıtlar var (senin verdiğin sayı: toplam 8, pending 6, cancelled 2).
-- `src/pages/admin/Payments.tsx` içinde reject/approve sırasında appointments update çağrısında:
-  - result/error kontrolü yapılmıyor,
-  - `.select()` yok, etkilenen satır sayısı doğrulanmıyor.
-- Network’te appointments PATCH `204` dönüyor; bu “başarılı güncellendi” garantisi değil (0 row update de olabilir).
-- Bu yüzden payment_requests ve appointments durumları ayrışıyor; SQL’de pending şişmesi buradan geliyor.
-- Danışan `/appointments` ekranı sadece `appointments` tablosunu okuduğu için, payment_request doğru olsa bile appointments tarafı bozuksa görünürlük bozuluyor.
+# Fix: iOS Posting APNs Token Instead of FCM Token
 
-2) Uygulanacak çözüm mimarisi (kalıcı)
-A) DB tarafını tek kaynak gerçeklik haline getir
-- `payment_requests.status` değiştiğinde bağlı `appointments.status` otomatik güncellensin (DB trigger).
-- Uygulama koduna güvenmek yerine DB’de zorunlu senkron.
+## Problem
+Line 25 of `AppDelegate.swift` posts the raw APNs `deviceToken` (Data) to Capacitor's registration notification. Capacitor then hands this to the JS layer, which stores it in `push_devices.fcm_token`. FCM rejects it with `INVALID_ARGUMENT`.
 
-B) Veri onarımı (one-time backfill)
-- Mevcut bozuk kayıtları toplu senkronla:
-  - `payment_requests.rejected` -> `appointments.cancelled`
-  - `payment_requests.confirmed` -> `appointments.confirmed`
-  - `payment_requests.pending` -> `appointments.pending`
-- Bu adım senin “şu an pending 6 neden var?” sorununu temizler.
+## Fix
 
-C) Uygulama katmanını sessiz hataya kapat
-- Admin reject/approve akışında appointments update sonucu zorunlu kontrol:
-  - error varsa throw,
-  - updated row count 0 ise uyarı + log + işlemi başarısız say.
-- Böylece bir daha “görünürde reddedildi ama appointment pending kaldı” olmayacak.
+**`ios/App/App/AppDelegate.swift`** — single change in `didRegisterForRemoteNotificationsWithDeviceToken`:
 
-3) Uygulanacak dosya/SQL değişiklik planı
-- `src/pages/admin/Payments.tsx`
-  - `handleReject` ve `handleApprove` içinde appointments update sonucunu `select()` ile doğrulama.
-  - başarısız senkron durumunda toast + abort.
-- (Yeni migration SQL)
-  - status sync trigger function (`payment_requests` -> `appointments`)
-  - one-time data reconciliation script
+1. Set `Messaging.messaging().apnsToken = deviceToken` (keep this)
+2. **Remove** the line that posts raw deviceToken to Capacitor
+3. **Add** `Messaging.messaging().token { token, error in ... }` to fetch the actual FCM token
+4. Post the FCM token **string** (not Data) via `.capacitorDidRegisterForRemoteNotifications`
+5. Add `NSLog` statements for debugging (APNs received, FCM token fetched, error if any)
 
-4) Önce çalıştırılacak kesin doğrulama SQL (teşhis)
-```sql
--- A) Senkron bozukluk özeti
-select
-  pr.status as pr_status,
-  a.status  as appt_status,
-  count(*)  as cnt
-from public.payment_requests pr
-left join public.appointments a
-  on a.payment_request_id = pr.id
-where pr.item_type = 'appointment'
-group by pr.status, a.status
-order by pr.status, a.status;
+Also update `messaging(_:didReceiveRegistrationToken:)` to post refreshed FCM tokens to Capacitor (handles token rotation).
 
--- B) payment_request rejected ama appointment cancelled olmayanlar
-select
-  pr.id as pr_id,
-  pr.reference_code,
-  pr.status as pr_status,
-  a.id as appt_id,
-  a.status as appt_status
-from public.payment_requests pr
-left join public.appointments a on a.payment_request_id = pr.id
-where pr.item_type = 'appointment'
-  and pr.status = 'rejected'
-  and (a.id is null or a.status <> 'cancelled')
-order by pr.created_at desc;
+```swift
+func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+    Messaging.messaging().apnsToken = deviceToken
+    NSLog("[Push] APNs token received (\(deviceToken.count) bytes)")
+
+    Messaging.messaging().token { token, error in
+        if let error = error {
+            NSLog("[Push] FCM token fetch error: \(error.localizedDescription)")
+            return
+        }
+        guard let fcmToken = token else { return }
+        NSLog("[Push] FCM token fetched: \(fcmToken.prefix(20))...")
+        NotificationCenter.default.post(
+            name: .capacitorDidRegisterForRemoteNotifications,
+            object: fcmToken
+        )
+    }
+}
+
+func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+    guard let fcmToken = fcmToken else { return }
+    NSLog("[Push] FCM token refreshed: \(fcmToken.prefix(20))...")
+    NotificationCenter.default.post(
+        name: .capacitorDidRegisterForRemoteNotifications,
+        object: fcmToken
+    )
+}
 ```
 
-5) One-time düzeltme SQL (pending 6’yı temizleyen adım)
-```sql
-begin;
+## Post-fix
+- **Yes, delete the old invalid iOS `push_devices` row** before retesting. The old row has a garbage APNs token that will never work.
+- Rebuild iOS app with the updated AppDelegate.
+- No JS-side changes needed — `usePushNotifications.ts` already stores `token.value` which will now be the correct FCM token.
 
-update public.appointments a
-set status = case
-  when pr.status = 'rejected' then 'cancelled'
-  when pr.status = 'confirmed' then 'confirmed'
-  else 'pending'
-end
-from public.payment_requests pr
-where a.payment_request_id = pr.id
-  and pr.item_type = 'appointment'
-  and a.status is distinct from case
-    when pr.status = 'rejected' then 'cancelled'
-    when pr.status = 'confirmed' then 'confirmed'
-    else 'pending'
-  end;
-
-commit;
-```
-
-6) Kalıcı DB trigger planı (tekrar bozulmaması için)
-- `payment_requests` üzerinde `AFTER UPDATE OF status` trigger:
-  - sadece `item_type='appointment'` için çalışacak,
-  - bağlı appointment status’u map’leyecek (`rejected -> cancelled`, `confirmed -> confirmed`, `pending -> pending`).
-
-7) Danışan görünürlük sorunu için kesinleştirme adımı
-- DB senkronu düzeltildikten sonra `/appointments` ekranı yeniden test:
-  - yeni ödeme oluştur,
-  - admin onaylamadan önce danışanda “Bekleyen”de görünmeli,
-  - admin reddedince status “Reddedildi” olarak kalmalı (ve artık yanlış pending sayısı olmamalı).
-- Eğer hâlâ görünmüyorsa ikinci katman patch:
-  - `useAppointments` içinde customer branch’e debug audit (query result + role + userId),
-  - role branch sapması varsa (teacher/customer) bunu ayrı net patch ile sabitleyeceğim.
-
-8) Beklenen nihai sonuç
-- SQL tarafında pending_count, admin işlemleriyle tutarlı olacak (hepsi reddedildiyse pending 0).
-- Danışan bekleyen sekmesi, admin onayı bekleyen yeni randevuları deterministik şekilde gösterecek.
-- Admin reddettiğinde appointment status’unun pending’de kalması kalıcı olarak bitecek.
