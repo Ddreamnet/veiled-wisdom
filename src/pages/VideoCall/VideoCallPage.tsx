@@ -179,7 +179,22 @@ export default function VideoCallPage() {
 
         const initStart = performance.now();
 
-        // OPTIMIZATION 1: Create CallObject IMMEDIATELY (before room fetch)
+        // ═══ PERMISSION GATE: Check media access BEFORE creating Daily call object ═══
+        devLog('VideoCall', 'Running media permission gate...');
+        const mediaDiag = await requestMediaAccess();
+        devLog('VideoCall', 'Media diagnostics:', mediaDiag);
+
+        if (isMediaBlocked(mediaDiag)) {
+          const errorMsg = getMediaErrorMessage(mediaDiag);
+          devLog('VideoCall', 'Media blocked — aborting call init:', errorMsg);
+          if (!isMounted) return;
+          setPermissionDenied(true);
+          setError(errorMsg);
+          setIsLoading(false);
+          return;
+        }
+
+        // OPTIMIZATION 1: Create CallObject IMMEDIATELY (after permission check)
         const call = Daily.createCallObject({ allowMultipleCallInstances: true });
         callObjectRef.current = call;
         setCallObject(call);
