@@ -388,16 +388,22 @@ export default function VideoCallPage() {
 
   if (error) {
     return (
-      <div className="fixed inset-0 z-40 bg-gradient-to-br from-background via-purple-950/20 to-background flex items-center justify-center p-4 overflow-hidden">
+      <div className="fixed inset-0 z-40 bg-gradient-to-br from-background via-primary/5 to-background flex items-center justify-center p-4 overflow-hidden">
         <motion.div 
           initial={{ opacity: 0, y: 20 }} 
           animate={{ opacity: 1, y: 0 }} 
           className="text-center space-y-4 max-w-sm"
         >
           <div className="h-16 w-16 rounded-full bg-destructive/20 flex items-center justify-center mx-auto">
-            <PhoneOff className="h-8 w-8 text-destructive" />
+            {permissionDenied ? (
+              <Settings className="h-8 w-8 text-destructive" />
+            ) : (
+              <PhoneOff className="h-8 w-8 text-destructive" />
+            )}
           </div>
-          <p className="text-lg font-semibold">Görüşmeye bağlanılamadı</p>
+          <p className="text-lg font-semibold">
+            {permissionDenied ? 'İzin Gerekli' : 'Görüşmeye bağlanılamadı'}
+          </p>
           <p className="text-sm text-muted-foreground">{error}</p>
           <div className="flex items-center justify-center gap-3 pt-2">
             <Button variant="outline" onClick={() => navigate('/messages')}>Mesajlara Dön</Button>

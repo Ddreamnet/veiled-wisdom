@@ -32,17 +32,7 @@ export function ChatWindow({ conversation, onBack, onMessagesRead }: ChatWindowP
   const prefetchMediaPermissions = useCallback(async () => {
     if (mediaPreloadedRef.current) return;
     mediaPreloadedRef.current = true;
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: true, 
-        video: true 
-      });
-      stream.getTracks().forEach(t => t.stop());
-      devLog('ChatWindow', 'Media permissions prefetched');
-    } catch (e) {
-      // Permission denied or not available - that's fine, will be handled during call
-      devLog('ChatWindow', 'Media prefetch skipped:', e);
-    }
+    await prefetchMedia();
   }, []);
 
   // OPTIMIZATION: Preload VideoCall chunk so it's cached when user clicks "Call"
