@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Star, ExternalLink } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Star, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
 
 import { TeacherDetails, ReviewWithProfile } from "../types";
 
@@ -18,9 +20,12 @@ export function TeacherInfoCard({
   reviews,
   averageRating,
 }: TeacherInfoCardProps) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = !!teacher.bio && teacher.bio.length > 300;
+
   return (
     <Card className="border border-border/40 shadow-sm rounded-xl">
-      <CardHeader className="px-4 py-2.5 bg-muted/20">
+      <CardHeader className="px-4 py-2.5 bg-gradient-to-r from-primary/3 to-primary/6">
         <CardTitle className="text-sm md:text-base font-semibold flex items-center gap-2">
           <Star className="h-4 w-4 text-primary" />
           Uzman Hakkında
@@ -88,9 +93,32 @@ export function TeacherInfoCard({
           )}
 
           {teacher.bio && (
-            <p className="text-muted-foreground leading-relaxed pt-1 border-t border-border/30">
-              {teacher.bio}
-            </p>
+            <div className="pt-1 border-t border-border/30">
+              <p
+                className={`text-muted-foreground leading-relaxed whitespace-pre-line ${
+                  !expanded && isLong ? "line-clamp-4" : ""
+                }`}
+              >
+                {teacher.bio}
+              </p>
+              {isLong && (
+                <Button
+                  variant="ghost"
+                  onClick={() => setExpanded(!expanded)}
+                  className="mt-2 h-7 px-2 text-xs text-primary hover:text-primary/80"
+                >
+                  {expanded ? (
+                    <>
+                      Daha az göster <ChevronUp className="ml-1 h-3 w-3" />
+                    </>
+                  ) : (
+                    <>
+                      Devamını oku <ChevronDown className="ml-1 h-3 w-3" />
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
           )}
         </div>
       </CardContent>
