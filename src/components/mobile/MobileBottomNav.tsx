@@ -335,14 +335,11 @@ const MobileBottomNavComponent = () => {
                   {item.label}
                 </span>
 
-                {/* Badge for unread messages */}
-                {typeof item.badge === "number" && item.badge > 0 && (
+                {/* Badge - aktif durumda label yanında */}
+                {active && typeof item.badge === "number" && item.badge > 0 && (
                   <Badge
                     variant="destructive"
-                    className={cn(
-                      "h-4 min-w-4 flex items-center justify-center p-0 px-1 text-[10px]",
-                      active ? "ml-1" : "absolute -top-0.5 -right-0.5",
-                    )}
+                    className="ml-1 h-4 min-w-4 flex items-center justify-center p-0 px-1 text-[10px]"
                   >
                     {item.badge > 99 ? "99+" : item.badge}
                   </Badge>

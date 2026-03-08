@@ -100,7 +100,7 @@ const MobileHeaderComponent = ({ title, showBackButton, className }: MobileHeade
       className={cn(
         "sticky top-0 z-50 w-full md:hidden",
         "backdrop-blur-xl bg-background/95 border-b border-silver/10",
-        "h-14",
+        "min-h-14",
         className
       )}
       style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}

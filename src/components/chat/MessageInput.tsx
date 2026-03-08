@@ -240,7 +240,7 @@ export function MessageInput({ onSendMessage, sending }: MessageInputProps) {
                 rows={1}
                 className={cn(
                   "w-full resize-none bg-transparent pl-4 pr-2 py-3",
-                  "text-sm placeholder:text-muted-foreground",
+                  "text-base placeholder:text-muted-foreground",
                   "focus:outline-none",
                   "min-h-[44px]"
                 )}
