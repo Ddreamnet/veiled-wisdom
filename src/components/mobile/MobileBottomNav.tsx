@@ -262,7 +262,7 @@ const MobileBottomNavComponent = () => {
         <div
           ref={containerRef}
           className="relative flex items-center justify-around px-3"
-          style={{ minHeight: `${BOTTOM_NAV_HEIGHT}px` }}
+          style={{ height: `${BOTTOM_NAV_HEIGHT}px` }}
         >
           {/* Sliding pill background (keep mounted to avoid jump/flicker) */}
           <motion.div
@@ -272,14 +272,14 @@ const MobileBottomNavComponent = () => {
               opacity: pillPosition ? 1 : 0,
               left: pillPosition?.left ?? 0,
               width: pillPosition?.width ?? 0,
-              height: 44,
+              height: 40,
             }}
             transition={{
               type: "tween",
               duration: 0.2,
               ease: "easeOut",
             }}
-            style={{ marginTop: -22, pointerEvents: "none" }}
+            style={{ marginTop: -20, pointerEvents: "none" }}
           />
 
           {navItems.map((item) => {
@@ -301,10 +301,10 @@ const MobileBottomNavComponent = () => {
                 onMouseLeave={() => setPressedItem(null)}
                 className={cn(
                   "relative z-10 flex items-center justify-center transition-[padding,gap,width,opacity,transform] duration-200 ease-out",
-                  "min-h-[44px] rounded-full",
+                  "rounded-full",
                   active 
-                    ? "flex-row px-3 py-2 gap-1.5 min-w-[100px] max-w-[120px]" 
-                    : "flex-col px-2 py-2 w-[52px]",
+                    ? "flex-row px-3 py-1.5 gap-1.5 min-w-[100px] max-w-[120px] h-10" 
+                    : "flex-col px-2 py-1 w-[52px] h-11",
                   isPressed && "scale-95 opacity-80",
                 )}
               >
@@ -331,8 +331,8 @@ const MobileBottomNavComponent = () => {
                   className={cn(
                     "font-medium whitespace-nowrap overflow-hidden text-ellipsis transition-all duration-200",
                     active 
-                      ? "text-xs text-primary max-w-[60px]" 
-                      : "text-[10px] text-silver-muted mt-1",
+                      ? "text-xs text-primary max-w-[60px] leading-none" 
+                      : "text-[10px] text-silver-muted mt-0.5 leading-none",
                   )}
                 >
                   {item.label}

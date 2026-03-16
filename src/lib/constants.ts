@@ -10,10 +10,10 @@ export const PLATFORM_COMMISSION_RATE = 0.25;
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /** Bottom nav content area height in px (excludes safe area inset) */
-export const BOTTOM_NAV_HEIGHT = 56;
+export const BOTTOM_NAV_HEIGHT = 50;
 
 /** Extra breathing room between content and nav */
-export const BOTTOM_NAV_PADDING_EXTRA = 12;
+export const BOTTOM_NAV_PADDING_EXTRA = 10;
 
 /** Total bottom offset for main content padding: nav height + extra spacing */
 export const BOTTOM_NAV_CONTENT_OFFSET = BOTTOM_NAV_HEIGHT + BOTTOM_NAV_PADDING_EXTRA; // 68
