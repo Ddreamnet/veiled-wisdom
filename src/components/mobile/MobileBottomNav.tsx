@@ -331,8 +331,8 @@ const MobileBottomNavComponent = () => {
                   className={cn(
                     "font-medium whitespace-nowrap overflow-hidden text-ellipsis transition-all duration-200",
                     active 
-                      ? "text-xs text-primary max-w-[60px]" 
-                      : "text-[10px] text-silver-muted mt-1",
+                      ? "text-xs text-primary max-w-[60px] leading-none" 
+                      : "text-[10px] text-silver-muted mt-0.5 leading-none",
                   )}
                 >
                   {item.label}
