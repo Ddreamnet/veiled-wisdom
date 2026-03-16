@@ -43,6 +43,7 @@ const MobileBottomNavComponent = () => {
   const [pillPosition, setPillPosition] = useState<PillPosition | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Map<string, HTMLAnchorElement>>(new Map());
+  const safeAreaBottomStyle = "max(0px, calc(env(safe-area-inset-bottom, 0px) - 10px))";
 
   // Keep this list comprehensive so we never briefly "lose" the active highlight on deep pages.
   // (This is what caused the flicker/jump when navigating between tabs from a deep route.)
@@ -84,11 +85,11 @@ const MobileBottomNavComponent = () => {
     // Admin navigation - Dashboard, Gelirler, Mesajlar, Profil
     if (role === "admin") {
       return [
-        { 
-          icon: LayoutDashboard, 
-          label: "Dashboard", 
-          href: "/admin/dashboard", 
-          matchPrefixes: ["/admin/dashboard", "/admin/users", "/admin/teachers", "/admin/categories", "/admin/curiosities", "/admin/pages", "/admin/approvals"] 
+        {
+          icon: LayoutDashboard,
+          label: "Dashboard",
+          href: "/admin/dashboard",
+          matchPrefixes: ["/admin/dashboard", "/admin/users", "/admin/teachers", "/admin/categories", "/admin/curiosities", "/admin/pages", "/admin/approvals"]
         },
         { icon: CheckCircle, label: "Ödemeler", href: "/admin/payments", matchPrefixes: ["/admin/payments"] },
         { icon: TurkishLiraIcon, label: "Gelirler", href: "/admin/earnings", matchPrefixes: ["/admin/earnings"] },
@@ -131,13 +132,11 @@ const MobileBottomNavComponent = () => {
     for (const prefix of prefixes) {
       if (!prefix) continue;
 
-      // Special-case home: only exact match
       if (prefix === "/") {
         if (pathname === "/") best = Math.max(best, 1);
         continue;
       }
 
-      // Exact or "under this tree" match
       if (pathname === prefix || pathname.startsWith(prefix)) {
         best = Math.max(best, prefix.length);
       }
@@ -146,14 +145,12 @@ const MobileBottomNavComponent = () => {
     return best;
   };
 
-  // Pick the most specific matching tab (longest prefix wins)
   const activeHref = useMemo(() => {
     const pathname = location.pathname;
     let bestHref: string | undefined;
     let bestLen = 0;
 
     for (const item of navItems) {
-      // Prefer the tab's full prefix list for matching, but return item.href as the stable identifier
       const len = getItemMatchLength(item, pathname);
       if (len > bestLen) {
         bestLen = len;
@@ -161,14 +158,11 @@ const MobileBottomNavComponent = () => {
       }
     }
 
-    // If nothing matches, return undefined to hide the pill
     if (bestLen === 0) return undefined;
     return bestHref;
   }, [location.pathname, navItems]);
 
   const isActive = (href: string) => activeHref === href;
-
-  // Sabit pill genişliği - buton genişliğine güvenmiyoruz
   const ACTIVE_PILL_WIDTH = 110;
 
   const measurePill = () => {
@@ -183,8 +177,6 @@ const MobileBottomNavComponent = () => {
 
     const containerRect = containerRef.current.getBoundingClientRect();
     const activeRect = activeElement.getBoundingClientRect();
-
-    // Sabit genişlik kullan ve ortalamak için offset hesapla
     const centerOffset = (activeRect.width - ACTIVE_PILL_WIDTH) / 2;
 
     setPillPosition({
@@ -193,17 +185,14 @@ const MobileBottomNavComponent = () => {
     });
   };
 
-  // Pill pozisyonunu anında hesapla - sabit genişlik kullandığımız için RAF gecikmesi gerekmiyor
   useLayoutEffect(() => {
     if (!activeHref) {
       setPillPosition(null);
       return;
     }
 
-    // Anında ölç
     measurePill();
 
-    // Font yüklenmesi tamamlandığında tekrar ölç
     const fontsReady = (document as any).fonts?.ready as Promise<void> | undefined;
     let cancelled = false;
     fontsReady?.then(() => {
@@ -216,7 +205,6 @@ const MobileBottomNavComponent = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeHref, navItems.length]);
 
-  // Recalculate on resize / container layout changes
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -236,35 +224,28 @@ const MobileBottomNavComponent = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeHref]);
 
-  // Also recalc when pressed state ends (because the item temporarily scales)
   useEffect(() => {
     if (!pressedItem) {
-      // after releasing, wait a frame so scale resets
       const raf = window.requestAnimationFrame(() => measurePill());
       return () => window.cancelAnimationFrame(raf);
     }
   }, [pressedItem]);
 
-  // Hide navbar when chat is open
   if (isChatOpen) {
     return null;
   }
 
   return (
-    <nav
-      className="fixed bottom-0 left-0 right-0 z-50 md:hidden"
-    >
-      {/* Full-width bottom bar - docked to bottom */}
+    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
       <div
         className="bg-background-elevated/95 backdrop-blur-xl border-t border-border/50 shadow-[0_-4px_30px_rgba(0,0,0,0.3)]"
-        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+        style={{ paddingBottom: safeAreaBottomStyle }}
       >
         <div
           ref={containerRef}
-          className="relative flex items-center justify-around px-3"
+          className="relative flex items-end justify-around px-2.5 pb-1"
           style={{ height: `${BOTTOM_NAV_HEIGHT}px` }}
         >
-          {/* Sliding pill background (keep mounted to avoid jump/flicker) */}
           <motion.div
             className="absolute bg-primary/20 border border-primary/30 rounded-full top-1/2"
             initial={false}
@@ -272,14 +253,14 @@ const MobileBottomNavComponent = () => {
               opacity: pillPosition ? 1 : 0,
               left: pillPosition?.left ?? 0,
               width: pillPosition?.width ?? 0,
-              height: 40,
+              height: 36,
             }}
             transition={{
               type: "tween",
               duration: 0.2,
               ease: "easeOut",
             }}
-            style={{ marginTop: -20, pointerEvents: "none" }}
+            style={{ marginTop: -18, pointerEvents: "none" }}
           />
 
           {navItems.map((item) => {
@@ -300,23 +281,20 @@ const MobileBottomNavComponent = () => {
                 onMouseUp={() => setPressedItem(null)}
                 onMouseLeave={() => setPressedItem(null)}
                 className={cn(
-                  "relative z-10 flex items-center justify-center transition-[padding,gap,width,opacity,transform] duration-200 ease-out",
-                  "rounded-full",
-                  active 
-                    ? "flex-row px-3 py-1.5 gap-1.5 min-w-[100px] max-w-[120px] h-10" 
-                    : "flex-col px-2 py-1 w-[52px] h-11",
+                  "relative z-10 flex items-center justify-center self-end rounded-full transition-[padding,gap,width,opacity,transform] duration-200 ease-out",
+                  active
+                    ? "flex-row gap-1.5 px-3 py-1 min-w-[96px] max-w-[116px] h-9"
+                    : "flex-col gap-0.5 px-2 py-0.5 w-[50px] h-9",
                   isPressed && "scale-95 opacity-80",
                 )}
               >
-                {/* Icon - sabit boyut */}
-                <div className="relative flex-shrink-0 flex items-center justify-center w-5 h-5 overflow-visible">
+                <div className="relative flex h-5 w-5 flex-shrink-0 items-center justify-center overflow-visible">
                   <Icon
                     className={cn(
                       "h-5 w-5 transition-colors duration-200",
                       active ? "text-primary" : "text-silver-muted",
                     )}
                   />
-                  {/* Badge - icon wrapper içinde, pasif durumda */}
                   {!active && typeof item.badge === "number" && item.badge > 0 && (
                     <Badge
                       variant="destructive"
@@ -326,19 +304,17 @@ const MobileBottomNavComponent = () => {
                     </Badge>
                   )}
                 </div>
-                {/* Label - overflow korumalı */}
                 <span
                   className={cn(
-                    "font-medium whitespace-nowrap overflow-hidden text-ellipsis transition-all duration-200",
-                    active 
-                      ? "text-xs text-primary max-w-[60px] leading-none" 
-                      : "text-[10px] text-silver-muted mt-0.5 leading-none",
+                    "font-medium whitespace-nowrap overflow-hidden text-ellipsis transition-all duration-200 leading-none",
+                    active
+                      ? "text-xs text-primary max-w-[60px]"
+                      : "text-[10px] text-silver-muted",
                   )}
                 >
                   {item.label}
                 </span>
 
-                {/* Badge - aktif durumda label yanında */}
                 {active && typeof item.badge === "number" && item.badge > 0 && (
                   <Badge
                     variant="destructive"
