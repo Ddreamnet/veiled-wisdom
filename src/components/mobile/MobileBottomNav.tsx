@@ -272,7 +272,7 @@ const MobileBottomNavComponent = () => {
               opacity: pillPosition ? 1 : 0,
               left: pillPosition?.left ?? 0,
               width: pillPosition?.width ?? 0,
-              height: 44,
+              height: 40,
             }}
             transition={{
               type: "tween",
