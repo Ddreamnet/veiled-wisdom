@@ -279,7 +279,7 @@ const MobileBottomNavComponent = () => {
               duration: 0.2,
               ease: "easeOut",
             }}
-            style={{ marginTop: -22, pointerEvents: "none" }}
+            style={{ marginTop: -20, pointerEvents: "none" }}
           />
 
           {navItems.map((item) => {
