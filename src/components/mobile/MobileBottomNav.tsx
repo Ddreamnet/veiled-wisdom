@@ -262,7 +262,7 @@ const MobileBottomNavComponent = () => {
         <div
           ref={containerRef}
           className="relative flex items-center justify-around px-3"
-          style={{ minHeight: `${BOTTOM_NAV_HEIGHT}px` }}
+          style={{ height: `${BOTTOM_NAV_HEIGHT}px` }}
         >
           {/* Sliding pill background (keep mounted to avoid jump/flicker) */}
           <motion.div
