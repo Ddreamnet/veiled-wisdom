@@ -10,7 +10,7 @@ const ACTIVE_THRESHOLD_MINUTES = 2; // 2 dakika içinde aktif sayılır
 
 export function usePresence() {
   const { user } = useAuth();
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const updatePresence = useCallback(async () => {
     if (!user) return;
