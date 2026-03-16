@@ -301,10 +301,10 @@ const MobileBottomNavComponent = () => {
                 onMouseLeave={() => setPressedItem(null)}
                 className={cn(
                   "relative z-10 flex items-center justify-center transition-[padding,gap,width,opacity,transform] duration-200 ease-out",
-                  "min-h-[44px] rounded-full",
+                  "rounded-full",
                   active 
-                    ? "flex-row px-3 py-2 gap-1.5 min-w-[100px] max-w-[120px]" 
-                    : "flex-col px-2 py-2 w-[52px]",
+                    ? "flex-row px-3 py-1.5 gap-1.5 min-w-[100px] max-w-[120px] h-10" 
+                    : "flex-col px-2 py-1 w-[52px] h-11",
                   isPressed && "scale-95 opacity-80",
                 )}
               >
